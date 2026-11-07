@@ -35,7 +35,7 @@ or try the API (the examples assume the default port 8765; with `--http-port N` 
 ```sh
 curl -s localhost:8765/api/runtimes/wearable | head -c 600
 curl -s -XPOST localhost:8765/api/sessions -H 'content-type: application/json' -d '{"label":"try"}'
-curl -s -XPOST localhost:8765/api/runtimes/wearable/calibration -H 'content-type: application/json' -d '{"action":"relaxed"}'
+curl -s -XPOST localhost:8765/api/sessions/SESSION_ID/stop -H 'content-type: application/json' -d '{}'   # use the id printed above
 ```
 
 ### See a full calibrated session (one command)
@@ -49,7 +49,8 @@ uv run python scripts/demo_calibrated_session.py
 It waits for a fresh 30 s simulated run, starts a session, sends the relaxed capture at
 0.5 s and the squeeze capture at 4.5 s of device time, stops the session, replays it, and
 checks the replay reproduces the score (about 0.0486 au over about 19 s of scored time).
-It exits 0 on success and takes about a minute (it waits for a fresh run). On another port:
+Stop any session you started above first (a second one is refused with 409, and the script
+says so right away). It exits 0 on success and takes about a minute (it waits for a fresh run). On another port:
 `uv run python scripts/demo_calibrated_session.py --url http://127.0.0.1:<port>`. The simulated
 run restarts every ~30 s and a calibration cannot span a restart, which is why the script
 follows the stream instead of timing by hand.
@@ -70,12 +71,22 @@ when you start from another folder.
 
 ### Demo-day tools
 
+All `vg-backend` commands are run from `backend/` as `uv run vg-backend ...`.
+
 | Command | What it does |
 |---|---|
 | `vg-backend preflight [--expect live] [--backup DIR]` | Checks a running backend: device connected, data really flowing, what the data source is (live/simulated/replay), calibration, WebSocket delivery, saved sessions intact (SHA-256), fallback backup valid, disk. PASS/WARN/FAIL with the fix for each; exit 1 if anything FAILs. |
 | `vg-backend export-backup SESSION_ID backup/NAME` | Copies a finished session into a small verified folder (hashes, every frame contract-checked). Refuses to overwrite one. |
 | `vg-backend verify-backup backup/NAME` | Detects a missing, edited or truncated backup. |
-| `vg-backend serve --backup backup/NAME` | Starts with the recording as the `wearable`, **labelled REPLAY** (with its original source), already calibrated as when it was recorded. The dashboard needs no change. |
+| `vg-backend serve --backup backup/NAME [--loop]` | Starts with the recording as the `wearable`, **labelled REPLAY** (with its original source). The dashboard needs no change. It plays once and then shows `completed` ("PLAYBACK FINISHED" on the status page); add `--loop` to play it again each time it ends, or `POST /api/runtimes/wearable/restart` to replay by hand. It cannot be DELETEd (that would leave no wearable). |
+
+The recording replays **its own** calibration commands: if you calibrated during the recording, the
+wearable shows `calibrating` for the first seconds. For a fallback that is calibrated from the
+first frame, calibrate (relaxed, then squeeze) BEFORE starting the session, then start it, stop it
+and export it: the calibration active at the start is saved with the session. (A session that
+starts with only the relaxed reference cannot be reproduced; it is flagged
+`started_with_relaxed_reference_only`.) A session cut off by a crash exports as `interrupted`, with a
+warning.
 
 `backup/demo-session/` is a committed known-good recording (SIMULATED, 1196 frames, about 1 MB):
 a calibrated session that scores 0.0486 au. Replace it with a real-hardware recording on demo day.
@@ -197,14 +208,21 @@ after the session stops (409 while it is recording).
 1. `uv run vg-backend serve --device serial --port '/dev/cu.usbmodem*' --imu-counts-per-g N --imu-conversion-source "..."`
 2. `uv run vg-backend preflight --expect live --backup backup/demo-session`: every line PASS
    (WARNs are things to know, FAIL means do not demo this way).
-3. Record a known-good session on the day: `vg-backend export-backup SESSION_ID backup/day-of`.
-4. If live data fails: stop the server and run `uv run vg-backend serve --backup backup/day-of`.
-   The dashboard shows the same `wearable`, now labelled `REPLAY`. Say so.
+3. Record a known-good session on the day (calibrate first, then start the session), then, from
+   `backend/`: `uv run vg-backend export-backup SESSION_ID backup/day-of` and commit it
+   (`git add backup/day-of`). Use another `--http-port` and `preflight --url http://127.0.0.1:PORT`
+   if 8765 is taken.
+4. If live data fails: stop the server and run `uv run vg-backend serve --backup backup/day-of --loop`.
+   The dashboard shows the same `wearable`, now labelled `REPLAY`. Say so. Without `--loop` it plays once
+   and stops; `POST /api/runtimes/wearable/restart` plays it again.
 5. After any restart, `GET /api/health` → `recovered_on_start` and `GET /api/history`
    should still show the earlier sessions.
 
 The acceptance evidence is in [`EVIDENCE.md`](EVIDENCE.md) (regenerate with
 `uv run python scripts/run_acceptance.py`).
+
+Ctrl-C or SIGTERM with a session open saves it as `interrupted` (`runtime_stopped`): its files and
+counters are intact and it replays fine. Stop the session first for a clean `completed` one.
 
 ## Station trials (PROPOSED interface)
 
@@ -224,6 +242,9 @@ prints a warning.
 
 ## Limits and open items
 
+- **A delivered stimulus has no record until it is answered.** The open trial lives in memory: if the
+  backend crashes between delivery and the answer, the session is marked `interrupted` and that
+  trial is missing. On start-up after a crash the controller is told to stop the motor.
 - **Station motor commands** run against a simulated controller only. The host→controller
   stimulus contract is a proposal (`STATION_INTERFACE.md`), not agreed with Fahad and Salaar.
 - The wire format is NDJSON. If the firmware moves to a binary frame, only a decoder in

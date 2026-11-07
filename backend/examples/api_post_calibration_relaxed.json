@@ -15,8 +15,8 @@
       "timebase": "device_monotonic_us",
       "event": "calibration_state",
       "stream": "emg",
-      "t_us": 1354000,
-      "source_seq": 55,
+      "t_us": 1304000,
+      "source_seq": 53,
       "detail": {
         "state": "capturing_relaxed",
         "reason": null,

@@ -160,6 +160,7 @@ class Backend:
         self.runtimes: dict[str, DeviceRuntime] = {}
         self._lock = threading.RLock()
         self._key_locks: dict[str, list] = {}  # request_id -> [lock, users]; removed when unused
+        self._loop_stop = threading.Event()
         self._station_engine = None
         self._station_lock = threading.RLock()  # trial index allocation and session finish
         self.recovered = {"wearable_sessions_interrupted": 0, "station_sessions_interrupted": 0}
@@ -171,6 +172,8 @@ class Backend:
                 self._describe_recovered(sid)
             if any(self.recovered.values()):
                 log.warning("marked sessions cut off by the previous run as interrupted: %s", self.recovered)
+            if self.recovered["station_sessions_interrupted"]:
+                self.station_engine.make_safe()  # a motor left running by the crash must stop
 
     def _take_lock(self) -> None:
         if fcntl is None:
@@ -196,10 +199,32 @@ class Backend:
         complete = data.count(b"\n")
         files = {n: file_info(d / n) for n in ("telemetry.ndjson", "rx_times.csv", "derived.ndjson",
                                                 "commands.ndjson") if (d / n).is_file()}
-        self.store.update_wearable_session(
-            session_id, files=files,
-            counters={"frames": complete, "recovered": True,
-                      "partial_last_line": bool(data) and not data.endswith(b"\n")})
+        # The session ended when the last frame arrived, not when the backend was restarted.
+        last_rx = None
+        rx = d / "rx_times.csv"
+        if rx.is_file():
+            for line in reversed(rx.read_text(encoding="utf-8", errors="replace").splitlines()):
+                parts = line.split(",")
+                if len(parts) == 3 and parts[1].endswith("Z"):
+                    last_rx = parts[1]
+                    break
+        recovered_at = row.get("ended_at")
+        fields: dict = {"files": files, "counters": {
+            "frames": complete, "recovered": True, "recovered_at": recovered_at,
+            "partial_last_line": bool(data) and not data.endswith(b"\n")}}
+        if last_rx:
+            fields["ended_at"] = last_rx
+        row = self.store.update_wearable_session(session_id, **fields)
+        mf = d / "manifest.json"  # the on-disk manifest still says 'recording'
+        if mf.is_file() and row is not None:
+            try:
+                m = json.loads(mf.read_text())
+                m["session"] = {k: v for k, v in row.items() if k not in ("dir", "files")}
+                tmp = d / "manifest.json.tmp"
+                tmp.write_text(json.dumps(m, indent=2, default=str) + "\n")
+                tmp.replace(mf)
+            except (ValueError, OSError):
+                pass
 
     @property
     def station_engine(self):
@@ -228,6 +253,40 @@ class Backend:
             raise NotFound(f"no runtime named {name!r}")
         return rt
 
+    def restart_backup(self, name: str = "wearable") -> dict:
+        """Play a finished backup fallback again from its first frame (a new, labelled replay run)."""
+        from .backup import start_backup_replay
+
+        rt = self.runtime(name)
+        path = rt.meta.get("backup")
+        if not path:
+            raise RuntimeConflict(f"runtime {name!r} was not started from a backup")
+        if not rt.finished and rt.alive:
+            raise RuntimeConflict("the recording is still playing")
+        loops = int(rt.meta.get("loop_count", 0)) + 1
+        speed, fast = rt.meta.get("speed", 1.0), bool(rt.meta.get("fast"))
+        rt.stop()  # finished: its thread has exited; the new runtime replaces it in one step
+        new = start_backup_replay(self, path, name=name, speed=speed, fast=fast,
+                                  extra_meta={"loop_count": loops})
+        self.hub.publish("runtime", name, {"event": "backup_restarted", "loop_count": loops})
+        return new.status()
+
+    def loop_backup(self, name: str = "wearable", gap_s: float = 1.0) -> threading.Thread:
+        """Keep the backup fallback playing: when it ends, start it again after ``gap_s``."""
+        def watch() -> None:
+            while not self._loop_stop.wait(0.5):
+                rt = self.runtimes.get(name)
+                if rt is not None and rt.finished and rt.meta.get("backup"):
+                    if self._loop_stop.wait(gap_s):
+                        return
+                    try:
+                        self.restart_backup(name)
+                    except Exception:  # noqa: BLE001 - keep trying; an error must not end the loop
+                        log.exception("could not restart the backup fallback")
+        t = threading.Thread(target=watch, name=f"loop-backup:{name}", daemon=True)
+        t.start()
+        return t
+
     def remove_runtime(self, name: str) -> dict:
         rt = self.runtime(name)
         rt.stop()
@@ -238,6 +297,7 @@ class Backend:
 
     def shutdown(self, timeout: float = 15.0) -> None:
         """Stop every runtime first; close the store only when no thread can still write."""
+        self._loop_stop.set()
         if self._station_engine is not None:
             self._station_engine.shutdown()  # motor safe, open trial closed as missing
         rts = list(self.runtimes.values())

@@ -32,6 +32,8 @@ def call(base: str, method: str, path: str, body: dict | None = None) -> dict:
             return json.loads(r.read() or b"null")
     except urllib.error.HTTPError as exc:
         sys.exit(f"{method} {path} -> {exc.code}: {exc.read().decode()}")
+    except urllib.error.URLError as exc:
+        sys.exit(f"cannot reach the backend at {base} ({exc.reason}). Start it first: uv run vg-backend serve")
 
 
 def say(text: str) -> None:
@@ -81,6 +83,10 @@ def main() -> int:
     base = ap.parse_args().url.rstrip("/")
     health = call(base, "GET", "/api/health")
     say(f"Backend ok, runtimes: {health['runtimes']}")
+    active = call(base, "GET", "/api/runtimes/wearable").get("active_session_id")
+    if active:
+        sys.exit(f"A session is already recording ({active}), so a new one would be refused with 409.\n"
+                 f"Stop it first:  curl -XPOST {base}/api/sessions/{active}/stop -H 'content-type: application/json' -d '{{}}'")
     row = asyncio.run(drive(base))
 
     sc = row["score"]
@@ -104,7 +110,10 @@ def main() -> int:
         if rr["state"] == "completed":
             break
         asyncio.run(asyncio.sleep(0.2))
-    cum = rr["latest"]["score"]["cumulative"]["value"]
+    final = rr["latest"]["score"]
+    if "cumulative" not in final:  # a finished replay masks its score; the last value is under last_seen
+        final = final["last_seen"]
+    cum = final["cumulative"]["value"]
     orig = sc["at_end"]["cumulative_au"] - (sc["at_start"]["cumulative_au"] if sc["at_start"] else 0.0)
     prov = rr["provenance"]
     say(f"  provenance       {prov['source']} of a {prov['original_source']} recording ({prov['recording_id']})")

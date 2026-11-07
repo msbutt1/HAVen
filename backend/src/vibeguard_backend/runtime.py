@@ -296,7 +296,10 @@ class DeviceRuntime:
         self.last_invalid: dict | None = None
         self.last_frame_error: str | None = None
         self.silent = False
+        self.last_valid_mono: float | None = None  # last record the processor accepted
+        self.connected_mono: float | None = None   # when the link last came up
         self._foreign: tuple[str, int] | None = None
+        self._foreign_buf: list[dict] = []
         self.started_at = utc_now_iso()
         self.session: _ActiveSession | None = None
         self._last_key: tuple[str, int] | None = None
@@ -381,11 +384,16 @@ class DeviceRuntime:
             "active_session_id": sess.session_id if sess else None,
             "last_rx_wall": self.last_rx_wall,
             "last_rx_age_s": None if last_rx is None else round(now - last_rx, 3),
-            "data_fresh": not self.silent and self.connection == "connected",
+            "data_fresh": self._data_fresh(),
             "counters": dict(self.counters.copy()), "events": dict(self.events.copy()),
             "last_invalid_frame": self.last_invalid, "last_frame_error": self.last_frame_error,
             "started_at": self.started_at, "meta": self.meta,
         }
+
+    def _data_fresh(self) -> bool:
+        """True only while valid data is really arriving: link up, not silent, no error, not finished."""
+        return (self.connection == "connected" and not self.silent and not self.error
+                and not self.finished and self._thread.is_alive())
 
     def snapshot(self) -> dict:
         """Latest values for a dashboard that connects mid-stream.
@@ -398,7 +406,9 @@ class DeviceRuntime:
         reason = None
         if self.error or (not self._thread.is_alive() and not self.finished):
             reason = "runtime_error"
-        elif self.connection != "connected" and not self.finished:
+        elif self.finished:
+            reason = "source_finished"  # a replay/finite source ended: nothing is updating any more
+        elif self.connection != "connected":
             reason = "device_disconnected"
         elif self.silent:
             reason = "device_silent"
@@ -467,19 +477,40 @@ class DeviceRuntime:
                 self._fail_pending()
 
     def _tick(self, now: float) -> None:
-        """Periodic work: staleness polling (host clock) and bounded-loss flushing."""
-        if self.config.clock == "host" and now - self._last_poll >= POLL_S:
-            self._last_poll = now
-            self._emit(self.proc.poll(now))
-            if (self.connection == "connected" and self.last_rx_mono is not None
-                    and not self.silent and now - self.last_rx_mono > SILENT_S):
-                self.silent = True  # link up but nothing arriving (hung firmware, wrong baud rate)
-                self.counters["silent_episodes"] += 1
-                self.hub.publish("runtime", self.name, {"event": "device_silent", "at": utc_now_iso(),
-                                                         "silent_for_s": round(now - self.last_rx_mono, 2)})
-                self._publish_state(force=True)
+        """Periodic work: staleness polling (host clock), silence detection, bounded-loss flushing.
+        An error here (a full disk, say) is counted and reported; it must never end ingestion."""
+        try:
+            if self.config.clock == "host" and now - self._last_poll >= POLL_S:
+                self._last_poll = now
+                self._emit(self.proc.poll(now))
+                ref = max(self.last_valid_mono or 0.0, self.connected_mono or 0.0)
+                if (self.connection == "connected" and ref and not self.silent and now - ref > SILENT_S):
+                    self.silent = True  # link up but no VALID data (hung firmware, wrong baud rate, garbage)
+                    self.counters["silent_episodes"] += 1
+                    self.hub.publish("runtime", self.name, {"event": "device_silent", "at": utc_now_iso(),
+                                                             "silent_for_s": round(now - ref, 2)})
+                    self._publish_state(force=True)
+            if self.session is not None:
+                self.session.rec.maybe_flush(now)
+        except Exception as exc:  # noqa: BLE001
+            self._note_io_error("tick", exc)
+
+    def _safe_flush(self) -> None:
+        try:
+            if self.session is not None:
+                self.session.rec.flush()
+        except Exception as exc:  # noqa: BLE001
+            self._note_io_error("flush", exc)
+
+    def _note_io_error(self, where: str, exc: Exception) -> None:
+        self.counters["io_errors"] += 1
         if self.session is not None:
-            self.session.rec.maybe_flush(now)
+            self.session.counters["io_errors"] += 1
+        msg = f"{where}: {type(exc).__name__}: {exc}"
+        if msg != self.last_frame_error:
+            log.error("runtime %s: %s", self.name, msg)
+            self.hub.publish("runtime", self.name, {"event": "io_error", "error": msg, "at": utc_now_iso()})
+        self.last_frame_error = msg
 
     def _idle(self, seconds: float) -> None:
         end = time.monotonic() + seconds
@@ -514,12 +545,14 @@ class DeviceRuntime:
             return
         changed = conn != self.connection
         self.connection, self.connection_detail = conn, detail
+        if conn == "connected":
+            self.connected_mono = time.monotonic()
         if changed:
             self.counters[f"connection_{conn}"] += 1
             if self.session is not None:
                 self.session.counters[f"connection_{conn}"] += 1
                 if conn == "disconnected":
-                    self.session.rec.flush()  # what arrived before the unplug is on disk now
+                    self._safe_flush()  # what arrived before the unplug is on disk now
             self.hub.publish("runtime", self.name, {"event": "device_connection", "connection": conn,
                                                      "detail": detail, "at": utc_now_iso()})
         self._publish_state(force=changed)
@@ -539,10 +572,6 @@ class DeviceRuntime:
         self.counters["frames"] += 1
         self.last_rx_mono = now
         self.last_rx_wall = utc_now_iso()
-        if self.silent:
-            self.silent = False
-            self.hub.publish("runtime", self.name, {"event": "device_resumed", "at": self.last_rx_wall})
-            self._publish_state(force=True)
         try:
             if self.session is not None:
                 self.session.rec.raw(line, self.last_rx_wall, now)
@@ -554,21 +583,12 @@ class DeviceRuntime:
                 self._on_invalid(issues, len(line))
                 return
             self.counters["records"] += 1
-            self._before_feed(record)
-            rx = now if self.config.clock == "host" else None
-            self._emit(self.proc.feed(record, rx_time_s=rx))
-            if record["device_id"] == self.device_id and record["boot_id"] == self.proc.boot_id:
-                # A duplicate or late record must not move the anchor backwards: calibration
-                # commands are keyed on it, and a replay fires them at the same key.
-                key = (record["boot_id"], record["seq"])
-                if self._last_key is None or self._last_key[0] != key[0] or key[1] > self._last_key[1]:
-                    self._last_key = key
-                s = self.session
-                if s is not None and (s.last_key is None or s.last_key[0] != key[0] or key[1] > s.last_key[1]):
-                    s.last_key = key
-                self._run_schedule(after=self._last_key)
-            rtype = record["type"]
-            self.hub.publish("device" if rtype in ("hello", "status") else "telemetry", self.name, record)
+            if self._process_record(record, now):
+                self.last_valid_mono = now
+                if self.silent:
+                    self.silent = False
+                    self.hub.publish("runtime", self.name, {"event": "device_resumed", "at": self.last_rx_wall})
+                    self._publish_state(force=True)
         except Exception as exc:  # noqa: BLE001 - one frame must never stop ingestion
             log.exception("runtime %s: error while handling a frame", self.name)
             self.counters["frame_errors"] += 1
@@ -584,23 +604,62 @@ class DeviceRuntime:
                              "first_issue": str(issues[0]) if issues else None, "bytes": nbytes}
         self._emit(self.proc.feed_invalid_frame(issues, self.adapter.kind))
 
-    def _before_feed(self, record: dict) -> None:
-        """Bookkeeping for a contract-valid record, before the processor sees it."""
+    _REJECTED = ("invalid_record", "duplicate_record", "late_record", "foreign_device", "retired_boot_record")
+
+    def _process_record(self, record: dict, now: float, replaying: bool = False) -> bool:
+        """Handle one contract-valid record. Returns True if the processor ACCEPTED it (only an
+        accepted record counts as the device being alive, and only an accepted record changes the
+        runtime's identity, session boot list or anchors)."""
         dev, boot, prov = record["device_id"], record["boot_id"], record["provenance"]
         if self.device_id is None:
             self.device_id = dev
+        held: list[dict] = []
         if dev != self.device_id:
             # Another device on the same link. The processor reports each frame as foreign_device.
             # Several valid frames in a row from the same new id mean the wearable was swapped:
             # switch to it instead of ignoring it forever while the status says "ready".
-            n = (self._foreign[1] + 1) if self._foreign and self._foreign[0] == dev else 1
+            same = self._foreign is not None and self._foreign[0] == dev
+            n = (self._foreign[1] + 1) if same else 1
             self._foreign = (dev, n)
+            self._foreign_buf = (self._foreign_buf if same else []) + [record]
             self.counters["foreign_frames"] += 1
-            if n < FOREIGN_SWITCH_AFTER:
-                return
-            self._switch_device(dev)
-        else:
-            self._foreign = None
+            if n >= FOREIGN_SWITCH_AFTER:
+                held = self._foreign_buf[:-1]  # its hello/status: they must not be lost
+                self._switch_device(dev)
+        elif not replaying:
+            self._foreign, self._foreign_buf = None, []
+        mine = record["device_id"] == self.device_id
+
+        if mine:
+            if self._schedule and not self._schedule_started:
+                self._schedule_started = True
+                self._run_schedule(after=None)
+            # After a backend restart: reuse the last calibration for this device. The processor
+            # only applies it once the data proves it compatible.
+            if (self.restore_calibration and not self._restored and self.proc.calibration_record() is None
+                    and self.calibration_state == "uncalibrated"):
+                self._restored = True
+                saved = self.store.latest_calibration(dev, prov["source"])
+                if saved is not None:
+                    self._emit(self.proc.load_calibration(saved["record"]))
+                    self.counters["calibration_restored"] += 1
+        for r in held:  # replay the swapped-in device's earlier frames through the fresh processor
+            self._process_record(r, now, replaying=True)
+
+        rx = now if self.config.clock == "host" else None
+        outs = self.proc.feed(record, rx_time_s=rx)
+        accepted = mine and not any(
+            o["type"] == "stream_event" and o["event"] in self._REJECTED and o.get("source_seq") == record["seq"]
+            for o in outs)
+        self._emit(outs)
+        if accepted:
+            self._commit_record(record)
+        rtype = record["type"]
+        self.hub.publish("device" if rtype in ("hello", "status") else "telemetry", self.name, record)
+        return accepted
+
+    def _commit_record(self, record: dict) -> None:
+        dev, boot, prov = record["device_id"], record["boot_id"], record["provenance"]
         if boot != self.boot_id or record["type"] == "hello":
             self.store.touch_device(dev, boot, prov["source"], record if record["type"] == "hello" else None)
         self.boot_id = boot
@@ -614,18 +673,14 @@ class DeviceRuntime:
             self._session_provenance(s, prov)
             if boot not in s.boot_ids:
                 s.boot_ids.append(boot)
-        if self._schedule and not self._schedule_started:
-            self._schedule_started = True
-            self._run_schedule(after=None)
-        # After a backend restart: reuse the last calibration for this device. The
-        # processor only applies it once the data proves it compatible.
-        if (self.restore_calibration and not self._restored and self.proc.calibration_record() is None
-                and self.calibration_state == "uncalibrated"):
-            self._restored = True
-            saved = self.store.latest_calibration(dev, prov["source"])
-            if saved is not None:
-                self._emit(self.proc.load_calibration(saved["record"]))
-                self.counters["calibration_restored"] += 1
+        # A duplicate or late record never reaches here, so the anchor only moves forward:
+        # calibration commands are keyed on it, and a replay fires them at the same key.
+        key = (boot, record["seq"])
+        if self._last_key is None or self._last_key[0] != key[0] or key[1] > self._last_key[1]:
+            self._last_key = key
+        if s is not None and (s.last_key is None or s.last_key[0] != key[0] or key[1] > s.last_key[1]):
+            s.last_key = key
+        self._run_schedule(after=self._last_key)
 
     def _switch_device(self, new_id: str) -> None:
         """The device on this link changed. Close any open session, start from a clean processor."""
@@ -767,28 +822,40 @@ class DeviceRuntime:
                               start_score=self.latest["score"])
         if self.boot_id:
             sess.boot_ids.append(self.boot_id)
+        row = None
         try:
             row = self.store.create_wearable_session({
                 "session_id": sid, "runtime": self.name, "device_id": self.device_id, "state": "recording",
                 "label": label, "started_at": utc_now_iso(), "dir": str(directory), "boot_ids": sess.boot_ids})
-        except Exception:
+            if prov:
+                self._session_provenance(sess, prov, announce=False)
+                row = self.store.wearable_session(sid)
+            # A calibration made before the session is not in its telemetry; keep it so a
+            # replay can apply it (re-labelled as replay) before the first frame.
+            active = self.proc.calibration_record()
+            if active is not None:
+                sess.pre_session_calibration = active
+                rec.command({"action": "load_calibration", "at": utc_now_iso(), "scheduled": False,
+                             "after_boot_id": None, "after_seq": None, "record": active,
+                             "note": "calibration active when the session started"})
+            if self.calibration_state in CAPTURING:
+                sess.counters["started_during_calibration_capture"] += 1
+            if self.calibration_state == "relaxed_captured":
+                # Only the relaxed reference exists, and it is not part of the recording: a replay
+                # cannot reproduce a squeeze that completes this calibration.
+                sess.counters["started_with_relaxed_reference_only"] += 1
+            self._write_manifest(sess, row, final=False)
+        except BaseException:
+            # all-or-nothing: no half-started session behind an error
             rec.abort()
+            if row is not None:
+                try:
+                    self.store.update_wearable_session(sid, state="interrupted", end_reason="start_failed",
+                                                       ended_at=utc_now_iso())
+                except Exception:  # noqa: BLE001
+                    pass
             raise
-        if prov:
-            self._session_provenance(sess, prov, announce=False)
-            row = self.store.wearable_session(sid)
-        # A calibration made before the session is not in its telemetry; keep it so a
-        # replay can apply it (re-labelled as replay) before the first frame.
-        active = self.proc.calibration_record()
-        if active is not None:
-            sess.pre_session_calibration = active
-            rec.command({"action": "load_calibration", "at": utc_now_iso(), "scheduled": False,
-                         "after_boot_id": None, "after_seq": None, "record": active,
-                         "note": "calibration active when the session started"})
-        if self.calibration_state in CAPTURING:
-            sess.counters["started_during_calibration_capture"] += 1
         self.session = sess
-        self._write_manifest(sess, row)
         self.hub.publish("session", self.name, {"event": "session_started", "session": row})
         self._publish_state(force=True)
         return row  # type: ignore[return-value]
@@ -816,12 +883,12 @@ class DeviceRuntime:
         self._publish_state(force=True)
         return row  # type: ignore[return-value]
 
-    def _write_manifest(self, s: _ActiveSession, row: dict | None) -> None:
+    def _write_manifest(self, s: _ActiveSession, row: dict | None, final: bool = True) -> None:
         """Written when the session starts (so a crash still leaves the processing config a replay
         needs) and rewritten, complete, when it stops."""
         manifest = {"session": row, "processing_config": self.config.to_dict(),
                     "adapter": self.adapter.describe(), "runtime_meta": self.meta,
-                    "calibration_record_at_stop": self.proc.calibration_record() if self.session is None else None,
+                    "calibration_record_at_stop": self.proc.calibration_record() if final else None,
                     "pre_session_calibration": s.pre_session_calibration,
                     "note": "telemetry.ndjson is the device stream exactly as received. A replay "
                             "(provenance=replay) reissues commands.ndjson at the same frames; a "

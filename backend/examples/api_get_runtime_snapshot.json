@@ -33,8 +33,8 @@
   },
   "active_session_id": null,
   "last_rx_wall": "2026-11-07T18:00:00.000Z",
-  "last_rx_age_s": 0.021,
-  "data_fresh": true,
+  "last_rx_age_s": 0.015,
+  "data_fresh": false,
   "counters": {
     "connection_connected": 1,
     "frames": 1216,
@@ -210,85 +210,92 @@
       }
     },
     "score": {
-      "schema": "vibeguard.features",
-      "version": 1,
-      "type": "experimental_score",
-      "device_id": "sim-wearable-01",
-      "boot_id": "sim-examples-b0",
-      "provenance": {
-        "source": "simulated",
-        "recording_id": "sim-examples"
-      },
-      "timebase": "device_monotonic_us",
-      "t_us": 29999000,
-      "source_seq": 1232,
-      "trigger": "end_of_input",
-      "label": "experimental_combined_score",
-      "label_note": "arbitrary units from an experimental formula; not A(8), not a vibration dose, not a percentage of any limit; activation weighting is an algorithm choice, not validated vibration transmission",
-      "status": "accumulating",
-      "reasons": [],
-      "rate": {
-        "value": 0.000144,
-        "units": "au/h"
-      },
-      "cumulative": {
-        "value": 0.049108,
-        "units": "au"
-      },
-      "accumulation": 1,
-      "boot_segments": 1,
-      "integrated_until_us": 29999000,
-      "pending_s": 0.0,
-      "valid_duration_s": 18.745008,
-      "degraded_duration_s": 0.0,
-      "excluded_duration_s": 11.20148,
-      "excluded_by_reason": {
-        "activation_capturing_relaxed": 3.0,
-        "activation_capturing_squeeze": 3.0,
-        "activation_device_reports_disconnected": 0.995,
-        "activation_no_data & vibration_warming_up": 0.001488,
-        "activation_relaxed_captured": 1.1,
-        "activation_sensor_disconnected": 0.05,
-        "activation_stale": 0.003523,
-        "activation_stale & vibration_stale": 0.196477,
-        "activation_uncalibrated": 0.151476,
-        "activation_uncalibrated & vibration_warming_up": 1.148524,
-        "activation_warming_up+gap & vibration_stale": 0.003524,
-        "activation_warming_up+gap & vibration_warming_up+gap": 0.346476,
-        "activation_warming_up+sensor_disconnected": 0.15,
-        "vibration_end_of_input": 0.001479,
-        "vibration_warming_up+gap": 1.053513
-      },
-      "clock": "device_time (recording time for replay; independent of wall-clock pacing)",
-      "inputs": {
-        "vibration": {
-          "status": "ok",
-          "value": 0.012,
-          "units": "m/s^2",
-          "t_us": 29997521,
-          "age_s": 0.001479,
-          "fresh_limit_s": 0.25
+      "status": "unavailable",
+      "reason": "source_finished",
+      "reasons": [
+        "source_finished"
+      ],
+      "last_seen": {
+        "schema": "vibeguard.features",
+        "version": 1,
+        "type": "experimental_score",
+        "device_id": "sim-wearable-01",
+        "boot_id": "sim-examples-b0",
+        "provenance": {
+          "source": "simulated",
+          "recording_id": "sim-examples"
         },
-        "activation": {
-          "status": "ok",
-          "value": 0.0002,
-          "units": "normalized",
-          "t_us": 29999000,
-          "age_s": 0.0,
-          "fresh_limit_s": 0.25
-        }
-      },
-      "formula": {
-        "expression": "k_per_hour * (V / v_ref)^exponent * (1 + activation_weight * clamp(a, 0, activation_cap))",
-        "coefficients": {
-          "k_per_hour": 1.0,
-          "v_ref": 1.0,
-          "exponent": 2.0,
-          "activation_weight": 1.0,
-          "activation_cap": 2.0,
-          "activation_mode": "required",
-          "vibration_fresh_s": 0.25,
-          "activation_fresh_s": 0.25
+        "timebase": "device_monotonic_us",
+        "t_us": 29999000,
+        "source_seq": 1232,
+        "trigger": "end_of_input",
+        "label": "experimental_combined_score",
+        "label_note": "arbitrary units from an experimental formula; not A(8), not a vibration dose, not a percentage of any limit; activation weighting is an algorithm choice, not validated vibration transmission",
+        "status": "accumulating",
+        "reasons": [],
+        "rate": {
+          "value": 0.000144,
+          "units": "au/h"
+        },
+        "cumulative": {
+          "value": 0.048678,
+          "units": "au"
+        },
+        "accumulation": 1,
+        "boot_segments": 1,
+        "integrated_until_us": 29999000,
+        "pending_s": 0.0,
+        "valid_duration_s": 18.795008,
+        "degraded_duration_s": 0.0,
+        "excluded_duration_s": 11.15148,
+        "excluded_by_reason": {
+          "activation_capturing_relaxed": 3.0,
+          "activation_capturing_squeeze": 3.0,
+          "activation_device_reports_disconnected": 0.995,
+          "activation_no_data & vibration_warming_up": 0.001488,
+          "activation_relaxed_captured": 1.1,
+          "activation_sensor_disconnected": 0.05,
+          "activation_stale": 0.003523,
+          "activation_stale & vibration_stale": 0.196477,
+          "activation_uncalibrated": 0.101476,
+          "activation_uncalibrated & vibration_warming_up": 1.148524,
+          "activation_warming_up+gap & vibration_stale": 0.003524,
+          "activation_warming_up+gap & vibration_warming_up+gap": 0.346476,
+          "activation_warming_up+sensor_disconnected": 0.15,
+          "vibration_end_of_input": 0.001479,
+          "vibration_warming_up+gap": 1.053513
+        },
+        "clock": "device_time (recording time for replay; independent of wall-clock pacing)",
+        "inputs": {
+          "vibration": {
+            "status": "ok",
+            "value": 0.012,
+            "units": "m/s^2",
+            "t_us": 29997521,
+            "age_s": 0.001479,
+            "fresh_limit_s": 0.25
+          },
+          "activation": {
+            "status": "ok",
+            "value": 0.0002,
+            "units": "normalized",
+            "t_us": 29999000,
+            "age_s": 0.0,
+            "fresh_limit_s": 0.25
+          }
+        },
+        "formula": {
+          "expression": "k_per_hour * (V / v_ref)^exponent * (1 + activation_weight * clamp(a, 0, activation_cap))",
+          "coefficients": {
+            "k_per_hour": 1.0,
+            "v_ref": 1.0,
+            "exponent": 2.0,
+            "activation_weight": 1.0,
+            "activation_cap": 2.0,
+            "activation_mode": "required",
+            "vibration_fresh_s": 0.25,
+            "activation_fresh_s": 0.25
+          }
         }
       }
     }

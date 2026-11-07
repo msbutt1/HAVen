@@ -41,7 +41,7 @@
         },
         "active_session_id": null,
         "last_rx_wall": "2026-11-07T18:00:00.000Z",
-        "last_rx_age_s": 0.002,
+        "last_rx_age_s": 0.001,
         "data_fresh": true,
         "counters": {
           "connection_connected": 1,

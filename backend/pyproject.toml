@@ -34,4 +34,5 @@ filterwarnings = [
     # starlette's TestClient prefers httpx2 in newer releases; harmless, the locked versions work
     "ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning",
     "ignore::starlette.exceptions.StarletteDeprecationWarning",
+    "ignore::DeprecationWarning:websockets",  # raw clients in the HTTP review tests
 ]

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import math
 import os
 import sys
 from pathlib import Path
@@ -45,6 +46,8 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--device", choices=("sim", "serial", "none"), default="sim")
     s.add_argument("--backup", type=Path, default=None,
                    help="start with this backup recording as the 'wearable' (labelled REPLAY); overrides --device")
+    s.add_argument("--loop", action="store_true",
+                   help="with --backup: play the recording again each time it ends (each pass is labelled REPLAY)")
     s.add_argument("--scenario", default="demo", help="simulated scenario (vg-sim --list)")
     s.add_argument("--seed", type=int, default=1)
     s.add_argument("--duration", type=float, default=30.0,
@@ -120,14 +123,20 @@ def main(argv: list[str] | None = None) -> int:
         from .backup import BackupError, export_backup
         from .runtime import RuntimeConflict
 
+        if not (Path(args.data_dir) / "vibeguard.sqlite3").is_file():
+            print(f"vg-backend: no VibeGuard data in {args.data_dir} (wrong --data-dir?)", file=sys.stderr)
+            return 1
         backend = Backend(args.data_dir, recover=False)
         try:
             meta = export_backup(backend, args.session_id, args.dest, args.note)
-        except (BackupError, NotFound, RuntimeConflict) as exc:
+        except (BackupError, NotFound, RuntimeConflict, OSError) as exc:
             print(f"vg-backend: {exc}", file=sys.stderr)
             return 1
         finally:
             backend.shutdown()
+        if meta.get("interrupted"):
+            print("vg-backend: WARNING the session was cut off by a crash: this recording is truncated "
+                  "and was not calibrated by the end", file=sys.stderr)
         print(f"exported {meta['frames']} frames ({meta['label_for_dashboard']}) to {args.dest}; "
               f"replay it with: vg-backend serve --backup {args.dest}")
         return 0
@@ -136,6 +145,7 @@ def main(argv: list[str] | None = None) -> int:
 
     from .adapters import SerialAdapter, SimAdapter
     from .app import LOCAL_HOSTS, create_app
+    from .backup import BackupError
 
     try:  # validate everything before the data directory is touched
         adapter = config = None
@@ -154,8 +164,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("--device serial needs --port")
             adapter = SerialAdapter(args.port, args.baud)
             config = processing_config_for("serial", args.imu_counts_per_g, args.imu_conversion_source)
-        if args.speed <= 0:
-            raise ValueError("--speed must be > 0")
+        if not math.isfinite(args.speed) or not 0 < args.speed <= 1000:
+            raise ValueError("--speed must be a number above 0 and at most 1000")
+        if args.loop and args.backup is None:
+            raise ValueError("--loop only applies to --backup")
         backend = Backend(args.data_dir, exclusive=True)
     except DataDirInUse as exc:
         print(f"vg-backend: {exc}", file=sys.stderr)
@@ -166,16 +178,29 @@ def main(argv: list[str] | None = None) -> int:
     if args.backup is not None:
         from .backup import start_backup_replay
 
-        start_backup_replay(backend, args.backup, name="wearable", speed=args.speed)
-        print(f"vg-backend: REPLAY FALLBACK from {args.backup} (labelled replay, not live)", file=sys.stderr)
+        try:
+            start_backup_replay(backend, args.backup, name="wearable", speed=args.speed)
+        except (BackupError, OSError, ValueError, KeyError) as exc:
+            backend.shutdown()
+            print(f"vg-backend: cannot start the backup: {exc}", file=sys.stderr)
+            return 2
+        if args.loop:
+            backend.loop_backup("wearable")
+        print(f"vg-backend: REPLAY FALLBACK from {args.backup} (labelled replay, not live)"
+              + (", looping" if args.loop else ", plays once: POST /api/runtimes/wearable/restart to replay"),
+              file=sys.stderr)
     elif adapter is not None:
         backend.add_runtime("wearable", adapter, config)
 
     wildcard = args.host in ("0.0.0.0", "::", "")
-    allowed = None if wildcard else tuple({*LOCAL_HOSTS, args.host.lower(), *(h.lower() for h in args.allow_host)})
+
+    def bracket(h: str) -> str:  # browsers send IPv6 literals as [addr]
+        return f"[{h}]" if h.count(":") >= 2 and not h.startswith("[") else h  # a bare IPv6 literal
+    allowed = None if wildcard else tuple({*LOCAL_HOSTS, bracket(args.host.lower()),
+                                           *(bracket(h.lower()) for h in args.allow_host)})
     if wildcard:
         print("vg-backend: WARNING listening on all interfaces; the API has no authentication and the "
-              "Host check is off", file=sys.stderr)
+              "Host check is off (cross-site requests are still refused)", file=sys.stderr)
     app = create_app(backend, on_shutdown=backend.shutdown, allowed_hosts=allowed)
     print(f"vg-backend: http://{args.host}:{args.http_port}  data={backend.data_dir}  "
           f"source={'backup replay' if args.backup else args.device}", file=sys.stderr)

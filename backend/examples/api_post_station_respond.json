@@ -11,7 +11,7 @@
   "response": "felt",
   "presented_at": "2026-11-07T18:00:00.000Z",
   "responded_at": "2026-11-07T18:00:00.000Z",
-  "response_latency_ms": 1.8,
+  "response_latency_ms": 2.8,
   "recorded_at": "2026-11-07T18:00:00.000Z",
   "note": null
 }

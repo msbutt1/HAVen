@@ -32,9 +32,9 @@
     },
     "at_end": {
       "accumulation": 1,
-      "cumulative_au": 0.049108,
-      "valid_duration_s": 18.745008,
-      "excluded_duration_s": 11.20148,
+      "cumulative_au": 0.048678,
+      "valid_duration_s": 18.795008,
+      "excluded_duration_s": 11.15148,
       "boot_segments": 1,
       "excluded_by_reason": {
         "activation_capturing_relaxed": 3.0,
@@ -45,7 +45,7 @@
         "activation_sensor_disconnected": 0.05,
         "activation_stale": 0.003523,
         "activation_stale & vibration_stale": 0.196477,
-        "activation_uncalibrated": 0.151476,
+        "activation_uncalibrated": 0.101476,
         "activation_uncalibrated & vibration_warming_up": 1.148524,
         "activation_warming_up+gap & vibration_stale": 0.003524,
         "activation_warming_up+gap & vibration_warming_up+gap": 0.346476,
@@ -56,8 +56,8 @@
       "status": "accumulating",
       "t_us": 29999000
     },
-    "session_au": 0.049108,
-    "session_valid_s": 18.745,
+    "session_au": 0.048678,
+    "session_valid_s": 18.795,
     "status": "ok",
     "reason": null,
     "started_mid_stream": true,
@@ -70,14 +70,14 @@
       "activation_uncalibrated & vibration_warming_up": 0.5,
       "activation_warming_up+gap & vibration_warming_up+gap": 0.346,
       "activation_stale & vibration_stale": 0.196,
-      "activation_uncalibrated": 0.151,
       "activation_warming_up+sensor_disconnected": 0.15,
+      "activation_uncalibrated": 0.101,
       "activation_sensor_disconnected": 0.05,
       "activation_stale": 0.004,
       "activation_warming_up+gap & vibration_stale": 0.004,
       "vibration_end_of_input": 0.001
     },
-    "explanation": "18.745 s of this session had both a fresh vibration and a calibrated activation reading and were scored: 0.049108 au."
+    "explanation": "18.795 s of this session had both a fresh vibration and a calibrated activation reading and were scored: 0.048678 au."
   },
   "counters": {
     "frames": 1185,
@@ -93,7 +93,7 @@
     "calibration_ids": [
       "cal-000000000001"
     ],
-    "duration_s": 5.864
+    "duration_s": 5.861
   },
   "files": {
     "telemetry.ndjson": {
@@ -104,17 +104,17 @@
     "rx_times.csv": {
       "path": "<data_dir>/sessions/ws-000000000000/rx_times.csv",
       "bytes": 49876,
-      "sha256": "f7823003bf6faaaafea1428adf21aa19e655136e989ac125b235660f14f41265"
+      "sha256": "a4c34b7e0e3a48d13f483bde130ca734fcd4fb9613103b35a2d6b63a12d1a0b3"
     },
     "derived.ndjson": {
       "path": "<data_dir>/sessions/ws-000000000000/derived.ndjson",
-      "bytes": 3814458,
-      "sha256": "ac214e23ae98ce41eef963e07b9ffb0ccccfefdec8d992df26a9c3cd465fb78c"
+      "bytes": 3814788,
+      "sha256": "12139f05fc3b6126b9f1cda1c7d59ceaf7742c091b95cfaed4bb00d7dc686144"
     },
     "commands.ndjson": {
       "path": "<data_dir>/sessions/ws-000000000000/commands.ndjson",
       "bytes": 241,
-      "sha256": "b2057fc39a5cacdedab203fd0356fdfa5d04412c825c929b205beef15bf78509"
+      "sha256": "ddbbb4c9865f6508cd15d687e53cb6c05fafbe6a7dc9260831e264e3fd77e6c1"
     }
   },
   "dir": "<data_dir>/sessions/ws-000000000000"

@@ -20,11 +20,13 @@ p.sub{margin:0;color:var(--mut)}.card{background:var(--card);border:1px solid va
 .simulated{color:var(--sim)}.replay{color:var(--rep)}.live{color:var(--live)}.ready,.recording,.completed{color:var(--ok)}.calibrating{color:var(--warn)}.disconnected,.error{color:var(--bad)}
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-weight:500;font-size:12px}
 a{color:inherit}code{font:13px ui-monospace,monospace;background:var(--line);padding:1px 5px;border-radius:4px}
-.note{color:var(--mut);font-size:13px;margin-top:6px}#err{color:var(--bad);display:none;margin-top:10px}
+.note{color:var(--mut);font-size:13px;margin-top:6px}#err{color:var(--bad);display:none;margin-top:10px;font-weight:600}
+.banner{display:none;margin:12px 0 0;padding:10px 14px;border:1.5px solid var(--warn);border-radius:10px;color:var(--warn);font-weight:600}
 </style></head><body><main>
 <h1>VibeGuard backend</h1>
 <p class="sub">Local server for device data, sessions, replay and history. This page is a status view; the dashboard is a separate app.</p>
-<div id="err">Cannot reach the API.</div>
+<div id="err">Cannot reach the API: the values below are not current.</div>
+<div id="banner" class="banner"></div>
 
 <h2>Wearable</h2>
 <div class="card"><div class="row">
@@ -49,7 +51,7 @@ a{color:inherit}code{font:13px ui-monospace,monospace;background:var(--line);pad
 <div class="card"><table><thead><tr><th>Started</th><th>Label</th><th>State</th><th>Source</th><th>Score</th></tr></thead><tbody id="sessions"></tbody></table></div>
 
 <h2>API</h2>
-<div class="card"><a href="/docs">Interactive API docs</a> &middot; <a href="/api/health"><code>/api/health</code></a> &middot;
+<div class="card"><a href="/docs">API reference</a> &middot; <a href="/api/health"><code>/api/health</code></a> &middot;
 <a href="/api/runtimes"><code>/api/runtimes</code></a> &middot; <a href="/api/history"><code>/api/history</code></a> &middot;
 <code>ws://&lt;this host&gt;/ws/live</code></div>
 </main>
@@ -70,28 +72,54 @@ const CAL={uncalibrated:'Not calibrated yet. Capture a relaxed and then a squeez
  device_mismatch:'A saved calibration belongs to a different device, so it was not applied. Calibrate again.'};
 const num=(v,d)=>v==null?'-':Number(v).toFixed(d);
 async function j(u){const r=await fetch(u);if(!r.ok)throw new Error(r.status);return r.json()}
+const CAL_UNKNOWN='-';
+function blank(stateText){
+ $('state').innerHTML=badge(stateText,'disconnected');$('prov').textContent='-';$('provnote').textContent='';
+ for(const id of ['age','cal','rec','vib','act','score'])$(id).textContent='-';
+ $('calnote').textContent='';$('banner').style.display='none';
+}
+// Each block renders on its own: one unexpected field must not stop the rest of the page.
+function safe(fn){try{fn()}catch(e){}}
+let busy=false;
 async function tick(){
+ if(busy)return;busy=true;
+ const ctl=new AbortController();const to=setTimeout(()=>ctl.abort(),3000);
  try{
-  const [rt,ss]=await Promise.all([j('/api/runtimes/wearable').catch(()=>null),j('/api/sessions?limit=8')]);
+  const get=async u=>{const r=await fetch(u,{signal:ctl.signal});if(!r.ok){const e=new Error(r.status);e.status=r.status;throw e}return r.json()};
+  const [rt,ss]=await Promise.all([get('/api/runtimes/wearable').catch(e=>{if(e.status===404)return null;throw e}),get('/api/sessions?limit=8')]);
   $('err').style.display='none';
   if(rt){
-   $('state').innerHTML=badge(rt.state);
-   const p=rt.provenance;$('prov').innerHTML=p?badge(p.source):'-';
-   $('provnote').textContent=!p?'':p.source==='simulated'?'SIMULATED device: synthetic data, not a measurement of anyone.':p.source==='replay'?'REPLAY of an earlier recording (original: '+(p.original_source||'?')+'), not live.':'Live device data.';
-   $('age').textContent=rt.last_rx_age_s==null?'none yet':rt.last_rx_age_s.toFixed(2)+' s ago';
-   $('cal').textContent=rt.calibration.state+(rt.calibration.reason?' ('+rt.calibration.reason+')':'');
-   $('calnote').textContent=CAL[rt.calibration.reason]||CAL[rt.calibration.state]||'';
-   $('rec').textContent=rt.active_session_id?'session '+rt.active_session_id.slice(-6):'not recording';
-   const L=rt.latest||{},imu=L.imu&&L.imu.features&&L.imu.features.vibration,emg=L.emg&&L.emg.features&&L.emg.features.emg_activation,sc=L.score;
-   const v=imu&&imu.physical&&imu.physical.status==='ok'?imu.physical.combined_rms:null;
-   $('vib').textContent=v==null?'-':num(v,2)+' m/s\\u00b2';
-   const a=emg&&emg.normalized&&emg.normalized.status==='ok'?emg.normalized.display.emg0:null;
-   $('act').textContent=a==null?'-':num(a,2);
-   $('score').textContent=sc&&sc.status==='accumulating'?num(sc.cumulative.value,4)+' au (accumulating)':sc?num(sc.cumulative.value,4)+' au (paused: '+(sc.reasons[0]||'')+')':'-';
-   $('counters').innerHTML=[...Object.entries(rt.counters),...Object.entries(rt.events)].map(([k,x])=>'<tr><td>'+esc(k)+'</td><td>'+esc(x)+'</td></tr>').join('')||'<tr><td colspan=2>nothing yet</td></tr>';
-  }else{$('state').innerHTML=badge('no device','disconnected');$('prov').textContent='-'}
-  $('sessions').innerHTML=ss.map(s=>'<tr><td>'+esc(String(s.started_at).replace('T',' ').slice(0,19))+'</td><td>'+esc(s.label)+'</td><td>'+esc(s.state)+'</td><td>'+(s.source?badge(s.source):'-')+'</td><td>'+esc(s.score?(s.score.status==='ok'?num(s.score.session_au,4)+' au':s.score.status):'-')+'</td></tr>').join('')||'<tr><td colspan=5>none yet</td></tr>';
- }catch(e){$('err').style.display='block'}
+   safe(()=>{
+    $('state').innerHTML=badge(rt.state);
+    const p=rt.provenance;$('prov').innerHTML=p?badge(p.source):'-';
+    $('provnote').textContent=!p?'':p.source==='simulated'?'SIMULATED device: synthetic data, not a measurement of anyone.':p.source==='replay'?'REPLAY of an earlier recording (original: '+(p.original_source||'?')+'), not live.':'Live device data.';
+    $('age').textContent=rt.last_rx_age_s==null?'none yet':rt.last_rx_age_s.toFixed(2)+' s ago'+(rt.data_fresh===false?' (not fresh)':'');
+    $('cal').textContent=rt.calibration.state+(rt.calibration.reason?' ('+rt.calibration.reason+')':'');
+    $('calnote').textContent=CAL[rt.calibration.reason]||CAL[rt.calibration.state]||'';
+    $('rec').textContent=rt.active_session_id?'session '+String(rt.active_session_id).slice(-6):'not recording';
+    const b=$('banner');
+    if(rt.state==='completed'){b.textContent='PLAYBACK FINISHED: this recording has ended and nothing is updating. Play it again with POST /api/runtimes/wearable/restart, or restart the server with --loop.';b.style.display='block'}
+    else if(rt.state==='disconnected'||rt.state==='error'){b.textContent=rt.state==='error'?'The device runtime stopped: '+esc(rt.error||'unknown error'):'DEVICE DISCONNECTED: the values below are not current.';b.style.display='block'}
+    else if(rt.data_fresh===false){b.textContent='NO NEW DATA: the device is connected but has sent nothing valid recently. Values are not current.';b.style.display='block'}
+    else b.style.display='none';
+   });
+   safe(()=>{
+    const L=rt.latest||{},ok=v=>v&&v.status!=='unavailable'&&v.features;
+    const imu=ok(L.imu)&&L.imu.features.vibration,emg=ok(L.emg)&&L.emg.features.emg_activation,sc=L.score;
+    const v=imu&&imu.physical&&imu.physical.status==='ok'?imu.physical.combined_rms:null;
+    $('vib').textContent=v==null?'-':num(v,2)+' m/s\u00b2';
+    const a=emg&&emg.normalized&&emg.normalized.status==='ok'&&emg.normalized.display?emg.normalized.display.emg0:null;
+    $('act').textContent=a==null?'-':num(a,2);
+    // a masked or unavailable score has no 'cumulative': show it as unavailable, never as a number
+    $('score').textContent=!sc?'-':sc.status==='accumulating'&&sc.cumulative?num(sc.cumulative.value,4)+' au (accumulating)':sc.status==='paused'&&sc.cumulative?num(sc.cumulative.value,4)+' au (paused: '+((sc.reasons||[])[0]||'')+')':'unavailable ('+esc(sc.reason||((sc.reasons||[])[0])||'')+')';
+   });
+   safe(()=>{$('counters').innerHTML=[...Object.entries(rt.counters||{}),...Object.entries(rt.events||{})].map(([k,x])=>'<tr><td>'+esc(k)+'</td><td>'+esc(x)+'</td></tr>').join('')||'<tr><td colspan=2>nothing yet</td></tr>'});
+  }else blank('no device');
+  safe(()=>{$('sessions').innerHTML=ss.map(s=>'<tr><td>'+esc(String(s.started_at).replace('T',' ').slice(0,19))+'</td><td>'+esc(s.label)+'</td><td>'+esc(s.state)+'</td><td>'+(s.source?badge(s.source):'-')+'</td><td>'+esc(s.score?(s.score.status==='ok'?num(s.score.session_au,4)+' au':s.score.status):'-')+'</td></tr>').join('')||'<tr><td colspan=5>none yet</td></tr>'});
+ }catch(e){
+  $('err').style.display='block';
+  blank('unknown');  // never leave the last values on screen as if they were current
+ }finally{clearTimeout(to);busy=false}
 }
 tick();setInterval(tick,1000);
 </script></body></html>

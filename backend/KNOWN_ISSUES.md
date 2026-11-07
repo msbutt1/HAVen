@@ -31,4 +31,11 @@ listed. Everything below was reproduced.
   shapes, not values.
 - **Serial speed.** `--baud 921600` cannot be opened on a pseudo-terminal on macOS (a test
   environment limit); on a real USB serial device it is the intended rate. Unmeasured on hardware.
+- **A delivered stimulus is not persisted before it is answered**: a crash loses that one trial (the
+  session is marked interrupted; the controller is told to stop the motor on restart).
+- **Only the relaxed reference captured before a session** is not saved with it, so a replay of a
+  session whose calibration is completed inside it (relaxed before, squeeze during) stays uncalibrated;
+  the session is flagged `started_with_relaxed_reference_only`.
+- **`verify-backup` is an integrity check, not authentication**: BACKUP.json is not signed, so someone who
+  edits a file and recomputes its hash passes.
 - **Station controller** is simulated; the stimulus contract is proposed, not agreed.

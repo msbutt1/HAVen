@@ -267,7 +267,9 @@ def test_kill_mid_session_is_recovered_as_interrupted_with_everything_else_intac
         # no clean close happened, but the manifest written at session start survives: it carries
         # the processing config a replay needs
         m = json.loads((session_dir(cut) / "manifest.json").read_text())
-        assert m["session"]["state"] == "recording" and m["processing_config"]["imu"]["conversion"]
+        # recovery rewrote its session block (state interrupted, ended when the last frame arrived)
+        assert m["session"]["state"] == "interrupted" and m["processing_config"]["imu"]["conversion"]
+        assert m["session"]["ended_at"] is not None
 
         # the session completed before the crash is untouched
         done = b.session(ids["done"])

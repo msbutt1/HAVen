@@ -27,16 +27,16 @@
       "units": "au/h"
     },
     "cumulative": {
-      "value": 0.049108,
+      "value": 0.048678,
       "units": "au"
     },
     "accumulation": 1,
     "boot_segments": 1,
     "integrated_until_us": 29999000,
     "pending_s": 0.0,
-    "valid_duration_s": 18.745008,
+    "valid_duration_s": 18.795008,
     "degraded_duration_s": 0.0,
-    "excluded_duration_s": 11.20148,
+    "excluded_duration_s": 11.15148,
     "excluded_by_reason": {
       "activation_capturing_relaxed": 3.0,
       "activation_capturing_squeeze": 3.0,
@@ -46,7 +46,7 @@
       "activation_sensor_disconnected": 0.05,
       "activation_stale": 0.003523,
       "activation_stale & vibration_stale": 0.196477,
-      "activation_uncalibrated": 0.151476,
+      "activation_uncalibrated": 0.101476,
       "activation_uncalibrated & vibration_warming_up": 1.148524,
       "activation_warming_up+gap & vibration_stale": 0.003524,
       "activation_warming_up+gap & vibration_warming_up+gap": 0.346476,

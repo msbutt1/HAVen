@@ -62,7 +62,14 @@ Rules enforced by the backend:
 - **Repeated commands** with the same `request_id` return the first result and change nothing.
 - **Timing** is measured on the host: `presented_at`, `responded_at` (UTC) and
   `response_latency_ms` (monotonic clock). It includes any controller and USB latency.
-- Backend shutdown stops the motor and closes the open trial as `missing`.
+- Backend shutdown stops the motor and closes the open trial as `missing`. After a **crash** the open
+  trial (kept in memory) is gone: the session is marked `interrupted`, that trial has no record, and the
+  controller is told to stop the motor when the backend starts again.
+- `abort` stops the motor twice (before and after waiting for any in-flight delivery), so it is safe
+  even while a slow `deliver` call is still running. If `deliver` raises or returns a bad acknowledgement
+  the backend also stops the motor before reporting the error (502).
+- The answer's `response_latency_ms` is taken before the motor is stopped, so a slow controller does not
+  inflate it. `complete` is refused (409) until the answer has actually been stored.
 
 ## Live events (WebSocket, channel `station`)
 

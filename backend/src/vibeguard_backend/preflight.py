@@ -14,11 +14,13 @@ All checks are local: no network beyond 127.0.0.1.
 from __future__ import annotations
 
 import hashlib
+import http.client
 import json
 import os
 import shutil
 import time
 import urllib.error
+import urllib.parse
 import urllib.request
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -58,9 +60,19 @@ class Report:
         return "\n".join(lines)
 
 
+# The checklist talks to the local backend only: never through a proxy (HTTP_PROXY on a conference
+# network would otherwise make a healthy localhost server look unreachable).
+_OPENER = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
 def _get(base: str, path: str, timeout: float = 3.0):
-    with urllib.request.urlopen(base + path, timeout=timeout) as r:
+    with _OPENER.open(base + path, timeout=timeout) as r:
         return json.loads(r.read())
+
+
+def _is_local(base: str) -> bool:
+    host = (urllib.parse.urlsplit(base).hostname or "").lower()
+    return host in ("localhost", "127.0.0.1", "::1")
 
 
 def _sha256(path: Path) -> str:
@@ -79,10 +91,11 @@ def run_preflight(base: str = "http://127.0.0.1:8765", runtime: str = "wearable"
     # 1. the server answers
     try:
         health = _get(base, "/api/health")
-    except (urllib.error.URLError, OSError, ValueError) as exc:
+    except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as exc:
         rep.add(FAIL, "backend reachable", f"{base} did not answer ({exc})",
                 "start it: cd backend && uv run vg-backend serve")
         return rep
+    local = _is_local(base)
     rep.add(PASS, "backend reachable", f"version {health.get('version')}")
     rec = health.get("recovered_on_start") or {}
     if any(rec.values()):
@@ -90,38 +103,49 @@ def run_preflight(base: str = "http://127.0.0.1:8765", runtime: str = "wearable"
                 "expected after a crash or power loss; their files are kept")
 
     # 2. the device source
+    rt_path = "/api/runtimes/" + urllib.parse.quote(runtime, safe="")
     try:
-        rt = _get(base, f"/api/runtimes/{runtime}")
+        rt = _get(base, rt_path)
     except urllib.error.HTTPError:
         rep.add(FAIL, f"runtime '{runtime}' exists", "no such device source",
                 "start with a device: vg-backend serve --device serial --port ... (or --device sim)")
         rt = None
-    except (urllib.error.URLError, OSError, ValueError) as exc:
+    except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException) as exc:
         rep.add(FAIL, f"runtime '{runtime}' readable", str(exc))
         rt = None
 
+    finished = rt is not None and rt["state"] == "completed"
     if rt is not None:
         state = rt["state"]
+        is_replay = rt.get("role") == "replay"
         if state in ("ready", "recording", "calibrating"):
             rep.add(PASS, "device connected", f"state {state}")
+        elif finished:
+            rep.add(FAIL, "device connected", "state completed: the recording has finished playing, nothing is updating",
+                    "play it again: POST /api/runtimes/" + urllib.parse.quote(runtime, safe="")
+                    + "/restart, or restart with: serve --backup DIR --loop")
         else:
-            rep.add(FAIL, "device connected", f"state {state}: {rt.get('connection_detail') or rt.get('error') or ''}",
-                    "check the USB cable/port; the backend reconnects by itself once the device is back")
+            adapter_kind = (rt.get("adapter") or {}).get("kind")
+            fix = ("check the USB cable and port; the backend reconnects by itself once the device is back"
+                   if adapter_kind == "serial" else "restart the backend")
+            rep.add(FAIL, "device connected", f"state {state}: {rt.get('connection_detail') or rt.get('error') or 'no reason given'}", fix)
 
         # fresh readings: frames must actually advance
         f0 = rt["counters"].get("frames", 0)
         time.sleep(1.0)
         try:
-            rt2 = _get(base, f"/api/runtimes/{runtime}")
-        except (urllib.error.URLError, OSError, ValueError):
+            rt2 = _get(base, rt_path)
+        except (urllib.error.URLError, OSError, ValueError, http.client.HTTPException):
             rt2 = rt
         advanced = rt2["counters"].get("frames", 0) - f0
         age = rt2.get("last_rx_age_s")
-        if advanced > 0 and age is not None and age < 1.0:
+        if finished:
+            pass  # already reported above; a second FAIL for the same cause would only be noise
+        elif advanced > 0 and age is not None and age < 1.0 and rt2.get("data_fresh", True):
             rep.add(PASS, "fresh live readings", f"{advanced} frames in 1 s, last data {age:.2f} s ago")
         else:
-            rep.add(FAIL, "fresh live readings", f"{advanced} frames in 1 s, last data age {age}",
-                    "data is not flowing; do not demo from this state")
+            rep.add(FAIL, "fresh live readings", f"{advanced} frames in 1 s, last data age {age}, "
+                    f"data_fresh={rt2.get('data_fresh')}", "data is not flowing; do not demo from this state")
         bad = rt2["counters"].get("invalid_frames", 0)
         if bad:
             rep.add(WARN, "invalid frames seen", f"{bad} rejected so far; last: {rt2.get('last_invalid_frame')}",
@@ -152,8 +176,9 @@ def run_preflight(base: str = "http://127.0.0.1:8765", runtime: str = "wearable"
     try:
         from websockets.sync.client import connect
 
-        ws_url = base.replace("http", "ws", 1) + f"/ws/live?runtime={runtime}&channels=derived,runtime"
-        with connect(ws_url, open_timeout=3, max_size=None) as ws:
+        ws_url = base.replace("http", "ws", 1) + "/ws/live?runtime=" + urllib.parse.quote(runtime, safe="") \
+            + "&channels=derived,runtime"
+        with connect(ws_url, open_timeout=3, max_size=None, proxy=None) as ws:
             first = json.loads(ws.recv(timeout=3))
             got = 0
             end = time.monotonic() + 2.0
@@ -165,6 +190,9 @@ def run_preflight(base: str = "http://127.0.0.1:8765", runtime: str = "wearable"
                     pass
         if first.get("channel") == "snapshot" and got >= 5:
             rep.add(PASS, "live delivery (WebSocket)", f"snapshot + {got} messages in <2 s")
+        elif first.get("channel") == "snapshot" and (finished or rt is None or not rt.get("data_fresh", True)):
+            rep.add(WARN, "live delivery (WebSocket)", "connects and sends a snapshot; no messages because no data "
+                    "is flowing (see above)")
         else:
             rep.add(FAIL, "live delivery (WebSocket)", f"first={first.get('channel')}, then {got} messages",
                     "the dashboard would show nothing; check /ws/live and that uvicorn[standard] is installed")
@@ -174,33 +202,45 @@ def run_preflight(base: str = "http://127.0.0.1:8765", runtime: str = "wearable"
 
     # 4. saved sessions are there and intact
     try:
-        sessions = _get(base, "/api/sessions?limit=50")
+        sessions = _get(base, "/api/sessions?limit=1000")
         done = [s for s in sessions if s["state"] == "completed"]
         if not done:
             rep.add(WARN, "saved sessions", "no completed session yet", "record one before the demo (step 4)")
+        elif not local:
+            rep.add(WARN, "saved sessions intact", f"{len(done)} completed; file hashes not checked because the "
+                    "server is on another machine (its paths are not readable here)")
         else:
             last = done[0]
-            bad = []
+            bad, checked = [], 0
             for name, info in (last.get("files") or {}).items():
                 p = Path(info["path"])
+                checked += 1
                 if not p.is_file() or p.stat().st_size != info["bytes"] or _sha256(p) != info["sha256"]:
                     bad.append(name)
             if bad:
                 rep.add(FAIL, "saved sessions intact", f"{last['session_id']}: damaged or missing {bad}")
+            elif not checked:
+                rep.add(WARN, "saved sessions intact", f"latest {last['session_id']} has no recorded file hashes, "
+                        "so nothing could be verified")
             else:
                 rep.add(PASS, "saved sessions intact",
-                        f"{len(done)} completed; latest {last['session_id']} ({last['source']}) verified by SHA-256")
+                        f"{len(done)} completed; latest {last['session_id']} ({last['source']}): "
+                        f"{checked} files verified by SHA-256")
         interrupted = [s for s in sessions if s["state"] == "interrupted"]
         if interrupted:
             rep.add(WARN, "interrupted sessions", f"{len(interrupted)} (from crashes/restarts)", "they replay fine; ignore for the demo")
-        hist = _get(base, "/api/history?limit=200")
+        hist = _get(base, "/api/history?limit=1000")
         sim_hist = [i for i in hist["items"] if i.get("simulated_history")]
-        if sim_hist:
-            rep.add(PASS, "simulated history labelled", f"{len(sim_hist)} rows, all marked simulated")
+        mislabelled = [i.get("session_id") or i.get("station_session_id") for i in sim_hist if i.get("source") != "simulated"]
+        if mislabelled:
+            rep.add(FAIL, "simulated history labelled", f"{len(mislabelled)} history rows are flagged simulated "
+                    f"but their source says otherwise: {mislabelled[:3]}")
+        elif sim_hist:
+            rep.add(PASS, "simulated history labelled", f"{len(sim_hist)} rows, each flagged simulated with source simulated")
         else:
             rep.add(WARN, "no simulated history", "the longitudinal view will be empty",
                     "uv run vg-backend seed-history")
-    except (urllib.error.URLError, OSError, ValueError, KeyError) as exc:
+    except (urllib.error.URLError, OSError, ValueError, KeyError, http.client.HTTPException) as exc:
         rep.add(FAIL, "saved sessions readable", str(exc))
 
     # 5. the fallback exists
@@ -220,7 +260,9 @@ def run_preflight(base: str = "http://127.0.0.1:8765", runtime: str = "wearable"
 
     # 6. the machine
     data_dir = health.get("data_dir")
-    if data_dir and Path(data_dir).is_dir():
+    if not local:
+        rep.add(WARN, "machine checks", "data folder and disk space not checked: the server is on another machine")
+    elif data_dir and Path(data_dir).is_dir():
         free_gb = shutil.disk_usage(data_dir).free / 1e9
         writable = os.access(data_dir, os.W_OK)
         rep.add(PASS if writable else FAIL, "data folder writable", data_dir)

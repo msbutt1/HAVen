@@ -93,9 +93,9 @@
         },
         "at_end": {
           "accumulation": 1,
-          "cumulative_au": 0.049108,
-          "valid_duration_s": 18.745008,
-          "excluded_duration_s": 11.20148,
+          "cumulative_au": 0.048678,
+          "valid_duration_s": 18.795008,
+          "excluded_duration_s": 11.15148,
           "boot_segments": 1,
           "excluded_by_reason": {
             "activation_capturing_relaxed": 3.0,
@@ -106,7 +106,7 @@
             "activation_sensor_disconnected": 0.05,
             "activation_stale": 0.003523,
             "activation_stale & vibration_stale": 0.196477,
-            "activation_uncalibrated": 0.151476,
+            "activation_uncalibrated": 0.101476,
             "activation_uncalibrated & vibration_warming_up": 1.148524,
             "activation_warming_up+gap & vibration_stale": 0.003524,
             "activation_warming_up+gap & vibration_warming_up+gap": 0.346476,
@@ -117,8 +117,8 @@
           "status": "accumulating",
           "t_us": 29999000
         },
-        "session_au": 0.049108,
-        "session_valid_s": 18.745,
+        "session_au": 0.048678,
+        "session_valid_s": 18.795,
         "status": "ok",
         "reason": null,
         "started_mid_stream": true,
@@ -131,14 +131,14 @@
           "activation_uncalibrated & vibration_warming_up": 0.5,
           "activation_warming_up+gap & vibration_warming_up+gap": 0.346,
           "activation_stale & vibration_stale": 0.196,
-          "activation_uncalibrated": 0.151,
           "activation_warming_up+sensor_disconnected": 0.15,
+          "activation_uncalibrated": 0.101,
           "activation_sensor_disconnected": 0.05,
           "activation_stale": 0.004,
           "activation_warming_up+gap & vibration_stale": 0.004,
           "vibration_end_of_input": 0.001
         },
-        "explanation": "18.745 s of this session had both a fresh vibration and a calibrated activation reading and were scored: 0.049108 au."
+        "explanation": "18.795 s of this session had both a fresh vibration and a calibrated activation reading and were scored: 0.048678 au."
       },
       "counters": {
         "frames": 1185,
@@ -154,7 +154,7 @@
         "calibration_ids": [
           "cal-000000000003"
         ],
-        "duration_s": 5.864
+        "duration_s": 5.861
       },
       "dir": "<data_dir>/sessions/ws-000000000002"
     },

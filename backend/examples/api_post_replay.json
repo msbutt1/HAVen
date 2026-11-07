@@ -8,7 +8,7 @@
   "adapter": {
     "kind": "replay",
     "clock": "device",
-    "path": "/private/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-421w64nh/sessions/ws-000000000001/telemetry.ndjson",
+    "path": "/private/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-pnjrg1or/sessions/ws-000000000001/telemetry.ndjson",
     "recording_id": "sim-examples",
     "speed": 10.0,
     "fast": false,

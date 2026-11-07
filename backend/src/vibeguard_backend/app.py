@@ -65,45 +65,85 @@ async def _call(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         raise HTTPException(503, "the device runtime did not answer in time") from exc
 
 
-LOCAL_HOSTS = ("localhost", "127.0.0.1", "[::1]", "::1")
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "[::1]")
 MAX_BODY_BYTES = 1_000_000
+_HOSTPORT = re.compile(r"^(?P<host>\[[0-9a-f:.]+\]|[a-z0-9]([a-z0-9.-]*[a-z0-9])?)(?::(?P<port>\d{1,5}))?$")
+
+
+def _split_hostport(value: str) -> tuple[str, str | None] | None:
+    """('host', 'port'|None) from a Host header or an Origin's netloc; None if malformed.
+    Anything with userinfo, a path or a non-numeric port is malformed."""
+    m = _HOSTPORT.match(value.strip().lower())
+    return (m.group("host"), m.group("port")) if m else None
 
 
 def _host_only(host_header: str) -> str:
-    h = host_header.strip().lower()
-    if h.startswith("["):  # [::1]:8765
-        return h.split("]")[0] + "]"
-    return h.rsplit(":", 1)[0] if h.count(":") == 1 else h
+    parsed = _split_hostport(host_header or "")
+    return parsed[0] if parsed else "\0malformed"
+
+
+def _origin_host(origin: str) -> tuple[str, str | None] | None:
+    from urllib.parse import urlsplit
+    try:
+        u = urlsplit(origin)
+    except ValueError:
+        return None
+    if u.scheme not in ("http", "https") or u.username or u.password or u.path not in ("", "/") \
+            or u.query or u.fragment or not u.netloc:
+        return None
+    return _split_hostport(u.netloc)
 
 
 def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
                allowed_hosts: tuple[str, ...] | None = LOCAL_HOSTS) -> FastAPI:
-    """``allowed_hosts``: Host header values accepted (defends against DNS rebinding). Pass None
-    to disable the check (e.g. when deliberately listening on a LAN address)."""
-    hosts = None if allowed_hosts is None else {h.lower() for h in allowed_hosts}
-    origin_ok = re.compile(r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$")
+    """``allowed_hosts``: Host header values accepted (defends against DNS rebinding); ports are
+    ignored. Pass None to disable the Host check (e.g. when deliberately listening on all
+    interfaces); the Origin check then only accepts local origins and the page's own origin."""
+    hosts = None if allowed_hosts is None else {_host_only(h) for h in allowed_hosts}
+    local = {"localhost", "127.0.0.1", "[::1]"}
 
     def trusted_origin(origin: str | None, host_header: str | None) -> bool:
         """A request that carries an Origin (every browser cross-site request does) must come from
-        a local page, or from the page this very server served."""
+        a local page, from the page this very server served (same origin), or from an allowed host."""
         if not origin:
             return True  # not a browser (curl, scripts, the dashboard's own server-side calls)
-        if origin_ok.match(origin):
+        parsed = _origin_host(origin)
+        if parsed is None:
+            return False  # 'null', file://, userinfo tricks, garbage
+        host, port = parsed
+        if host in local or (hosts is not None and host in hosts):
             return True
-        return hosts is None or (_host_only(origin.split("://", 1)[-1]) in hosts)
+        own = _split_hostport(host_header or "")  # same origin: the page served by this very server
+        return own is not None and own == (host, port)
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         yield
         if on_shutdown:
             on_shutdown()
 
-    app = FastAPI(title="VibeGuard backend", version=__version__, lifespan=lifespan)
+    app = FastAPI(title="VibeGuard backend", version=__version__, lifespan=lifespan,
+                  docs_url=None, redoc_url=None)  # the bundled docs page loads assets from a CDN: offline it is blank
     app.state.backend = backend
 
+    from fastapi.exceptions import RequestValidationError
+    from fastapi.requests import Request
+
+    def _cors(request: Request) -> dict:
+        origin = request.headers.get("origin")
+        return {"access-control-allow-origin": origin, "vary": "Origin"} if origin and trusted_origin(
+            origin, request.headers.get("host")) else {}
+
+    @app.exception_handler(RequestValidationError)
+    async def bad_body(request: Request, exc: RequestValidationError):
+        # never echo the input: it can hold NaN/Infinity, which JSON cannot serialise
+        errs = [{"loc": [str(x) for x in e.get("loc", ())], "msg": e.get("msg", "invalid")} for e in exc.errors()]
+        return JSONResponse({"detail": errs}, status_code=422, headers=_cors(request))
+
     @app.exception_handler(Exception)
-    async def unexpected(_request, exc: Exception):  # never leak a traceback to the dashboard
-        from fastapi.responses import JSONResponse
-        return JSONResponse({"detail": f"internal error: {type(exc).__name__}"}, status_code=500)
+    async def unexpected(request: Request, exc: Exception):  # never leak a traceback to the dashboard
+        return JSONResponse({"detail": f"internal error: {type(exc).__name__}"}, status_code=500,
+                            headers=_cors(request))
     # The dashboard runs on another localhost port during development.
     app.add_middleware(CORSMiddleware, allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?",
                        allow_methods=["*"], allow_headers=["*"])
@@ -125,12 +165,31 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
             return JSONResponse({"detail": "chunked request bodies are not accepted"}, status_code=411)
         return await call_next(request)
 
-    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
     async def home() -> HTMLResponse:
         return HTMLResponse(STATUS_PAGE, headers={"Content-Security-Policy": CSP,
                                                   "X-Content-Type-Options": "nosniff"})
 
-    @app.get("/api/health")
+    @app.get("/docs", response_class=HTMLResponse, include_in_schema=False)
+    async def docs() -> HTMLResponse:
+        """An offline API reference built from the routes (the stock Swagger page needs a CDN)."""
+        import html
+        rows = []
+        for r in app.routes:
+            if getattr(r, "include_in_schema", True) is False or not hasattr(r, "methods"):
+                continue
+            for m in sorted(r.methods - {"HEAD", "OPTIONS"}):
+                doc = (r.endpoint.__doc__ or "").strip().splitlines()
+                rows.append(f"<tr><td><code>{m}</code></td><td><code>{html.escape(r.path)}</code></td>"
+                            f"<td>{html.escape(doc[0] if doc else '')}</td></tr>")
+        body = ("<!doctype html><meta charset=utf-8><title>VibeGuard API</title>"
+                "<style>body{font:15px system-ui;margin:24px;max-width:900px}td{padding:3px 12px 3px 0}"
+                "code{font:13px ui-monospace,monospace}</style><h1>VibeGuard backend API</h1>"
+                "<p>Full description: <a href='/openapi.json'>/openapi.json</a>; examples and the WebSocket "
+                "(<code>/ws/live</code>) are in backend/README.md.</p><table>" + "".join(rows) + "</table>")
+        return HTMLResponse(body, headers={"Content-Security-Policy": CSP})
+
+    @app.api_route("/api/health", methods=["GET", "HEAD"])
     async def health() -> dict:
         return {"ok": True, "version": __version__, "data_dir": str(b.data_dir),
                 "runtimes": {n: rt.host_state for n, rt in list(b.runtimes.items())},
@@ -146,11 +205,19 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
     async def runtime(name: str) -> dict:
         return (await _call(b.runtime, name)).snapshot()
 
+    @app.post("/api/runtimes/{name}/restart")
+    async def restart_runtime(name: str) -> dict:
+        """Play a finished backup fallback again from its first frame."""
+        return await _call(b.restart_backup, name)
+
     @app.delete("/api/runtimes/{name}")
     async def remove_runtime(name: str) -> dict:
         rt = await _call(b.runtime, name)
         if rt.role != "replay":
             raise HTTPException(409, "only replay runtimes can be removed while the backend runs")
+        if rt.meta.get("backup"):
+            raise HTTPException(409, "this is the backup fallback: removing it would leave no wearable; "
+                                     "use POST /api/runtimes/{name}/restart to play it again")
         return await _call(b.remove_runtime, name)
 
     @app.post("/api/runtimes/{name}/calibration")
@@ -296,9 +363,11 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
 
 
 async def _drain_client(ws: WebSocket) -> None:
-    """Consume (and ignore) client messages so a disconnect is noticed promptly."""
+    """Consume (and ignore) whatever the client sends, text or binary, so a disconnect is noticed."""
     try:
         while True:
-            await ws.receive_text()
+            msg = await ws.receive()
+            if msg.get("type") == "websocket.disconnect":
+                return
     except (WebSocketDisconnect, RuntimeError):
         return
