@@ -1,0 +1,55 @@
+{
+  "v": 1,
+  "hub_seq": 95,
+  "channel": "runtime",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
+  "payload": {
+    "runtime": "wearable",
+    "role": "wearable",
+    "state": "recording",
+    "connection": "connected",
+    "connection_detail": null,
+    "error": null,
+    "adapter": {
+      "kind": "sim",
+      "clock": "host",
+      "scenario": "demo",
+      "seed": 1,
+      "duration_s": 30,
+      "speed": 5.0,
+      "fast": false,
+      "loop": false,
+      "recording_ids": [
+        "sim-examples"
+      ],
+      "frames_lost_unplugged": 0,
+      "note": "SIMULATED device; never presented as live"
+    },
+    "device_id": "sim-wearable-01",
+    "boot_id": "sim-examples-b0",
+    "provenance": {
+      "source": "simulated",
+      "recording_id": "sim-examples"
+    },
+    "calibration": {
+      "state": "uncalibrated",
+      "reason": null,
+      "calibration_id": null
+    },
+    "active_session_id": "ws-000000000000",
+    "last_rx_wall": "2026-11-07T18:00:00.000Z",
+    "last_rx_age_s": 0.001,
+    "data_fresh": true,
+    "counters": {
+      "connection_connected": 1,
+      "frames": 31,
+      "records": 31
+    },
+    "events": {},
+    "last_invalid_frame": null,
+    "last_frame_error": null,
+    "started_at": "2026-11-07T18:00:00.000Z",
+    "meta": {}
+  }
+}

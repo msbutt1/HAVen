@@ -1,0 +1,422 @@
+{
+  "v": 1,
+  "hub_seq": 90,
+  "channel": "snapshot",
+  "runtime": null,
+  "rx_wall": "2026-11-07T18:00:00.000Z",
+  "payload": {
+    "runtimes": [
+      {
+        "runtime": "wearable",
+        "role": "wearable",
+        "state": "ready",
+        "connection": "connected",
+        "connection_detail": null,
+        "error": null,
+        "adapter": {
+          "kind": "sim",
+          "clock": "host",
+          "scenario": "demo",
+          "seed": 1,
+          "duration_s": 30,
+          "speed": 5.0,
+          "fast": false,
+          "loop": false,
+          "recording_ids": [
+            "sim-examples"
+          ],
+          "frames_lost_unplugged": 0,
+          "note": "SIMULATED device; never presented as live"
+        },
+        "device_id": "sim-wearable-01",
+        "boot_id": "sim-examples-b0",
+        "provenance": {
+          "source": "simulated",
+          "recording_id": "sim-examples"
+        },
+        "calibration": {
+          "state": "uncalibrated",
+          "reason": null,
+          "calibration_id": null
+        },
+        "active_session_id": null,
+        "last_rx_wall": "2026-11-07T18:00:00.000Z",
+        "last_rx_age_s": 0.001,
+        "data_fresh": true,
+        "counters": {
+          "connection_connected": 1,
+          "frames": 30,
+          "records": 30
+        },
+        "events": {},
+        "last_invalid_frame": null,
+        "last_frame_error": null,
+        "started_at": "2026-11-07T18:00:00.000Z",
+        "meta": {},
+        "latest": {
+          "emg": {
+            "schema": "vibeguard.features",
+            "version": 1,
+            "type": "stream_features",
+            "device_id": "sim-wearable-01",
+            "boot_id": "sim-examples-b0",
+            "provenance": {
+              "source": "simulated",
+              "recording_id": "sim-examples"
+            },
+            "timebase": "device_monotonic_us",
+            "stream": "emg",
+            "t_us": 704000,
+            "source_seq": 28,
+            "status": "ok",
+            "reasons": [],
+            "window": {
+              "length_s": 0.1,
+              "samples": 100,
+              "start_us": 605000,
+              "end_us": 704000,
+              "nominal_rate_hz": 1000.0,
+              "rate_source": "device_hello",
+              "measured_rate_hz": 1000.0,
+              "expected_samples": 100.0,
+              "complete_samples": 100,
+              "coverage": 1.0
+            },
+            "quality": {
+              "clipped_samples": 0,
+              "clipping_detection": "device_declared_limits",
+              "device_flags": []
+            },
+            "features": {
+              "window_stats": {
+                "status": "ok",
+                "units": {
+                  "emg0": "adc_counts"
+                },
+                "mean": {
+                  "emg0": 2045.07
+                },
+                "ac_rms": {
+                  "emg0": 26.3029
+                }
+              },
+              "emg_activation": {
+                "label": "relative_muscle_activation_proxy",
+                "label_note": "normalised to this wearer's relaxed and squeeze calibration for the current electrode placement; not force, not %MVC, not clinically validated",
+                "input_assumption": "raw_emg",
+                "envelope": {
+                  "status": "ok",
+                  "reasons": [],
+                  "value": {
+                    "emg0": 24.2456
+                  },
+                  "units": {
+                    "emg0": "adc_counts_rms"
+                  },
+                  "window_s": 0.1
+                },
+                "normalized": {
+                  "status": "unavailable",
+                  "reasons": [
+                    "uncalibrated"
+                  ],
+                  "value": null,
+                  "display": null,
+                  "above_reference": null,
+                  "below_relaxed": null,
+                  "calibration_id": null
+                },
+                "calibration": {
+                  "state": "uncalibrated",
+                  "reason": null,
+                  "calibration_id": null,
+                  "capturing": null
+                }
+              }
+            }
+          },
+          "imu": {
+            "schema": "vibeguard.features",
+            "version": 1,
+            "type": "stream_features",
+            "device_id": "sim-wearable-01",
+            "boot_id": "sim-examples-b0",
+            "provenance": {
+              "source": "simulated",
+              "recording_id": "sim-examples"
+            },
+            "timebase": "device_monotonic_us",
+            "stream": "imu",
+            "t_us": 702509,
+            "source_seq": 29,
+            "status": "ok",
+            "reasons": [],
+            "window": {
+              "length_s": 0.5,
+              "samples": 200,
+              "start_us": 205025,
+              "end_us": 702509,
+              "nominal_rate_hz": 400.0,
+              "rate_source": "device_hello",
+              "measured_rate_hz": 400.0129,
+              "expected_samples": 200.0,
+              "complete_samples": 200,
+              "coverage": 1.0
+            },
+            "quality": {
+              "clipped_samples": 0,
+              "clipping_detection": "device_declared_limits",
+              "device_flags": []
+            },
+            "features": {
+              "window_stats": {
+                "status": "ok",
+                "units": {
+                  "ax": "raw_counts",
+                  "ay": "raw_counts",
+                  "az": "raw_counts"
+                },
+                "mean": {
+                  "ax": 0.26,
+                  "ay": 0.215,
+                  "az": 4096.05
+                },
+                "ac_rms": {
+                  "ax": 3.102,
+                  "ay": 3.1415,
+                  "az": 2.9762
+                }
+              },
+              "vibration": {
+                "label": "measured_vibration_within_sensor_bandwidth",
+                "weighting": "none (unweighted; not ISO 5349 frequency-weighted)",
+                "window_s": 1.0,
+                "passband_hz": {
+                  "low": 5.0,
+                  "high": null,
+                  "high_note": "sensor-limited (internal filter/ODR unknown); at most Nyquist 200 Hz"
+                },
+                "status": "warming_up",
+                "reasons": [
+                  "warming_up"
+                ],
+                "units": {
+                  "ax": "raw_counts",
+                  "ay": "raw_counts",
+                  "az": "raw_counts"
+                },
+                "static_mean": null,
+                "dynamic_rms": null,
+                "combined_rms": null,
+                "physical": {
+                  "status": "warming_up",
+                  "reasons": [
+                    "warming_up"
+                  ],
+                  "units": "m/s^2",
+                  "dynamic_rms": null,
+                  "combined_rms": null,
+                  "conversion_source": null
+                }
+              }
+            }
+          },
+          "score": {
+            "schema": "vibeguard.features",
+            "version": 1,
+            "type": "experimental_score",
+            "device_id": "sim-wearable-01",
+            "boot_id": "sim-examples-b0",
+            "provenance": {
+              "source": "simulated",
+              "recording_id": "sim-examples"
+            },
+            "timebase": "device_monotonic_us",
+            "t_us": 702509,
+            "source_seq": 29,
+            "trigger": "imu",
+            "label": "experimental_combined_score",
+            "label_note": "arbitrary units from an experimental formula; not A(8), not a vibration dose, not a percentage of any limit; activation weighting is an algorithm choice, not validated vibration transmission",
+            "status": "paused",
+            "reasons": [
+              "vibration_warming_up",
+              "activation_uncalibrated"
+            ],
+            "rate": {
+              "value": null,
+              "units": "au/h"
+            },
+            "cumulative": {
+              "value": 0.0,
+              "units": "au"
+            },
+            "accumulation": 1,
+            "boot_segments": 1,
+            "integrated_until_us": 702509,
+            "pending_s": 0.001491,
+            "valid_duration_s": 0.0,
+            "degraded_duration_s": 0.0,
+            "excluded_duration_s": 0.649997,
+            "excluded_by_reason": {
+              "activation_no_data & vibration_warming_up": 0.001488,
+              "activation_uncalibrated & vibration_warming_up": 0.648509
+            },
+            "clock": "device_time (recording time for replay; independent of wall-clock pacing)",
+            "inputs": {
+              "vibration": {
+                "status": "warming_up",
+                "value": null,
+                "units": "m/s^2",
+                "t_us": 702509,
+                "age_s": 0.0,
+                "fresh_limit_s": 0.25
+              },
+              "activation": {
+                "status": "unavailable",
+                "value": null,
+                "units": "normalized",
+                "t_us": 704000,
+                "age_s": 0.0,
+                "fresh_limit_s": 0.25
+              }
+            },
+            "formula": {
+              "expression": "k_per_hour * (V / v_ref)^exponent * (1 + activation_weight * clamp(a, 0, activation_cap))",
+              "coefficients": {
+                "k_per_hour": 1.0,
+                "v_ref": 1.0,
+                "exponent": 2.0,
+                "activation_weight": 1.0,
+                "activation_cap": 2.0,
+                "activation_mode": "required",
+                "vibration_fresh_s": 0.25,
+                "activation_fresh_s": 0.25
+              }
+            }
+          }
+        },
+        "hello": {
+          "schema": "vibeguard.device_telemetry",
+          "version": 1,
+          "type": "hello",
+          "device_id": "sim-wearable-01",
+          "boot_id": "sim-examples-b0",
+          "seq": 0,
+          "provenance": {
+            "source": "simulated",
+            "recording_id": "sim-examples",
+            "detail": {
+              "generator": "vibeguard-sim",
+              "generator_version": "0.1.0",
+              "seed": 1,
+              "scenario": "demo",
+              "config_digest": "00742a7d598c6bfb",
+              "identity": "fixed",
+              "description": "Scripted 30 s offline demo: calibration, stronger activation, vibration on/off, EMG disconnect (19.5-20.5 s) and transport loss (21.0-21.4 s), recovery.",
+              "config": {
+                "scenario": "demo",
+                "seed": 1,
+                "duration_s": 30,
+                "emg_rate_hz": 1000.0,
+                "imu_rate_hz": 400.0,
+                "batch_ms": 50.0,
+                "device_id": "sim-wearable-01",
+                "imu_jitter_frac": 0.005,
+                "status_interval_s": 1.0,
+                "vibration_hz": null
+              },
+              "declared_faults": [
+                {
+                  "kind": "disconnect",
+                  "stream": "emg",
+                  "start_s": 19.5,
+                  "end_s": 20.5
+                },
+                {
+                  "kind": "transport_loss",
+                  "stream": null,
+                  "start_s": 21.0,
+                  "end_s": 21.4
+                }
+              ],
+              "time_note": "fault/phase times are simulation seconds since run start, not device time and not wall time",
+              "signal_note": "synthetic surrogate signals; not physiological or sensor models"
+            }
+          },
+          "t_us": 1000,
+          "firmware": {
+            "name": "vibeguard-sim",
+            "version": "0.1.0"
+          },
+          "streams": {
+            "emg": {
+              "nominal_rate_hz": 1000.0,
+              "channels": [
+                "emg0"
+              ],
+              "units": {
+                "emg0": "adc_counts"
+              },
+              "raw_limits": {
+                "min": 0,
+                "max": 4095
+              },
+              "sensor_model": "synthetic EMG surrogate (simulator)"
+            },
+            "imu": {
+              "nominal_rate_hz": 400.0,
+              "channels": [
+                "ax",
+                "ay",
+                "az"
+              ],
+              "units": {
+                "ax": "raw_counts",
+                "ay": "raw_counts",
+                "az": "raw_counts"
+              },
+              "raw_limits": {
+                "min": -32768,
+                "max": 32767
+              },
+              "sensor_model": "synthetic accelerometer surrogate (simulator)"
+            }
+          },
+          "hardware": {
+            "board": "none (simulated)"
+          }
+        },
+        "device_status": {
+          "schema": "vibeguard.device_telemetry",
+          "version": 1,
+          "type": "status",
+          "device_id": "sim-wearable-01",
+          "boot_id": "sim-examples-b0",
+          "seq": 1,
+          "provenance": {
+            "source": "simulated",
+            "recording_id": "sim-examples"
+          },
+          "t_us": 2000,
+          "state": "streaming",
+          "sensors": {
+            "emg": "ok",
+            "imu": "ok"
+          },
+          "counters": {
+            "emg_dropped_samples": 0,
+            "imu_dropped_samples": 0
+          }
+        }
+      }
+    ],
+    "channels": [
+      "derived",
+      "device",
+      "runtime",
+      "session",
+      "station",
+      "telemetry"
+    ]
+  }
+}

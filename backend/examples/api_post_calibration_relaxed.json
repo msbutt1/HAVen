@@ -1,0 +1,32 @@
+{
+  "runtime": "wearable",
+  "action": "relaxed",
+  "events": [
+    {
+      "schema": "vibeguard.features",
+      "version": 1,
+      "type": "stream_event",
+      "device_id": "sim-wearable-01",
+      "boot_id": "sim-examples-b0",
+      "provenance": {
+        "source": "simulated",
+        "recording_id": "sim-examples"
+      },
+      "timebase": "device_monotonic_us",
+      "event": "calibration_state",
+      "stream": "emg",
+      "t_us": 1304000,
+      "source_seq": 53,
+      "detail": {
+        "state": "capturing_relaxed",
+        "reason": null,
+        "phase": "relaxed"
+      }
+    }
+  ],
+  "calibration": {
+    "state": "capturing_relaxed",
+    "reason": null,
+    "calibration_id": null
+  }
+}

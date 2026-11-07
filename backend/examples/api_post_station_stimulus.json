@@ -1,0 +1,13 @@
+{
+  "trial_id": "tr-000000000000",
+  "trial_index": 0,
+  "stimulus": {
+    "motor_setting": 160,
+    "units": "pwm_duty_0_255"
+  },
+  "is_catch": false,
+  "presented_at": "2026-11-07T18:00:00.000Z",
+  "waiting_s": 0.0,
+  "timeout_s": 3.0,
+  "note": "trial_index is where this trial will be stored if nothing else is added first"
+}

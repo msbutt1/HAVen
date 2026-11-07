@@ -1,0 +1,211 @@
+{
+  "processing_config": {
+    "emg": {
+      "window_s": 0.1,
+      "warmup_s": null,
+      "min_coverage": 0.9,
+      "expected_rate_hz": null,
+      "raw_limits": null,
+      "use_device_raw_limits": true,
+      "conversion": null,
+      "conversion_source": null,
+      "buffer_rate_ceiling_factor": 2.0
+    },
+    "imu": {
+      "window_s": 0.5,
+      "warmup_s": null,
+      "min_coverage": 0.9,
+      "expected_rate_hz": null,
+      "raw_limits": null,
+      "use_device_raw_limits": true,
+      "conversion": {
+        "ax": [
+          0.00239420166015625,
+          0.0
+        ],
+        "ay": [
+          0.00239420166015625,
+          0.0
+        ],
+        "az": [
+          0.00239420166015625,
+          0.0
+        ]
+      },
+      "conversion_source": "simulator synthetic scale 4096 counts per g (SIMULATED; not a sensor datasheet value)",
+      "buffer_rate_ceiling_factor": 2.0
+    },
+    "emg_processing": {
+      "offset_mode": "ema",
+      "offset_tau_s": 1.0,
+      "fixed_offset": null,
+      "bandpass": {
+        "low_hz": 20.0,
+        "high_hz": 450.0,
+        "order": 2,
+        "nyquist_headroom": 0.9
+      },
+      "envelope_window_s": 0.1,
+      "settle_s": 0.1
+    },
+    "calibration": {
+      "relaxed_s": 3.0,
+      "squeeze_s": 3.0,
+      "discard_s": 0.5,
+      "min_updates": 10,
+      "max_clipped_fraction": 0.0,
+      "min_ratio": 2.0,
+      "min_separation": 1.0,
+      "survives_reboot": false
+    },
+    "vibration": {
+      "highpass_hz": 5.0,
+      "lowpass_hz": null,
+      "order": 2,
+      "nyquist_headroom": 0.9,
+      "window_s": 1.0,
+      "settle_s": 0.25
+    },
+    "score": {
+      "k_per_hour": 1.0,
+      "v_ref": 1.0,
+      "exponent": 2.0,
+      "activation_weight": 1.0,
+      "activation_cap": 2.0,
+      "activation_mode": "required",
+      "vibration_fresh_s": 0.25,
+      "activation_fresh_s": 0.25
+    },
+    "stale_after_s": 0.25,
+    "clock": "host",
+    "continuity_tolerance": 0.5,
+    "recent_seq_memory": 256,
+    "retired_boot_memory": 8
+  },
+  "session": {
+    "session_id": "ws-ccc7309ca2c5",
+    "runtime": "wearable",
+    "device_id": "sim-wearable-01",
+    "state": "completed",
+    "end_reason": "stopped_by_user",
+    "label": "calibrated demo",
+    "source": "simulated",
+    "original_source": null,
+    "recording_id": "sim-f53cd8a50951",
+    "simulated_history": false,
+    "started_at": "2026-11-07T19:18:33.492Z",
+    "ended_at": "2026-11-07T19:19:03.045Z",
+    "boot_ids": [
+      "sim-f53cd8a50951-b0"
+    ],
+    "calibration_id": "cal-651b5ff7b5e3",
+    "score": {
+      "label": "experimental score, arbitrary units (not a dose, not A(8))",
+      "at_start": {
+        "accumulation": 1,
+        "cumulative_au": 0.0,
+        "valid_duration_s": 0.0,
+        "excluded_duration_s": 29.946488,
+        "boot_segments": 2,
+        "excluded_by_reason": {
+          "activation_invalidated+provenance_mismatch": 27.191484,
+          "activation_invalidated+provenance_mismatch & vibration_boot_change": 0.001479,
+          "activation_invalidated+provenance_mismatch & vibration_stale": 0.003524,
+          "activation_invalidated+provenance_mismatch & vibration_warming_up": 1.148524,
+          "activation_invalidated+provenance_mismatch & vibration_warming_up+gap": 1.399989,
+          "activation_no_data & vibration_warming_up": 0.001488,
+          "activation_stale": 0.003523,
+          "activation_stale & vibration_stale": 0.196477
+        },
+        "status": "paused",
+        "t_us": 104000
+      },
+      "at_end": {
+        "accumulation": 1,
+        "cumulative_au": 0.048605,
+        "valid_duration_s": 19.249997,
+        "excluded_duration_s": 40.246489,
+        "boot_segments": 2,
+        "excluded_by_reason": {
+          "activation_capturing_relaxed": 2.351476,
+          "activation_capturing_relaxed & vibration_warming_up": 0.648524,
+          "activation_capturing_squeeze": 3.0,
+          "activation_device_reports_disconnected": 0.995,
+          "activation_invalidated+provenance_mismatch": 27.191484,
+          "activation_invalidated+provenance_mismatch & vibration_boot_change": 0.001479,
+          "activation_invalidated+provenance_mismatch & vibration_stale": 0.003524,
+          "activation_invalidated+provenance_mismatch & vibration_warming_up": 1.648524,
+          "activation_invalidated+provenance_mismatch & vibration_warming_up+gap": 1.399989,
+          "activation_no_data & vibration_warming_up": 0.002976,
+          "activation_relaxed_captured": 1.0,
+          "activation_sensor_disconnected": 0.05,
+          "activation_stale": 0.007046,
+          "activation_stale & vibration_stale": 0.392954,
+          "activation_warming_up+gap & vibration_stale": 0.003524,
+          "activation_warming_up+gap & vibration_warming_up+gap": 0.346476,
+          "activation_warming_up+sensor_disconnected": 0.15,
+          "vibration_warming_up+gap": 1.053513
+        },
+        "status": "accumulating",
+        "t_us": 29649000
+      },
+      "session_au": 0.048605,
+      "session_valid_s": 19.25,
+      "status": "ok",
+      "reason": null,
+      "started_mid_stream": true,
+      "excluded_by_reason": {
+        "activation_capturing_squeeze": 3.0,
+        "activation_capturing_relaxed": 2.351,
+        "vibration_warming_up+gap": 1.054,
+        "activation_relaxed_captured": 1.0,
+        "activation_device_reports_disconnected": 0.995,
+        "activation_capturing_relaxed & vibration_warming_up": 0.649,
+        "activation_invalidated+provenance_mismatch & vibration_warming_up": 0.5,
+        "activation_warming_up+gap & vibration_warming_up+gap": 0.346,
+        "activation_stale & vibration_stale": 0.196,
+        "activation_warming_up+sensor_disconnected": 0.15,
+        "activation_sensor_disconnected": 0.05,
+        "activation_stale": 0.004,
+        "activation_warming_up+gap & vibration_stale": 0.004,
+        "activation_no_data & vibration_warming_up": 0.001
+      },
+      "explanation": "19.25 s of this session had both a fresh vibration and a calibrated activation reading and were scored: 0.048605 au."
+    },
+    "counters": {
+      "frames": 1196,
+      "derived_records": 2351,
+      "events": {
+        "device_sensor_state": 2,
+        "stream_stale": 2,
+        "seq_gap": 17,
+        "sample_gap": 2,
+        "stream_recovered": 2
+      },
+      "sources_seen": [
+        "simulated"
+      ],
+      "calibration_ids": [
+        "cal-651b5ff7b5e3"
+      ],
+      "duration_s": 29.553
+    }
+  },
+  "runtime_meta": {},
+  "adapter": {
+    "kind": "sim",
+    "clock": "host",
+    "scenario": "demo",
+    "seed": 1,
+    "duration_s": 30.0,
+    "speed": 1.0,
+    "fast": false,
+    "loop": true,
+    "recording_ids": [
+      "sim-5d29cc1c0b58",
+      "sim-f53cd8a50951"
+    ],
+    "frames_lost_unplugged": 0,
+    "note": "SIMULATED device; never presented as live"
+  }
+}

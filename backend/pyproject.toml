@@ -1,0 +1,38 @@
+[project]
+name = "vibeguard-backend"
+version = "0.1.0"
+description = "VibeGuard local backend: device adapters, ingestion, sessions, storage, live delivery, recording/replay (Abduljabbar-owned)."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "vibeguard-signals",
+    "fastapi>=0.115",
+    "uvicorn[standard]>=0.30",
+    "pyserial>=3.5",
+]
+
+[project.scripts]
+vg-backend = "vibeguard_backend.cli:main"
+
+[tool.uv.sources]
+vibeguard-signals = { path = "../signals", editable = true }
+
+[build-system]
+requires = ["uv_build>=0.11.14,<0.12.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["fast: quick tests (kept for selection with -m fast)"]
+filterwarnings = [
+    # starlette's TestClient prefers httpx2 in newer releases; harmless, the locked versions work
+    "ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning",
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+    "ignore::DeprecationWarning:websockets",  # raw clients in the HTTP review tests
+]

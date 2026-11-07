@@ -1,0 +1,32 @@
+{
+  "v": 1,
+  "hub_seq": 94,
+  "channel": "session",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
+  "payload": {
+    "event": "session_started",
+    "session": {
+      "session_id": "ws-000000000000",
+      "runtime": "wearable",
+      "device_id": "sim-wearable-01",
+      "state": "recording",
+      "end_reason": null,
+      "label": "example session",
+      "source": "simulated",
+      "original_source": null,
+      "recording_id": "sim-examples",
+      "simulated_history": false,
+      "started_at": "2026-11-07T18:00:00.000Z",
+      "ended_at": null,
+      "boot_ids": [
+        "sim-examples-b0"
+      ],
+      "calibration_id": null,
+      "score": null,
+      "counters": null,
+      "files": null,
+      "dir": "/private/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-pnjrg1or/sessions/ws-000000000000"
+    }
+  }
+}

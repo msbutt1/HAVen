@@ -1,0 +1,88 @@
+{
+  "v": 1,
+  "hub_seq": 91,
+  "channel": "derived",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
+  "payload": {
+    "schema": "vibeguard.features",
+    "version": 1,
+    "type": "stream_features",
+    "device_id": "sim-wearable-01",
+    "boot_id": "sim-examples-b0",
+    "provenance": {
+      "source": "simulated",
+      "recording_id": "sim-examples"
+    },
+    "timebase": "device_monotonic_us",
+    "stream": "emg",
+    "t_us": 754000,
+    "source_seq": 30,
+    "status": "ok",
+    "reasons": [],
+    "window": {
+      "length_s": 0.1,
+      "samples": 100,
+      "start_us": 655000,
+      "end_us": 754000,
+      "nominal_rate_hz": 1000.0,
+      "rate_source": "device_hello",
+      "measured_rate_hz": 1000.0,
+      "expected_samples": 100.0,
+      "complete_samples": 100,
+      "coverage": 1.0
+    },
+    "quality": {
+      "clipped_samples": 0,
+      "clipping_detection": "device_declared_limits",
+      "device_flags": []
+    },
+    "features": {
+      "window_stats": {
+        "status": "ok",
+        "units": {
+          "emg0": "adc_counts"
+        },
+        "mean": {
+          "emg0": 2043.62
+        },
+        "ac_rms": {
+          "emg0": 29.0334
+        }
+      },
+      "emg_activation": {
+        "label": "relative_muscle_activation_proxy",
+        "label_note": "normalised to this wearer's relaxed and squeeze calibration for the current electrode placement; not force, not %MVC, not clinically validated",
+        "input_assumption": "raw_emg",
+        "envelope": {
+          "status": "ok",
+          "reasons": [],
+          "value": {
+            "emg0": 26.9
+          },
+          "units": {
+            "emg0": "adc_counts_rms"
+          },
+          "window_s": 0.1
+        },
+        "normalized": {
+          "status": "unavailable",
+          "reasons": [
+            "uncalibrated"
+          ],
+          "value": null,
+          "display": null,
+          "above_reference": null,
+          "below_relaxed": null,
+          "calibration_id": null
+        },
+        "calibration": {
+          "state": "uncalibrated",
+          "reason": null,
+          "calibration_id": null,
+          "capturing": null
+        }
+      }
+    }
+  }
+}

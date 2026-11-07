@@ -1,0 +1,24 @@
+{
+  "v": 1,
+  "hub_seq": 3613,
+  "channel": "derived",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
+  "payload": {
+    "schema": "vibeguard.features",
+    "version": 1,
+    "type": "stream_event",
+    "device_id": "sim-wearable-01",
+    "boot_id": "sim-examples-b0",
+    "provenance": {
+      "source": "simulated",
+      "recording_id": "sim-examples"
+    },
+    "timebase": "device_monotonic_us",
+    "event": "end_of_input",
+    "stream": null,
+    "t_us": null,
+    "source_seq": 1232,
+    "detail": {}
+  }
+}

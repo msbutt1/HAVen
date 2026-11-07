@@ -1,0 +1,29 @@
+{
+  "v": 1,
+  "hub_seq": 123,
+  "channel": "device",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
+  "payload": {
+    "schema": "vibeguard.device_telemetry",
+    "version": 1,
+    "type": "status",
+    "device_id": "sim-wearable-01",
+    "boot_id": "sim-examples-b0",
+    "seq": 40,
+    "provenance": {
+      "source": "simulated",
+      "recording_id": "sim-examples"
+    },
+    "t_us": 1002000,
+    "state": "streaming",
+    "sensors": {
+      "emg": "ok",
+      "imu": "ok"
+    },
+    "counters": {
+      "emg_dropped_samples": 0,
+      "imu_dropped_samples": 0
+    }
+  }
+}
