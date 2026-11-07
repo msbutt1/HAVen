@@ -23,7 +23,7 @@ from vibeguard_signals.processing import ProcessingConfig, StreamConfig
 
 from .adapters import DeviceAdapter, ReplayAdapter, new_id
 from .hub import Hub, utc_now_iso
-from .runtime import DeviceRuntime, RuntimeConflict, file_info
+from .runtime import DeviceRuntime, RuntimeConflict, RuntimeGone, file_info
 from .store import IdempotencyConflict, Store
 
 try:  # POSIX only; the demo machines are macOS/Linux
@@ -33,6 +33,7 @@ except ImportError:  # pragma: no cover
 
 log = logging.getLogger("vibeguard.service")
 
+IDEMPOTENCY_RETENTION_S = 48 * 3600  # a retry after two days is a new command
 RESPONSES = ("felt", "not_felt", "missing")
 SOURCES = ("live", "simulated", "replay")
 MAX_TEXT = 500
@@ -72,7 +73,10 @@ def _number(value: Any, name: str, *, minimum: float | None = None, exclusive: b
             maximum: float | None = None) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise BadRequest(f"{name} must be a number")
-    v = float(value)
+    try:
+        v = float(value)
+    except OverflowError:
+        raise BadRequest(f"{name} is too large") from None
     if v != v or v in (float("inf"), float("-inf")):
         raise BadRequest(f"{name} must be finite")
     if minimum is not None and (v <= minimum if exclusive else v < minimum):
@@ -80,6 +84,45 @@ def _number(value: Any, name: str, *, minimum: float | None = None, exclusive: b
     if maximum is not None and v > maximum:
         raise BadRequest(f"{name} must be <= {maximum:g}")
     return v
+
+
+MAX_JSON_BYTES = 16_384
+MAX_JSON_DEPTH = 8
+MAX_TRIAL_INDEX = 1_000_000
+
+
+def _clean_json(value: Any, name: str) -> Any:
+    """Reject nested values that cannot be stored or served safely.
+
+    Strings (keys too) must be valid Unicode scalars (a lone surrogate would make every later
+    read of the row fail), numbers finite, and the whole thing small and shallow."""
+    def walk(v: Any, depth: int) -> None:
+        if depth > MAX_JSON_DEPTH:
+            raise BadRequest(f"{name} is nested deeper than {MAX_JSON_DEPTH} levels")
+        if isinstance(v, str):
+            try:
+                v.encode("utf-8")
+            except UnicodeEncodeError:
+                raise BadRequest(f"{name} contains text that is not valid Unicode") from None
+        elif isinstance(v, float):
+            if v != v or v in (float("inf"), float("-inf")):
+                raise BadRequest(f"{name} contains a non-finite number")
+        elif isinstance(v, int) and not isinstance(v, bool):
+            if abs(v) >= 2 ** 63:
+                raise BadRequest(f"{name} contains an integer that is too large")
+        elif isinstance(v, dict):
+            for k, x in v.items():
+                walk(k, depth + 1)
+                walk(x, depth + 1)
+        elif isinstance(v, list):
+            for x in v:
+                walk(x, depth + 1)
+        elif v is not None and not isinstance(v, bool):
+            raise BadRequest(f"{name} contains an unsupported value")
+    walk(value, 0)
+    if len(json.dumps(value, ensure_ascii=True)) > MAX_JSON_BYTES:
+        raise BadRequest(f"{name} is larger than {MAX_JSON_BYTES} bytes")
+    return value
 
 
 def processing_config_for(adapter_kind: str, counts_per_g: float | None = None,
@@ -107,7 +150,7 @@ class Backend:
         """``exclusive`` takes the data-dir lock (the server does); ``recover`` marks sessions
         left 'recording' by a dead process as interrupted. Only the lock holder may recover:
         a second process on the same directory must not touch a live server's sessions."""
-        self.data_dir = Path(data_dir)
+        self.data_dir = Path(data_dir).expanduser().resolve()  # stored paths must not depend on the cwd
         self.data_dir.mkdir(parents=True, exist_ok=True)
         self._lock_fh = None
         if exclusive:
@@ -116,9 +159,12 @@ class Backend:
         self.hub = hub or Hub()
         self.runtimes: dict[str, DeviceRuntime] = {}
         self._lock = threading.RLock()
-        self._key_locks: dict[str, threading.Lock] = {}
+        self._key_locks: dict[str, list] = {}  # request_id -> [lock, users]; removed when unused
+        self._station_engine = None
+        self._station_lock = threading.RLock()  # trial index allocation and session finish
         self.recovered = {"wearable_sessions_interrupted": 0, "station_sessions_interrupted": 0}
         if recover:
+            self.store.prune_idempotency(IDEMPOTENCY_RETENTION_S)
             ids = [r["session_id"] for r in self.store.wearable_sessions(state="recording")]
             self.recovered = self.store.recover_after_restart()
             for sid in ids:
@@ -155,6 +201,14 @@ class Backend:
             counters={"frames": complete, "recovered": True,
                       "partial_last_line": bool(data) and not data.endswith(b"\n")})
 
+    @property
+    def station_engine(self):
+        """The station trial engine (PROPOSED interface, mock controller until one is agreed)."""
+        if self._station_engine is None:
+            from .station import StationEngine  # imported here: station imports this module
+            self._station_engine = StationEngine(self)
+        return self._station_engine
+
     # ------------------------------------------------------------------ lifecycle
 
     def add_runtime(self, name: str, adapter: DeviceAdapter, config: ProcessingConfig,
@@ -184,6 +238,8 @@ class Backend:
 
     def shutdown(self, timeout: float = 15.0) -> None:
         """Stop every runtime first; close the store only when no thread can still write."""
+        if self._station_engine is not None:
+            self._station_engine.shutdown()  # motor safe, open trial closed as missing
         rts = list(self.runtimes.values())
         for rt in rts:
             rt.request_stop()
@@ -210,14 +266,21 @@ class Backend:
         if request_id is None:
             return fn()
         with self._lock:
-            lock = self._key_locks.setdefault(request_id, threading.Lock())
-        with lock:
-            prior = self.store.idem_get(request_id, kind)
-            if prior is not None:
-                return refresh(prior) if refresh else prior
-            result = fn()
-            self.store.idem_put(request_id, kind, result)
-            return result
+            entry = self._key_locks.setdefault(request_id, [threading.Lock(), 0])
+            entry[1] += 1
+        try:
+            with entry[0]:
+                prior = self.store.idem_get(request_id, kind)
+                if prior is not None:
+                    return refresh(prior) if refresh else prior
+                result = fn()
+                self.store.idem_put(request_id, kind, result)
+                return result
+        finally:
+            with self._lock:
+                entry[1] -= 1
+                if entry[1] == 0:
+                    self._key_locks.pop(request_id, None)
 
     def _session_refresh(self, stored: dict) -> dict:
         return self.store.wearable_session(stored["session_id"]) or stored
@@ -255,7 +318,8 @@ class Backend:
             if rt is not None and rt.alive and rt.is_recording(session_id):
                 try:
                     return rt.stop_session(session_id)
-                except RuntimeConflict:  # a concurrent stop won the race: report its result
+                except (RuntimeConflict, RuntimeGone):  # a concurrent stop (or the runtime ending) won the race
+                    rt.stop(2.0)  # let the dying runtime finish closing the session
                     row = self.store.wearable_session(session_id)
                     if row is not None and row["state"] != "recording":
                         return row
@@ -323,6 +387,7 @@ class Backend:
         label = _text(label, "label")
         if protocol is not None and not isinstance(protocol, dict):
             raise BadRequest("protocol must be an object")
+        _clean_json(protocol, "protocol")
         wearable_session_id = _text(wearable_session_id, "wearable_session_id", MAX_ID)
         if source is not None and source not in SOURCES:
             raise BadRequest(f"source must be one of {SOURCES}")
@@ -356,9 +421,11 @@ class Backend:
         if measured_amplitude is not None and (not isinstance(measured_amplitude, dict)
                                                or not {"value", "units", "source"} <= set(measured_amplitude)):
             raise BadRequest("measured_amplitude needs value, units and source (or omit it)")
+        _clean_json(stimulus, "stimulus")
+        _clean_json(measured_amplitude, "measured_amplitude")
         if trial_index is not None and (isinstance(trial_index, bool) or not isinstance(trial_index, int)
-                                        or trial_index < 0):
-            raise BadRequest("trial_index must be a non-negative integer")
+                                        or not 0 <= trial_index <= MAX_TRIAL_INDEX):
+            raise BadRequest(f"trial_index must be an integer from 0 to {MAX_TRIAL_INDEX}")
         if not isinstance(is_catch, bool):
             raise BadRequest("is_catch must be true or false")
         presented_at = _text(presented_at, "presented_at", 64)
@@ -370,6 +437,7 @@ class Backend:
             raise BadRequest("a missing response has no response time")
 
         def run() -> dict:
+          with self._station_lock:  # index allocation + insert + state check are one step
             s = self.store.station_session(station_session_id, with_trials=False)
             if s is None:
                 raise NotFound(f"no station session {station_session_id!r}")
@@ -395,6 +463,7 @@ class Backend:
         reason = _text(reason, "reason")
 
         def run() -> dict:
+          with self._station_lock:  # a trial cannot slip in between the summary and the state change
             s = self.store.station_session(station_session_id)
             if s is None:
                 raise NotFound(f"no station session {station_session_id!r}")

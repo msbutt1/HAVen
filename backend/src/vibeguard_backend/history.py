@@ -33,10 +33,13 @@ def seed_history(backend: Backend, days: int = 14, seed: int = 7, duration_s: fl
     """Create one simulated wearable session (and one station session) per day."""
     rng = random.Random(seed)
     now = datetime.now(timezone.utc).replace(microsecond=0)
-    created = {"wearable_sessions": [], "station_sessions": []}
+    created = {"wearable_sessions": [], "station_sessions": [], "skipped": 0}
     config = demo_processing_config()
     for d in range(days, 0, -1):
         start = now - timedelta(days=d, hours=rng.randint(0, 6))
+        if backend.store.has_simulated_history(f"sim-hist{seed}-{d}"):
+            created["skipped"] += 1  # seeding twice must not double the history
+            continue
         scenario, t_relaxed, t_squeeze = SCENARIOS[d % len(SCENARIOS)]
         scale = duration_s / 30.0
         schedule = ((t_relaxed * scale, "relaxed"), (t_squeeze * scale, "squeeze"))
@@ -64,6 +67,9 @@ def seed_history(backend: Backend, days: int = 14, seed: int = 7, duration_s: fl
             rec.command({"action": phase, "at": None, "scheduled": False, "after_boot_id": after and after["boot_id"],
                          "after_seq": after and after["seq"]})
         files = rec.close()
+        cal = proc.calibration_record()
+        if cal is not None:  # the calibration_id on the session row must exist in the calibrations table
+            backend.store.save_calibration(cal, records[0]["device_id"], "simulated", sid)
         scores = [o for o in derived if o["type"] == "experimental_score"]
         boots = sorted({r["boot_id"] for r in records})
         backend.store.create_wearable_session({

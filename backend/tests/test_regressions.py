@@ -124,7 +124,7 @@ def test_root_serves_a_status_page_instead_of_404(backend):
 
     from vibeguard_backend.app import create_app
 
-    r = TestClient(create_app(backend)).get("/")
+    r = TestClient(create_app(backend), base_url="http://localhost").get("/")
     assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
     assert "VibeGuard backend" in r.text and "/api/runtimes/wearable" in r.text
     assert "SIMULATED" in r.text and "REPLAY" in r.text  # provenance is always labelled

@@ -3,7 +3,7 @@
   "hub_seq": 95,
   "channel": "runtime",
   "runtime": "wearable",
-  "rx_wall": "2026-11-07T17:59:06.196Z",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
   "payload": {
     "runtime": "wearable",
     "role": "wearable",
@@ -37,9 +37,10 @@
       "reason": null,
       "calibration_id": null
     },
-    "active_session_id": "ws-abf255313ed7",
-    "last_rx_wall": "2026-11-07T17:59:06.195Z",
+    "active_session_id": "ws-000000000000",
+    "last_rx_wall": "2026-11-07T18:00:00.000Z",
     "last_rx_age_s": 0.001,
+    "data_fresh": true,
     "counters": {
       "connection_connected": 1,
       "frames": 31,
@@ -48,7 +49,7 @@
     "events": {},
     "last_invalid_frame": null,
     "last_frame_error": null,
-    "started_at": "2026-11-07T17:59:06.043Z",
+    "started_at": "2026-11-07T18:00:00.000Z",
     "meta": {}
   }
 }

@@ -3,7 +3,7 @@
   "hub_seq": 90,
   "channel": "snapshot",
   "runtime": null,
-  "rx_wall": "2026-11-07T17:59:06.191Z",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
   "payload": {
     "runtimes": [
       {
@@ -40,8 +40,9 @@
           "calibration_id": null
         },
         "active_session_id": null,
-        "last_rx_wall": "2026-11-07T17:59:06.185Z",
-        "last_rx_age_s": 0.006,
+        "last_rx_wall": "2026-11-07T18:00:00.000Z",
+        "last_rx_age_s": 0.002,
+        "data_fresh": true,
         "counters": {
           "connection_connected": 1,
           "frames": 30,
@@ -50,7 +51,7 @@
         "events": {},
         "last_invalid_frame": null,
         "last_frame_error": null,
-        "started_at": "2026-11-07T17:59:06.043Z",
+        "started_at": "2026-11-07T18:00:00.000Z",
         "meta": {},
         "latest": {
           "emg": {

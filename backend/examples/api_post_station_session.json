@@ -1,5 +1,5 @@
 {
-  "station_session_id": "ss-1669d4b624e6",
+  "station_session_id": "ss-000000000000",
   "state": "testing",
   "label": "example perception test",
   "source": "live",
@@ -8,7 +8,7 @@
   "protocol": {
     "kind": "preview"
   },
-  "started_at": "2026-11-07T17:59:12.068Z",
+  "started_at": "2026-11-07T18:00:00.000Z",
   "ended_at": null,
   "end_reason": null,
   "summary": null,

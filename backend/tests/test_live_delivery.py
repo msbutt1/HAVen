@@ -77,7 +77,7 @@ def sim_rt(backend, sim_config):
 
 @pytest.fixture
 def client(backend):
-    with TestClient(create_app(backend)) as c:
+    with TestClient(create_app(backend), base_url="http://localhost") as c:
         yield c
 
 
@@ -505,7 +505,7 @@ def test_stuck_clients_do_not_slow_acquisition(backend, sim_config):
     # ... plus three real WebSocket clients that subscribe to everything and never read.
     app = create_app(backend)
     try:
-        with TestClient(app) as c, \
+        with TestClient(app, base_url="http://localhost") as c, \
                 c.websocket_connect("/ws/live?channels=" + ",".join(CHANNELS)) as w1, \
                 c.websocket_connect("/ws/live?channels=" + ",".join(CHANNELS)) as w2, \
                 c.websocket_connect("/ws/live?channels=" + ",".join(CHANNELS)) as w3:

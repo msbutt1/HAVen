@@ -513,7 +513,8 @@ def test_serial_reassembles_lines_split_across_reads(monkeypatch):
     FakeLink(chunked(stream, seed=1, lo=1, hi=4)).install(monkeypatch)
     ad = SerialAdapter("/dev/fake0", baud=115200)
     ad.open()
-    assert read_all(ad) == GOOD
+    assert read_all(ad) == GOOD  # the leftover tail of an earlier frame is dropped (and counted)
+    assert ad.partial_discarded == 1
 
 
 def test_serial_line_spanning_many_reads_waits_for_newline(monkeypatch):
@@ -535,12 +536,14 @@ def test_serial_buffered_partial_completes_on_later_read(monkeypatch):
     assert read_all(ad) == [b'{"n":1}\n', b'{"n":2}\n']
 
 
-def test_serial_first_line_after_connect_is_discarded_even_if_it_looks_complete(monkeypatch):
-    """The host cannot know whether it connected mid-line, so the first line is unusable."""
+def test_serial_first_line_after_connect_is_kept_when_it_can_be_a_frame(monkeypatch):
+    """Firmware may send its hello the moment the port opens: a first line that starts like a frame
+    is kept (a damaged one is rejected later by the validator as a visible invalid_record); only a
+    first line that cannot be a frame is dropped and counted."""
     FakeLink([b"".join(GOOD)]).install(monkeypatch)
     ad = SerialAdapter("/dev/fake0")
     ad.open()
-    assert read_all(ad) == GOOD[1:]
+    assert read_all(ad) == GOOD and ad.partial_discarded == 0
 
 
 def test_serial_oversized_line_is_passed_on_truncated_then_resyncs(monkeypatch):

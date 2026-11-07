@@ -176,6 +176,13 @@ class Store:
                 f"request_id {request_id!r} was already used for {row['kind']!r}")
         return json.loads(row["response_json"])
 
+    def prune_idempotency(self, older_than_s: float) -> int:
+        """Forget request ids older than the retention window (the table would grow forever)."""
+        from datetime import datetime, timedelta, timezone
+        cutoff = (datetime.now(timezone.utc) - timedelta(seconds=older_than_s)).isoformat(
+            timespec="milliseconds").replace("+00:00", "Z")
+        return self._exec("DELETE FROM idempotency WHERE created_at < ?", (cutoff,)).rowcount
+
     def idem_put(self, request_id: str | None, kind: str, response: Any) -> None:
         if not request_id:
             return
@@ -222,6 +229,10 @@ class Store:
 
     def wearable_session(self, session_id: str) -> dict | None:
         return self._one("SELECT * FROM wearable_sessions WHERE session_id=?", (session_id,))
+
+    def has_simulated_history(self, recording_id: str) -> bool:
+        return self._one("SELECT 1 AS x FROM wearable_sessions WHERE recording_id=? AND simulated_history=1",
+                         (recording_id,)) is not None
 
     def wearable_sessions(self, source: str | None = None, state: str | None = None,
                           limit: int = 200) -> list[dict]:

@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import asyncio
 import concurrent.futures as cf
+import re
 import sqlite3
 from contextlib import asynccontextmanager
 from typing import Any, Callable
@@ -36,13 +37,14 @@ from typing import Any, Callable
 from fastapi import Body, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 
 from . import __version__
 from .hub import CHANNELS, DEFAULT_CHANNELS, utc_now_iso
 from .runtime import RuntimeConflict, RuntimeGone
 from .service import Backend, BadRequest, NotFound
-from .status_page import STATUS_PAGE
+from .station import StationError
+from .status_page import CSP, STATUS_PAGE
 from .store import IdempotencyConflict
 
 
@@ -52,15 +54,43 @@ async def _call(fn: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
         return await run_in_threadpool(fn, *args, **kwargs)
     except NotFound as exc:
         raise HTTPException(404, str(exc)) from exc
-    except (BadRequest, ValueError, TypeError, sqlite3.InterfaceError, sqlite3.ProgrammingError) as exc:
+    except (BadRequest, ValueError, TypeError, OverflowError, sqlite3.InterfaceError,
+            sqlite3.ProgrammingError) as exc:
         raise HTTPException(400, str(exc)) from exc
+    except StationError as exc:  # the station controller refused or failed
+        raise HTTPException(502, str(exc)) from exc
     except (RuntimeConflict, RuntimeGone, IdempotencyConflict, sqlite3.IntegrityError) as exc:
         raise HTTPException(409, str(exc)) from exc
     except (cf.TimeoutError, TimeoutError) as exc:
         raise HTTPException(503, "the device runtime did not answer in time") from exc
 
 
-def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None) -> FastAPI:
+LOCAL_HOSTS = ("localhost", "127.0.0.1", "[::1]", "::1")
+MAX_BODY_BYTES = 1_000_000
+
+
+def _host_only(host_header: str) -> str:
+    h = host_header.strip().lower()
+    if h.startswith("["):  # [::1]:8765
+        return h.split("]")[0] + "]"
+    return h.rsplit(":", 1)[0] if h.count(":") == 1 else h
+
+
+def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
+               allowed_hosts: tuple[str, ...] | None = LOCAL_HOSTS) -> FastAPI:
+    """``allowed_hosts``: Host header values accepted (defends against DNS rebinding). Pass None
+    to disable the check (e.g. when deliberately listening on a LAN address)."""
+    hosts = None if allowed_hosts is None else {h.lower() for h in allowed_hosts}
+    origin_ok = re.compile(r"^https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$")
+
+    def trusted_origin(origin: str | None, host_header: str | None) -> bool:
+        """A request that carries an Origin (every browser cross-site request does) must come from
+        a local page, or from the page this very server served."""
+        if not origin:
+            return True  # not a browser (curl, scripts, the dashboard's own server-side calls)
+        if origin_ok.match(origin):
+            return True
+        return hosts is None or (_host_only(origin.split("://", 1)[-1]) in hosts)
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         yield
@@ -75,13 +105,30 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None) 
         from fastapi.responses import JSONResponse
         return JSONResponse({"detail": f"internal error: {type(exc).__name__}"}, status_code=500)
     # The dashboard runs on another localhost port during development.
-    app.add_middleware(CORSMiddleware, allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
+    app.add_middleware(CORSMiddleware, allow_origin_regex=r"https?://(localhost|127\.0\.0\.1|\[::1\])(:\d+)?",
                        allow_methods=["*"], allow_headers=["*"])
     b = backend
 
+    @app.middleware("http")
+    async def local_only(request, call_next):
+        """Reject what a hostile web page could send to localhost: a foreign Origin (CSRF), an
+        unexpected Host (DNS rebinding), or a huge body."""
+        if hosts is not None and _host_only(request.headers.get("host", "")) not in hosts:
+            return JSONResponse({"detail": "host not allowed"}, status_code=403)
+        if not trusted_origin(request.headers.get("origin"), request.headers.get("host")):
+            return JSONResponse({"detail": "cross-site request refused"}, status_code=403)
+        length = request.headers.get("content-length")
+        if length and length.isdigit() and int(length) > MAX_BODY_BYTES:
+            return JSONResponse({"detail": f"body larger than {MAX_BODY_BYTES} bytes"}, status_code=413)
+        if request.method in ("POST", "PUT", "PATCH") and not length and \
+                "chunked" in request.headers.get("transfer-encoding", "").lower():
+            return JSONResponse({"detail": "chunked request bodies are not accepted"}, status_code=411)
+        return await call_next(request)
+
     @app.get("/", response_class=HTMLResponse, include_in_schema=False)
-    async def home() -> str:
-        return STATUS_PAGE
+    async def home() -> HTMLResponse:
+        return HTMLResponse(STATUS_PAGE, headers={"Content-Security-Policy": CSP,
+                                                  "X-Content-Type-Options": "nosniff"})
 
     @app.get("/api/health")
     async def health() -> dict:
@@ -164,15 +211,31 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None) 
         return await _call(b.add_trial, sid, body.get("stimulus"), body.get("response"),
                            **{k: body[k] for k in fields if k in body})
 
+    @app.post("/api/station/sessions/{sid}/stimulus", status_code=201)
+    async def station_stimulus(sid: str, body: dict = Body(...)) -> dict:
+        """PROPOSED (see STATION_INTERFACE.md): deliver a stimulus and open a trial."""
+        return await _call(b.station_engine.present, sid, body.get("stimulus"), body.get("is_catch", False),
+                           body.get("response_timeout_s", 3.0), body.get("request_id"))
+
+    @app.post("/api/station/sessions/{sid}/respond")
+    async def station_respond(sid: str, body: dict = Body(...)) -> dict:
+        return await _call(b.station_engine.respond, sid, body.get("response"), body.get("request_id"))
+
+    @app.get("/api/station/sessions/{sid}/trial")
+    async def station_open_trial(sid: str) -> dict:
+        await _call(b.station_session, sid)
+        return {"open_trial": b.station_engine.open_trial(sid)}
+
     @app.post("/api/station/sessions/{sid}/complete")
     async def station_complete(sid: str, body: dict = Body(default={})) -> dict:
-        return await _call(b.finish_station_session, sid, "completed", body.get("reason"),
-                           body.get("request_id"))
+        if body.get("request_id") is not None:  # same id, same result
+            return await _call(b._idempotent, body.get("request_id"), f"finish_station:{sid}:completed",
+                               lambda: b.station_engine.complete(sid, body.get("reason")))
+        return await _call(b.station_engine.complete, sid, body.get("reason"))
 
     @app.post("/api/station/sessions/{sid}/abort")
     async def station_abort(sid: str, body: dict = Body(default={})) -> dict:
-        return await _call(b.finish_station_session, sid, "aborted", body.get("reason", "aborted_by_operator"),
-                           body.get("request_id"))
+        return await _call(b.station_engine.abort, sid, body.get("reason"), body.get("request_id"))
 
     @app.get("/api/station/sessions")
     async def station_sessions(source: str | None = None) -> list[dict]:
@@ -202,8 +265,12 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None) 
     async def live(ws: WebSocket, channels: str | None = None, runtime: str | None = None) -> None:
         wanted = DEFAULT_CHANNELS if not channels else frozenset(c for c in channels.split(",") if c in CHANNELS)
         runtimes = None if not runtime else frozenset(runtime.split(","))
+        if not trusted_origin(ws.headers.get("origin"), ws.headers.get("host")) or (
+                hosts is not None and _host_only(ws.headers.get("host", "")) not in hosts):
+            await ws.close(code=1008)  # browsers do not apply CORS to WebSockets: check it here
+            return
         await ws.accept()
-        sub = b.hub.subscribe(wanted, runtimes)
+        sub = b.hub.subscribe(wanted, runtimes, include_replays=runtimes is not None)
         try:
             # first message: current state of every runtime, so a new page is never blank
             # hub_seq: messages with a hub_seq <= this are already reflected in the snapshot

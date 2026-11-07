@@ -47,7 +47,7 @@ def rt(backend):
 
 @pytest.fixture
 def client(backend):
-    with TestClient(create_app(backend), raise_server_exceptions=False) as c:
+    with TestClient(create_app(backend), raise_server_exceptions=False, base_url="http://localhost") as c:
         yield c
 
 

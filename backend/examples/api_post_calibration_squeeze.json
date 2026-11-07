@@ -15,8 +15,8 @@
       "timebase": "device_monotonic_us",
       "event": "calibration_state",
       "stream": "emg",
-      "t_us": 5404000,
-      "source_seq": 221,
+      "t_us": 5454000,
+      "source_seq": 223,
       "detail": {
         "state": "capturing_squeeze",
         "reason": null,

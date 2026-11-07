@@ -576,7 +576,7 @@ def test_seeded_history_is_simulated_everywhere(cbackend):
         st = cbackend.station_session(ssid)
         assert st["source"] == "simulated" and st["simulated_history"] is True
 
-    client = TestClient(create_app(cbackend))
+    client = TestClient(create_app(cbackend), base_url="http://localhost")
     body = client.get("/api/history").json()
     assert len(body["items"]) == 4
     for item in body["items"]:

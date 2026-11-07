@@ -1,6 +1,6 @@
 {
-  "trial_id": "tr-b797426dc26a",
-  "station_session_id": "ss-1669d4b624e6",
+  "trial_id": "tr-000000000000",
+  "station_session_id": "ss-000000000001",
   "trial_index": 0,
   "stimulus": {
     "motor_setting": 160,
@@ -10,8 +10,8 @@
   "is_catch": false,
   "response": "felt",
   "presented_at": "2026-11-07T18:00:00.000Z",
-  "responded_at": "2026-11-07T18:00:00.640Z",
+  "responded_at": "2026-11-07T18:00:00.000Z",
   "response_latency_ms": 640.0,
-  "recorded_at": "2026-11-07T17:59:12.070Z",
+  "recorded_at": "2026-11-07T18:00:00.000Z",
   "note": null
 }

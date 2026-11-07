@@ -1,5 +1,5 @@
 {
-  "session_id": "ws-abf255313ed7",
+  "session_id": "ws-000000000000",
   "runtime": "wearable",
   "device_id": "sim-wearable-01",
   "state": "recording",
@@ -9,7 +9,7 @@
   "original_source": null,
   "recording_id": "sim-examples",
   "simulated_history": false,
-  "started_at": "2026-11-07T17:59:06.196Z",
+  "started_at": "2026-11-07T18:00:00.000Z",
   "ended_at": null,
   "boot_ids": [
     "sim-examples-b0"
@@ -18,5 +18,5 @@
   "score": null,
   "counters": null,
   "files": null,
-  "dir": "<data_dir>/sessions/ws-abf255313ed7"
+  "dir": "<data_dir>/sessions/ws-000000000000"
 }

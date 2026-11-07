@@ -10,6 +10,7 @@ station session, and simulated history, and saves what the API actually returned
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import tempfile
 import time
@@ -25,8 +26,23 @@ from vibeguard_backend.service import Backend, processing_config_for
 OUT = Path(__file__).resolve().parents[1] / "examples"
 
 
+_ID = re.compile(r"\b(ws|ss|tr|replay|cal|sim|rec)-[0-9a-f]{12}\b")
+_STAMP = re.compile(r"\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(\.\d+)?Z")
+
+
+def stable(text: str) -> str:
+    """Make a regeneration reproducible: ids and wall-clock stamps vary per run and would make every
+    example look changed. Real payloads have the same shapes; only the values below are placeholders."""
+    seen: dict[str, str] = {}
+
+    def ident(m: re.Match) -> str:
+        return seen.setdefault(m.group(0), f"{m.group(1)}-{len(seen):012x}")
+    text = _ID.sub(ident, text)
+    return _STAMP.sub("2026-11-07T18:00:00.000Z", text)
+
+
 def save(name: str, obj) -> None:
-    (OUT / name).write_text(json.dumps(obj, indent=2, ensure_ascii=False) + "\n")
+    (OUT / name).write_text(stable(json.dumps(obj, indent=2, ensure_ascii=False)) + "\n")
 
 
 def trim_session(row: dict) -> dict:
@@ -46,7 +62,7 @@ def main() -> None:
     speed = 5.0
     rt = backend.add_runtime("wearable", SimAdapter("demo", seed=1, duration_s=30, speed=speed, loop=False,
                                                     run_id="examples"), processing_config_for("sim"))
-    client = TestClient(create_app(backend))
+    client = TestClient(create_app(backend), base_url="http://localhost")
     messages: dict[str, dict] = {}
 
     def keep(m: dict) -> None:
@@ -67,7 +83,7 @@ def main() -> None:
         if key == "derived.experimental_score" and p["status"] == "accumulating":
             messages["derived.experimental_score.accumulating"] = m
 
-    with client.websocket_connect("/ws/live?channels=derived,device,telemetry,runtime,session,station") as ws:
+    with client.websocket_connect("ws://localhost/ws/live?channels=derived,device,telemetry,runtime,session,station") as ws:
         messages["snapshot"] = ws.receive_json()
         assert rt.connection == "connected" or time.sleep(0.2) is None
         session = client.post("/api/sessions", json={"runtime": "wearable", "label": "example session",
@@ -106,6 +122,13 @@ def main() -> None:
     save("api_post_station_trial_missing.json", client.post(f"/api/station/sessions/{stid}/trials", json={
         "stimulus": {"motor_setting": 120, "units": "pwm_duty_0_255"}, "response": "missing",
         "presented_at": "2026-11-07T18:00:06.000Z", "note": "no response within 3 s"}).json())
+    # PROPOSED station engine: deliver a stimulus, then the wearer answers
+    eng = client.post("/api/station/sessions", json={"label": "example engine session"}).json()["station_session_id"]
+    save("api_post_station_stimulus.json", client.post(f"/api/station/sessions/{eng}/stimulus", json={
+        "stimulus": {"motor_setting": 160, "units": "pwm_duty_0_255"}, "response_timeout_s": 3.0}).json())
+    save("api_post_station_respond.json", client.post(f"/api/station/sessions/{eng}/respond",
+                                                      json={"response": "felt"}).json())
+    save("api_post_station_complete.json", client.post(f"/api/station/sessions/{eng}/complete", json={}).json())
     save("api_post_station_abort.json", client.post(f"/api/station/sessions/{stid}/abort",
                                                     json={"reason": "operator_abort"}).json())
     seed_history(backend, days=3)

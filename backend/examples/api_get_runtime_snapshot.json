@@ -29,11 +29,12 @@
   "calibration": {
     "state": "calibrated",
     "reason": null,
-    "calibration_id": "cal-1e9ae2143ed1"
+    "calibration_id": "cal-000000000000"
   },
   "active_session_id": null,
-  "last_rx_wall": "2026-11-07T17:59:12.044Z",
-  "last_rx_age_s": 0.015,
+  "last_rx_wall": "2026-11-07T18:00:00.000Z",
+  "last_rx_age_s": 0.021,
+  "data_fresh": true,
   "counters": {
     "connection_connected": 1,
     "frames": 1216,
@@ -46,7 +47,7 @@
   },
   "last_invalid_frame": null,
   "last_frame_error": null,
-  "started_at": "2026-11-07T17:59:06.043Z",
+  "started_at": "2026-11-07T18:00:00.000Z",
   "meta": {},
   "latest": {
     "emg": {
@@ -117,12 +118,12 @@
             "display": null,
             "above_reference": null,
             "below_relaxed": null,
-            "calibration_id": "cal-1e9ae2143ed1"
+            "calibration_id": "cal-000000000000"
           },
           "calibration": {
             "state": "calibrated",
             "reason": null,
-            "calibration_id": "cal-1e9ae2143ed1",
+            "calibration_id": "cal-000000000000",
             "capturing": null
           }
         }
@@ -231,22 +232,22 @@
         "units": "au/h"
       },
       "cumulative": {
-        "value": 0.048678,
+        "value": 0.049108,
         "units": "au"
       },
       "accumulation": 1,
       "boot_segments": 1,
       "integrated_until_us": 29999000,
       "pending_s": 0.0,
-      "valid_duration_s": 18.795008,
+      "valid_duration_s": 18.745008,
       "degraded_duration_s": 0.0,
-      "excluded_duration_s": 11.15148,
+      "excluded_duration_s": 11.20148,
       "excluded_by_reason": {
         "activation_capturing_relaxed": 3.0,
         "activation_capturing_squeeze": 3.0,
         "activation_device_reports_disconnected": 0.995,
         "activation_no_data & vibration_warming_up": 0.001488,
-        "activation_relaxed_captured": 1.05,
+        "activation_relaxed_captured": 1.1,
         "activation_sensor_disconnected": 0.05,
         "activation_stale": 0.003523,
         "activation_stale & vibration_stale": 0.196477,

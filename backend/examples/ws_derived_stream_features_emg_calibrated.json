@@ -3,7 +3,7 @@
   "hub_seq": 3608,
   "channel": "derived",
   "runtime": "wearable",
-  "rx_wall": "2026-11-07T17:59:12.049Z",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
   "payload": {
     "schema": "vibeguard.features",
     "version": 1,
@@ -72,12 +72,12 @@
           "display": null,
           "above_reference": null,
           "below_relaxed": null,
-          "calibration_id": "cal-1e9ae2143ed1"
+          "calibration_id": "cal-000000000000"
         },
         "calibration": {
           "state": "calibrated",
           "reason": null,
-          "calibration_id": "cal-1e9ae2143ed1",
+          "calibration_id": "cal-000000000000",
           "capturing": null
         }
       }

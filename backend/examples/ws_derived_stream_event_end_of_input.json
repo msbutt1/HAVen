@@ -3,7 +3,7 @@
   "hub_seq": 3613,
   "channel": "derived",
   "runtime": "wearable",
-  "rx_wall": "2026-11-07T17:59:12.050Z",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
   "payload": {
     "schema": "vibeguard.features",
     "version": 1,

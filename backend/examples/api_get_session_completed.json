@@ -1,5 +1,5 @@
 {
-  "session_id": "ws-abf255313ed7",
+  "session_id": "ws-000000000000",
   "runtime": "wearable",
   "device_id": "sim-wearable-01",
   "state": "completed",
@@ -9,12 +9,12 @@
   "original_source": null,
   "recording_id": "sim-examples",
   "simulated_history": false,
-  "started_at": "2026-11-07T17:59:06.196Z",
-  "ended_at": "2026-11-07T17:59:12.056Z",
+  "started_at": "2026-11-07T18:00:00.000Z",
+  "ended_at": "2026-11-07T18:00:00.000Z",
   "boot_ids": [
     "sim-examples-b0"
   ],
-  "calibration_id": "cal-1e9ae2143ed1",
+  "calibration_id": "cal-000000000001",
   "score": {
     "label": "experimental score, arbitrary units (not a dose, not A(8))",
     "at_start": {
@@ -23,22 +23,61 @@
       "valid_duration_s": 0.0,
       "excluded_duration_s": 0.649997,
       "boot_segments": 1,
+      "excluded_by_reason": {
+        "activation_no_data & vibration_warming_up": 0.001488,
+        "activation_uncalibrated & vibration_warming_up": 0.648509
+      },
       "status": "paused",
       "t_us": 754000
     },
     "at_end": {
       "accumulation": 1,
-      "cumulative_au": 0.048678,
-      "valid_duration_s": 18.795008,
-      "excluded_duration_s": 11.15148,
+      "cumulative_au": 0.049108,
+      "valid_duration_s": 18.745008,
+      "excluded_duration_s": 11.20148,
       "boot_segments": 1,
+      "excluded_by_reason": {
+        "activation_capturing_relaxed": 3.0,
+        "activation_capturing_squeeze": 3.0,
+        "activation_device_reports_disconnected": 0.995,
+        "activation_no_data & vibration_warming_up": 0.001488,
+        "activation_relaxed_captured": 1.1,
+        "activation_sensor_disconnected": 0.05,
+        "activation_stale": 0.003523,
+        "activation_stale & vibration_stale": 0.196477,
+        "activation_uncalibrated": 0.151476,
+        "activation_uncalibrated & vibration_warming_up": 1.148524,
+        "activation_warming_up+gap & vibration_stale": 0.003524,
+        "activation_warming_up+gap & vibration_warming_up+gap": 0.346476,
+        "activation_warming_up+sensor_disconnected": 0.15,
+        "vibration_end_of_input": 0.001479,
+        "vibration_warming_up+gap": 1.053513
+      },
       "status": "accumulating",
       "t_us": 29999000
     },
-    "session_au": 0.048678,
-    "session_valid_s": 18.795,
+    "session_au": 0.049108,
+    "session_valid_s": 18.745,
     "status": "ok",
-    "reason": null
+    "reason": null,
+    "started_mid_stream": true,
+    "excluded_by_reason": {
+      "activation_capturing_relaxed": 3.0,
+      "activation_capturing_squeeze": 3.0,
+      "activation_relaxed_captured": 1.1,
+      "vibration_warming_up+gap": 1.054,
+      "activation_device_reports_disconnected": 0.995,
+      "activation_uncalibrated & vibration_warming_up": 0.5,
+      "activation_warming_up+gap & vibration_warming_up+gap": 0.346,
+      "activation_stale & vibration_stale": 0.196,
+      "activation_uncalibrated": 0.151,
+      "activation_warming_up+sensor_disconnected": 0.15,
+      "activation_sensor_disconnected": 0.05,
+      "activation_stale": 0.004,
+      "activation_warming_up+gap & vibration_stale": 0.004,
+      "vibration_end_of_input": 0.001
+    },
+    "explanation": "18.745 s of this session had both a fresh vibration and a calibrated activation reading and were scored: 0.049108 au."
   },
   "counters": {
     "frames": 1185,
@@ -52,31 +91,31 @@
       "simulated"
     ],
     "calibration_ids": [
-      "cal-1e9ae2143ed1"
+      "cal-000000000001"
     ],
-    "duration_s": 5.86
+    "duration_s": 5.864
   },
   "files": {
     "telemetry.ndjson": {
-      "path": "<data_dir>/sessions/ws-abf255313ed7/telemetry.ndjson",
+      "path": "<data_dir>/sessions/ws-000000000000/telemetry.ndjson",
       "bytes": 949740,
       "sha256": "2440da8b25ddbac0871d04a660038283a6d4de5292ebd78a4b3a2841750b0d4c"
     },
     "rx_times.csv": {
-      "path": "<data_dir>/sessions/ws-abf255313ed7/rx_times.csv",
+      "path": "<data_dir>/sessions/ws-000000000000/rx_times.csv",
       "bytes": 49876,
-      "sha256": "a66b464c3b8f321fab57505460a242e83d4acb1908217b5cf4d7a558ced731c9"
+      "sha256": "f7823003bf6faaaafea1428adf21aa19e655136e989ac125b235660f14f41265"
     },
     "derived.ndjson": {
-      "path": "<data_dir>/sessions/ws-abf255313ed7/derived.ndjson",
-      "bytes": 3815595,
-      "sha256": "ec8755da5196bd967976b94fe22c7575a95c1bd3e71ef7a8909b51e1594246e8"
+      "path": "<data_dir>/sessions/ws-000000000000/derived.ndjson",
+      "bytes": 3814458,
+      "sha256": "ac214e23ae98ce41eef963e07b9ffb0ccccfefdec8d992df26a9c3cd465fb78c"
     },
     "commands.ndjson": {
-      "path": "<data_dir>/sessions/ws-abf255313ed7/commands.ndjson",
+      "path": "<data_dir>/sessions/ws-000000000000/commands.ndjson",
       "bytes": 241,
-      "sha256": "094bdb80b0608e74d3aab7ffe6ebce51b17d5c2575eaf703de9b397419e2ad5b"
+      "sha256": "b2057fc39a5cacdedab203fd0356fdfa5d04412c825c929b205beef15bf78509"
     }
   },
-  "dir": "<data_dir>/sessions/ws-abf255313ed7"
+  "dir": "<data_dir>/sessions/ws-000000000000"
 }

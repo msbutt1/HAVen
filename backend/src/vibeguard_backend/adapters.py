@@ -253,6 +253,9 @@ class SerialAdapter(DeviceAdapter):
         self._buf = bytearray()
         self._ready: deque[bytes] = deque()
         self._discarding = False
+        self.oversize_resyncs = 0  # visible in describe(): newline-free runs longer than one frame
+        self.partial_discarded = 0  # first lines after (re)connect that could not be a frame
+        self._check_first = False
 
     def _resolve(self) -> str:
         if any(c in self.port_pattern for c in "*?["):
@@ -273,15 +276,26 @@ class SerialAdapter(DeviceAdapter):
         self.port = port
         self._buf.clear()
         self._ready.clear()
-        self._discarding = True  # the first partial line after (re)connect is unusable
+        # Connecting mid-stream, the first line may be the tail of a frame. If it does not start with
+        # '{' it cannot be a frame and is dropped (and counted); if it does (for example the
+        # firmware's hello sent on connect) it is kept, and a damaged one is rejected by the
+        # validator as a visible invalid_record.
+        self._discarding = False
+        self._check_first = True
 
     def _split(self) -> None:
+        if self._check_first and self._buf:
+            self._check_first = False
+            if self._buf[:1] != b"{":
+                self._discarding = True
+                self.partial_discarded += 1
         while True:
             nl = self._buf.find(b"\n")
             if nl < 0:
                 if len(self._buf) > MAX_LINE_BYTES and not self._discarding:
                     self._ready.append(bytes(self._buf[:MAX_LINE_BYTES + 1]))
                     self._discarding = True
+                    self.oversize_resyncs += 1
                     self._buf.clear()
                 elif self._discarding:
                     self._buf.clear()
@@ -310,6 +324,9 @@ class SerialAdapter(DeviceAdapter):
             if chunk:
                 self._buf.extend(chunk)
                 self._split()
+                # a newline-free stream (wrong baud rate, garbage) must not hold the caller forever
+                if not self._ready and time.monotonic() >= deadline:
+                    return None
             elif time.monotonic() >= deadline:
                 return None
             else:
@@ -326,7 +343,8 @@ class SerialAdapter(DeviceAdapter):
 
     def describe(self) -> dict:
         return {**super().describe(), "port": self.port, "port_pattern": self.port_pattern,
-                "baud": self.baud}
+                "baud": self.baud, "oversize_resyncs": self.oversize_resyncs,
+                "partial_discarded": self.partial_discarded}
 
 
 def new_id(prefix: str) -> str:

@@ -1,0 +1,45 @@
+{
+  "station_session_id": "ss-000000000000",
+  "state": "completed",
+  "label": "example engine session",
+  "source": "live",
+  "simulated_history": false,
+  "wearable_session_id": null,
+  "protocol": null,
+  "started_at": "2026-11-07T18:00:00.000Z",
+  "ended_at": "2026-11-07T18:00:00.000Z",
+  "end_reason": null,
+  "summary": {
+    "trials": 1,
+    "stimulus_trials": {
+      "felt": 1,
+      "not_felt": 0,
+      "missing": 0
+    },
+    "catch_trials": {
+      "felt": 0,
+      "not_felt": 0,
+      "missing": 0
+    },
+    "note": "prototype perception workflow; motor settings are settings, not measured amplitudes; not a diagnostic result"
+  },
+  "trials": [
+    {
+      "trial_id": "tr-000000000001",
+      "station_session_id": "ss-000000000000",
+      "trial_index": 0,
+      "stimulus": {
+        "motor_setting": 160,
+        "units": "pwm_duty_0_255"
+      },
+      "measured_amplitude": null,
+      "is_catch": false,
+      "response": "felt",
+      "presented_at": "2026-11-07T18:00:00.000Z",
+      "responded_at": "2026-11-07T18:00:00.000Z",
+      "response_latency_ms": 1.8,
+      "recorded_at": "2026-11-07T18:00:00.000Z",
+      "note": null
+    }
+  ]
+}

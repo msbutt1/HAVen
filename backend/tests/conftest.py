@@ -96,6 +96,22 @@ class ScriptedAdapter(DeviceAdapter):
         raise ValueError(f"bad script item {item!r}")
 
 
+@pytest.fixture(autouse=True)
+def _websocket_host_is_localhost(monkeypatch):
+    """Starlette's test client hard-codes the host 'testserver' for WebSocket URLs; the backend (rightly)
+    only accepts local Host headers, like a real browser would send."""
+    from starlette.testclient import TestClient
+
+    original = TestClient.websocket_connect
+
+    def connect(self, url, *args, **kwargs):
+        if url.startswith("/"):
+            url = "ws://localhost" + url
+        return original(self, url, *args, **kwargs)
+
+    monkeypatch.setattr(TestClient, "websocket_connect", connect)
+
+
 @pytest.fixture
 def backend(tmp_path: Path):
     b = Backend(tmp_path / "data")

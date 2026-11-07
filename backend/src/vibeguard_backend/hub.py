@@ -25,6 +25,10 @@ import threading
 from datetime import datetime, timezone
 from typing import Any
 
+#: runtimes started by POST /api/sessions/{id}/replay are named replay-<id>; a client that did not
+#: ask for a runtime by name does not receive them (a fast replay would otherwise flood its queue
+#: and push out the live device's messages)
+REPLAY_PREFIX = "replay-"
 CHANNELS = ("derived", "device", "telemetry", "runtime", "session", "station")
 DEFAULT_CHANNELS = frozenset(c for c in CHANNELS if c != "telemetry")
 
@@ -35,17 +39,21 @@ def utc_now_iso() -> str:
 
 class Subscription:
     def __init__(self, loop: asyncio.AbstractEventLoop, channels: frozenset[str],
-                 runtimes: frozenset[str] | None, maxsize: int):
+                 runtimes: frozenset[str] | None, maxsize: int, include_replays: bool = True):
         self.loop = loop
         self.channels = channels
         self.runtimes = runtimes
+        self.include_replays = include_replays
         self.queue: asyncio.Queue[dict] = asyncio.Queue(maxsize=maxsize)
         self.dropped = 0
         self.dropped_total = 0
 
     def wants(self, msg: dict) -> bool:
+        rt = msg["runtime"]
+        if not self.include_replays and rt is not None and rt.startswith(REPLAY_PREFIX):
+            return False  # replay streams go only to clients that ask for them by name
         return msg["channel"] in self.channels and (
-            self.runtimes is None or msg["runtime"] is None or msg["runtime"] in self.runtimes)
+            self.runtimes is None or rt is None or rt in self.runtimes)
 
     def _put(self, msg: dict) -> None:  # runs in the event loop thread
         """Enqueue; when full, drop the oldest and tell the client where the gap is.
@@ -110,8 +118,9 @@ class Hub:
             return self._seq
 
     def subscribe(self, channels: frozenset[str] = DEFAULT_CHANNELS,
-                  runtimes: frozenset[str] | None = None) -> Subscription:
-        sub = Subscription(asyncio.get_running_loop(), channels, runtimes, self.client_queue_size)
+                  runtimes: frozenset[str] | None = None, include_replays: bool = False) -> Subscription:
+        sub = Subscription(asyncio.get_running_loop(), channels, runtimes, self.client_queue_size,
+                           include_replays)
         with self._lock:
             self._subs.append(sub)
         return sub

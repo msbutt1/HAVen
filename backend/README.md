@@ -24,12 +24,13 @@ You need [uv](https://docs.astral.sh/uv/) and Python ≥ 3.11. Run from `backend
 ```sh
 cd backend
 uv sync
-uv run pytest -q                       # all tests, simulated data, offline
+uv run pytest -q                       # ~230 tests, about 2 minutes, simulated data, offline
 uv run vg-backend seed-history         # optional: 14 days of labelled SIMULATED history
 uv run vg-backend serve                # http://127.0.0.1:8765, simulated wearable
 ```
 
-Then try it:
+Then open **http://127.0.0.1:8765/** (a status page: device state, data source, measurements, sessions)
+or try the API (the examples assume the default port 8765; with `--http-port N` use `localhost:N`):
 
 ```sh
 curl -s localhost:8765/api/runtimes/wearable | head -c 600
@@ -48,8 +49,10 @@ uv run python scripts/demo_calibrated_session.py
 It waits for a fresh 30 s simulated run, starts a session, sends the relaxed capture at
 0.5 s and the squeeze capture at 4.5 s of device time, stops the session, replays it, and
 checks the replay reproduces the score (about 0.0486 au over about 19 s of scored time).
-It exits 0 on success. The simulated run restarts every ~30 s and a calibration cannot
-span a restart, which is why the script follows the stream instead of timing by hand.
+It exits 0 on success and takes about a minute (it waits for a fresh run). On another port:
+`uv run python scripts/demo_calibrated_session.py --url http://127.0.0.1:<port>`. The simulated
+run restarts every ~30 s and a calibration cannot span a restart, which is why the script
+follows the stream instead of timing by hand.
 
 ### Device sources
 
@@ -61,7 +64,21 @@ span a restart, which is why the script follows the stream instead of timing by 
 | `… --imu-counts-per-g 4096 --imu-conversion-source "LSM6DS3 datasheet, ±8 g"` | Gives m/s² and the score on real hardware. Without a confirmed conversion, vibration stays in counts and the score stays unavailable (by design). |
 | `vg-backend serve --device none` | API only: station records, history, replays. |
 
-Data goes to `backend/data/` (git-ignored), or `--data-dir` / `$VG_DATA_DIR`.
+Data goes to `backend/data/` (git-ignored). Override it with `--data-dir DIR` (before or after
+the subcommand) or `$VG_DATA_DIR`; a relative path is resolved once, so sessions keep working
+when you start from another folder.
+
+### Demo-day tools
+
+| Command | What it does |
+|---|---|
+| `vg-backend preflight [--expect live] [--backup DIR]` | Checks a running backend: device connected, data really flowing, what the data source is (live/simulated/replay), calibration, WebSocket delivery, saved sessions intact (SHA-256), fallback backup valid, disk. PASS/WARN/FAIL with the fix for each; exit 1 if anything FAILs. |
+| `vg-backend export-backup SESSION_ID backup/NAME` | Copies a finished session into a small verified folder (hashes, every frame contract-checked). Refuses to overwrite one. |
+| `vg-backend verify-backup backup/NAME` | Detects a missing, edited or truncated backup. |
+| `vg-backend serve --backup backup/NAME` | Starts with the recording as the `wearable`, **labelled REPLAY** (with its original source), already calibrated as when it was recorded. The dashboard needs no change. |
+
+`backup/demo-session/` is a committed known-good recording (SIMULATED, 1196 frames, about 1 MB):
+a calibrated session that scores 0.0486 au. Replace it with a real-hardware recording on demo day.
 
 ## What the backend guarantees
 
@@ -159,8 +176,14 @@ A session directory (`data/sessions/<id>/`) holds:
 
 `POST /api/sessions/{id}/replay` streams the recording back with replay provenance. Only
 `provenance` changes; the device ids, sequence numbers and timestamps stay the same. With
-the commands reissued, the replay reproduces the original score. The backend tests
-check this.
+the commands reissued, the replay reproduces the original score for a session that starts
+with its first frame. A session started while the processor was already warm counts its
+first frames at once, while a replay starts cold, so its score is lower by about the 1.2 s
+warm-up (`score.started_mid_stream` says which case it is). The backend tests check this.
+
+A replay runtime is named `replay-<id>`. WebSocket clients that did not ask for a runtime by
+name (`?runtime=`) do not receive replay streams, so starting a fast replay can never push
+live messages out of a dashboard's queue.
 
 A calibration made before the session started is saved with it (as a `load_calibration`
 entry in `commands.ndjson`) and applied to the replay as a re-labelled copy
@@ -171,19 +194,38 @@ after the session stops (409 while it is recording).
 
 ## Demo-day checklist (backend)
 
-1. `uv run vg-backend serve --device serial --port '/dev/cu.usbmodem*'` (or the simulator
-   as a fallback; it is labelled `simulated` everywhere).
-2. `GET /api/runtimes/wearable` → `state: ready`, `last_rx_age_s` < 0.2.
-3. Record a known-good session the day before. If live ingestion fails, use
-   `POST /api/sessions/{id}/replay`; the dashboard then shows `REPLAY`.
-4. After any restart, `GET /api/health` → `recovered_on_start` and `GET /api/history`
+1. `uv run vg-backend serve --device serial --port '/dev/cu.usbmodem*' --imu-counts-per-g N --imu-conversion-source "..."`
+2. `uv run vg-backend preflight --expect live --backup backup/demo-session`: every line PASS
+   (WARNs are things to know, FAIL means do not demo this way).
+3. Record a known-good session on the day: `vg-backend export-backup SESSION_ID backup/day-of`.
+4. If live data fails: stop the server and run `uv run vg-backend serve --backup backup/day-of`.
+   The dashboard shows the same `wearable`, now labelled `REPLAY`. Say so.
+5. After any restart, `GET /api/health` → `recovered_on_start` and `GET /api/history`
    should still show the earlier sessions.
+
+The acceptance evidence is in [`EVIDENCE.md`](EVIDENCE.md) (regenerate with
+`uv run python scripts/run_acceptance.py`).
+
+## Station trials (PROPOSED interface)
+
+`POST /api/station/sessions/{id}/stimulus` delivers a stimulus through a controller and opens
+a trial; `/respond` takes felt / not_felt; a timeout records **missing**; `/abort` stops the
+motor. Only a simulated controller exists until the contract with Fahad and Salaar is agreed:
+see [`STATION_INTERFACE.md`](STATION_INTERFACE.md).
+
+## Safety of a local API
+
+The server has no authentication, so it defends itself against web pages you might have open:
+requests whose `Origin` is not a local page, WebSocket upgrades from foreign origins, and
+requests with a non-local `Host` (DNS rebinding) are refused with 403. Bodies over 1 MB are
+refused. The status page escapes everything it shows and has a Content-Security-Policy. It
+binds to `127.0.0.1` by default; with `--host 0.0.0.0` the Host check is off and the server
+prints a warning.
 
 ## Limits and open items
 
-- **Station motor commands are not implemented here.** The host→controller stimulus
-  contract is not agreed yet (Fahad + Salaar). This backend stores station sessions and
-  trials and broadcasts them; the station engine posts them.
+- **Station motor commands** run against a simulated controller only. The host→controller
+  stimulus contract is a proposal (`STATION_INTERFACE.md`), not agreed with Fahad and Salaar.
 - The wire format is NDJSON. If the firmware moves to a binary frame, only a decoder in
   `SerialAdapter` changes.
 - Session files are flushed at least once per second, also while the device is silent or
@@ -194,4 +236,11 @@ after the session stops (409 while it is recording).
 - The score for one session is the change in the processor's cumulative score from start
   to stop. If the accumulation resets mid-session (provenance change), it is reported as
   unavailable, with the reason.
-- No authentication: the server binds to `127.0.0.1` by default.
+- No authentication: the server binds to `127.0.0.1` by default (see "Safety of a local API").
+- **Silent devices.** A device that stays connected but stops sending is shown as
+  `data_fresh: false`, its score is masked, and a `device_silent` event is published. The
+  signals processor itself still reports the last score as accumulating; see `KNOWN_ISSUES.md`.
+- A different wearable on the same link is switched to after 3 valid frames from its id: any
+  open session is closed `interrupted` (`device_changed`) and the new device needs calibrating.
+- Staleness is judged against the host clock with a 250 ms floor: a host stall of that length
+  (heavy load, a pause) can show a false `stream_stale` that recovers on the next frame.

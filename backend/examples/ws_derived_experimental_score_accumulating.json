@@ -3,7 +3,7 @@
   "hub_seq": 3612,
   "channel": "derived",
   "runtime": "wearable",
-  "rx_wall": "2026-11-07T17:59:12.050Z",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
   "payload": {
     "schema": "vibeguard.features",
     "version": 1,
@@ -27,22 +27,22 @@
       "units": "au/h"
     },
     "cumulative": {
-      "value": 0.048678,
+      "value": 0.049108,
       "units": "au"
     },
     "accumulation": 1,
     "boot_segments": 1,
     "integrated_until_us": 29999000,
     "pending_s": 0.0,
-    "valid_duration_s": 18.795008,
+    "valid_duration_s": 18.745008,
     "degraded_duration_s": 0.0,
-    "excluded_duration_s": 11.15148,
+    "excluded_duration_s": 11.20148,
     "excluded_by_reason": {
       "activation_capturing_relaxed": 3.0,
       "activation_capturing_squeeze": 3.0,
       "activation_device_reports_disconnected": 0.995,
       "activation_no_data & vibration_warming_up": 0.001488,
-      "activation_relaxed_captured": 1.05,
+      "activation_relaxed_captured": 1.1,
       "activation_sensor_disconnected": 0.05,
       "activation_stale": 0.003523,
       "activation_stale & vibration_stale": 0.196477,

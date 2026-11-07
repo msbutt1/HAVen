@@ -55,7 +55,9 @@ a{color:inherit}code{font:13px ui-monospace,monospace;background:var(--line);pad
 </main>
 <script>
 const $=id=>document.getElementById(id);
-const badge=(t,c)=>'<span class="badge '+(c||t)+'">'+t.toUpperCase()+'</span>';
+// Everything that comes from the API is untrusted text (labels, reasons, ids): always escape it.
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const badge=(t,c)=>'<span class="badge '+esc(c||t)+'">'+esc(String(t).toUpperCase())+'</span>';
 const CAL={uncalibrated:'Not calibrated yet. Capture a relaxed and then a squeeze reading (POST /api/runtimes/wearable/calibration).',
  capturing_relaxed:'Capturing the relaxed reading (3 s of device time). Keep the muscle relaxed.',
  relaxed_captured:'Relaxed reading done. Now capture the squeeze reading.',
@@ -86,11 +88,16 @@ async function tick(){
    const a=emg&&emg.normalized&&emg.normalized.status==='ok'?emg.normalized.display.emg0:null;
    $('act').textContent=a==null?'-':num(a,2);
    $('score').textContent=sc&&sc.status==='accumulating'?num(sc.cumulative.value,4)+' au (accumulating)':sc?num(sc.cumulative.value,4)+' au (paused: '+(sc.reasons[0]||'')+')':'-';
-   $('counters').innerHTML=[...Object.entries(rt.counters),...Object.entries(rt.events)].map(([k,x])=>'<tr><td>'+k+'</td><td>'+x+'</td></tr>').join('')||'<tr><td colspan=2>nothing yet</td></tr>';
+   $('counters').innerHTML=[...Object.entries(rt.counters),...Object.entries(rt.events)].map(([k,x])=>'<tr><td>'+esc(k)+'</td><td>'+esc(x)+'</td></tr>').join('')||'<tr><td colspan=2>nothing yet</td></tr>';
   }else{$('state').innerHTML=badge('no device','disconnected');$('prov').textContent='-'}
-  $('sessions').innerHTML=ss.map(s=>'<tr><td>'+s.started_at.replace('T',' ').slice(0,19)+'</td><td>'+(s.label||'')+'</td><td>'+s.state+'</td><td>'+(s.source?badge(s.source):'-')+'</td><td>'+(s.score?(s.score.status==='ok'?num(s.score.session_au,4)+' au':s.score.status):'-')+'</td></tr>').join('')||'<tr><td colspan=5>none yet</td></tr>';
+  $('sessions').innerHTML=ss.map(s=>'<tr><td>'+esc(String(s.started_at).replace('T',' ').slice(0,19))+'</td><td>'+esc(s.label)+'</td><td>'+esc(s.state)+'</td><td>'+(s.source?badge(s.source):'-')+'</td><td>'+esc(s.score?(s.score.status==='ok'?num(s.score.session_au,4)+' au':s.score.status):'-')+'</td></tr>').join('')||'<tr><td colspan=5>none yet</td></tr>';
  }catch(e){$('err').style.display='block'}
 }
 tick();setInterval(tick,1000);
 </script></body></html>
 """
+
+# Defence in depth: even if an escape is ever missed, the page may only run its own inline script
+# and talk to its own origin.
+CSP = ("default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; "
+       "base-uri 'none'; form-action 'none'; frame-ancestors 'none'")

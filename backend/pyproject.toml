@@ -29,3 +29,9 @@ dev = [
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+markers = ["fast: quick tests (kept for selection with -m fast)"]
+filterwarnings = [
+    # starlette's TestClient prefers httpx2 in newer releases; harmless, the locked versions work
+    "ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning",
+    "ignore::starlette.exceptions.StarletteDeprecationWarning",
+]

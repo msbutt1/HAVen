@@ -1,5 +1,5 @@
 {
-  "runtime": "replay-7f49b83b4c5f",
+  "runtime": "replay-000000000000",
   "role": "replay",
   "state": "ready",
   "connection": "connected",
@@ -8,7 +8,7 @@
   "adapter": {
     "kind": "replay",
     "clock": "device",
-    "path": "/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-w4l31q6i/sessions/ws-abf255313ed7/telemetry.ndjson",
+    "path": "/private/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-421w64nh/sessions/ws-000000000001/telemetry.ndjson",
     "recording_id": "sim-examples",
     "speed": 10.0,
     "fast": false,
@@ -25,15 +25,16 @@
   "active_session_id": null,
   "last_rx_wall": null,
   "last_rx_age_s": null,
+  "data_fresh": true,
   "counters": {
     "connection_connected": 1
   },
   "events": {},
   "last_invalid_frame": null,
   "last_frame_error": null,
-  "started_at": "2026-11-07T17:59:12.065Z",
+  "started_at": "2026-11-07T18:00:00.000Z",
   "meta": {
-    "replay_of_session": "ws-abf255313ed7",
+    "replay_of_session": "ws-000000000001",
     "recording_id": "sim-examples",
     "original_source": "simulated",
     "speed": 10.0,
