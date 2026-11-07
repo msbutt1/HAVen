@@ -32,7 +32,7 @@ def _batch(rtype: str, channels: list[str], unit: str, rate: float, n: int,
         "device_id": "wearable-01",
         "boot_id": "b-7f3a9c21",
         "seq": 1_234_567,
-        "provenance": {"source": "live"},
+        "provenance": {"source": "simulated"},  # synthetic sizing record: never labelled live
         "sample_rate_hz": rate,
         "first_sample_index": 123_456_789,
         "timing": {"mode": "uniform", "t0_us": 3_600_000_000, "interval_us": 1e6 / rate},

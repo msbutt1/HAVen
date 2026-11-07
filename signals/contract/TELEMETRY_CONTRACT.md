@@ -191,9 +191,9 @@ records.
 
 | Configuration | JSON B/s | UART load @115200 | @921600 | Hypothetical binary B/s |
 |---|---|---|---|---|
-| EMG 1 ch @500 Hz + accel 3 ax @100 Hz | 21,540 | 187 % | 23 % | 2,680 |
-| EMG 1 ch @1000 Hz + accel 3 ax @400 Hz | 31,940 | 277 % | 35 % | 5,480 |
-| EMG 1 ch @1000 Hz + accel 3 ax @1000 Hz | 45,760 | 397 % | 50 % | 9,100 |
+| EMG 1 ch @500 Hz + accel 3 ax @100 Hz | 21,740 | 189 % | 24 % | 2,680 |
+| EMG 1 ch @1000 Hz + accel 3 ax @400 Hz | 32,140 | 279 % | 35 % | 5,480 |
+| EMG 1 ch @1000 Hz + accel 3 ax @1000 Hz | 45,960 | 399 % | 50 % | 9,100 |
 
 Conclusion: NDJSON is fine for the simulator and for pipes or files on the host. On a
 physical UART it needs ≥ 460800–921600 baud, or native USB CDC, or a binary encoding.
