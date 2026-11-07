@@ -314,7 +314,8 @@ def main(argv: list[str] | None = None) -> int:
               "Host check is off (cross-site requests are still refused)", file=sys.stderr)
     app = create_app(backend, on_shutdown=backend.shutdown, allowed_hosts=allowed)
     print(f"vg-backend: http://{args.host}:{args.http_port}  data={backend.data_dir}  "
-          f"source={'backup replay' if args.backup else args.device}", file=sys.stderr)
+          f"source={'backup replay' if args.backup else (adapter.kind if adapter is not None else 'none')}",
+          file=sys.stderr)
     # A client that never reads must not keep the server (and the open session) alive on Ctrl-C.
     uvicorn.run(app, host=args.host, port=args.http_port, log_level=args.log_level,
                 timeout_graceful_shutdown=3)
