@@ -92,3 +92,12 @@ def test_seeded_history_is_calibrated_labelled_and_replays_to_the_same_records(b
         assert sum(1 for d in derived if d["type"] == "stream_event" and d["event"] == "end_of_input") == 1
         rx = (Path(row["dir"]) / "rx_times.csv").read_text().splitlines()[1:]
         assert rx[-1].split(",")[1] <= row["ended_at"], "receive times must not run past the session end"
+
+
+def test_the_real_server_can_speak_websocket():
+    """The in-process test client needs no WebSocket library, but uvicorn does: without one,
+    /ws/live answers 404 on the running server and the dashboard gets no live data."""
+    import importlib.util
+
+    assert any(importlib.util.find_spec(m) for m in ("websockets", "wsproto")), \
+        "install uvicorn[standard] (websockets) or /ws/live will 404 on the real server"
