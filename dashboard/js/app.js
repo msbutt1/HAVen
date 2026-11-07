@@ -8,10 +8,16 @@
   const $ = (id) => document.getElementById(id);
 
   const params = new URLSearchParams(location.search);
-  const SOURCE = params.get('source') === 'ws' ? 'ws' : 'mock';
+  // Served by the backend (http/https, not a file) -> the real backend; opened as a file -> mock data.
+  // ?source=mock | backend | ws (the old placeholder WebSocket) overrides.
+  const SOURCE = ['mock', 'backend', 'ws'].includes(params.get('source'))
+    ? params.get('source')
+    : (location.protocol === 'file:' ? 'mock' : 'backend');
   const adapter = SOURCE === 'ws'
     ? new VG.WebSocketAdapter(params.get('url') || VG.contract.DEFAULT_WS_URL)
-    : new VG.MockAdapter();
+    : SOURCE === 'backend'
+      ? new VG.BackendAdapter({ base: params.get('base') || '', runtime: params.get('runtime') || 'wearable' })
+      : new VG.MockAdapter();
 
   const STALE_MS = 1000;
   const STATE_LABEL = {
@@ -165,6 +171,11 @@
     charts.vib.push(now, v.vib_ahv_est);
     charts.score.push(now, v.score_rate);
     charts.raw.push(now, v.emg_env);
+    if (m.units) {
+      const u = { 'pts/min': 'points / min', pts: 'points' };
+      if (m.units.score_rate) $('score-rate-unit').textContent = u[m.units.score_rate] || m.units.score_rate;
+      if (m.units.score_total) $('score-total-unit').textContent = u[m.units.score_total] || m.units.score_total;
+    }
     renderReadouts();
     if (first) renderSource();
   });
@@ -208,7 +219,7 @@
     btn.disabled = S.busy || !(st === 'ready' || rec);
     let msg;
     if (rec) msg = S.session ? `Recording ${S.session.id}, ${fmtDur(Date.now() - S.session.startedAt)}` : 'Recording';
-    else if (st === 'ready') msg = S.calibration ? 'Ready to record.' : 'Ready to record. Not calibrated, so the score will stay empty.';
+    else if (st === 'ready') msg = (S.calibration || (S.latest && S.latest.quality && S.latest.quality.calibrated)) ? 'Ready to record.' : 'Ready to record. Not calibrated, so the score will stay empty.';
     else if (st === 'calibrating') msg = 'Wait for calibration to finish.';
     else if (st === 'error') msg = 'Clear the sleeve error before recording.';
     else msg = 'Connect the sleeve to record.';
@@ -224,6 +235,15 @@
     if (r.status === 'error') toast(r.error);
     else if (!rec) S.session = { id: r.session_id, startedAt: Date.now() };
     renderRecording();
+  });
+
+  // Recordings the backend already holds (shown without a "saved" toast).
+  adapter.on('history', (m) => {
+    const known = new Set(S.saved.map((i) => i.rec.session_id));
+    for (const rec of m.sessions) {
+      if (!known.has(rec.session_id)) S.saved.push({ kind: 'session', at: rec.ended_at, rec });
+    }
+    renderHistory();
   });
 
   adapter.on('session', (m) => {
@@ -457,7 +477,7 @@
       const cells = [fmtTime(item.at), item.kind === 'session' ? 'Wearable recording' : 'Perception test', null, ''];
       if (item.kind === 'session') {
         const bits = [`${fmtDur(r.duration_s * 1000)} long`];
-        bits.push(r.score_total == null ? 'no score (not calibrated)' : `score ${fmtNum(r.score_total, 1)} points (experimental)`);
+        bits.push(r.score_total == null ? 'no score (not calibrated)' : `score ${fmtNum(r.score_total, 1)} ${r.score_units || 'points'} (experimental)`);
         bits.push(`peak vibration ${fmtNum(r.peak_vib_ahv_est, 1)} m/s²`);
         if (r.ended_reason !== 'stopped') bits.push(`ended early: ${r.ended_reason}`);
         cells[3] = bits.join(', ');

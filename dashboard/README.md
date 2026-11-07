@@ -6,11 +6,19 @@ Live view, calibration, perception test, and history screens. No build step, no 
 
 Double-click `index.html`, or open it in Chrome. It starts on **mock data** (purple striped band = simulated).
 
-To use the real backend once Abduljabbar's server is up:
+To use the real backend, let the backend serve the dashboard (same origin, nothing to configure):
 
 ```
-index.html?source=ws&url=ws://localhost:8000/ws
+cd backend && uv run vg-backend serve            # then open http://127.0.0.1:8765/dashboard/
 ```
+
+Served over http(s) the dashboard talks to the backend (`js/backend-adapter.js`: live data over `/ws/live`,
+commands and history over `/api/...`); opened as a file it uses the mock feed. `?source=mock|backend` overrides,
+`&base=http://host:port` points at a backend on another origin (it must allow that origin).
+The perception-test (station) screens are not connected to the backend yet and say so. The 12-week charts on the
+History screen are still the simulated sample data.
+
+Publishing it on livops.uz through a tunnel: see `backend/DEPLOY_LIVOPS.md`.
 
 Each screen has its own link, so a refresh stays put: `#live`, `#calibrate`, `#station`, `#history`.
 

@@ -28,10 +28,14 @@ Every POST accepts "request_id": a retry with the same id returns the first resu
 from __future__ import annotations
 
 import asyncio
+import base64
 import concurrent.futures as cf
+import hmac
+import os
 import re
 import sqlite3
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any, Callable
 
 from fastapi import Body, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
@@ -94,12 +98,36 @@ def _origin_host(origin: str) -> tuple[str, str | None] | None:
     return _split_hostport(u.netloc)
 
 
+DASHBOARD_CSP = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+                 "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+
+
+def find_dashboard_dir() -> Path | None:
+    """The dashboard folder: $VG_DASHBOARD_DIR, else ``dashboard/`` next to ``backend/`` in a checkout."""
+    env = os.environ.get("VG_DASHBOARD_DIR")
+    for cand in ([Path(env)] if env else []) + [Path(__file__).resolve().parents[3] / "dashboard"]:
+        if (cand / "index.html").is_file():
+            return cand
+    return None
+
+
 def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
-               allowed_hosts: tuple[str, ...] | None = LOCAL_HOSTS) -> FastAPI:
+               allowed_hosts: tuple[str, ...] | None = LOCAL_HOSTS,
+               dashboard_dir: Path | str | None = None,
+               basic_auth: tuple[str, str] | None = None) -> FastAPI:
     """``allowed_hosts``: Host header values accepted (defends against DNS rebinding); ports are
     ignored. Pass None to disable the Host check (e.g. when deliberately listening on all
     interfaces); the Origin check then only accepts local origins and the page's own origin."""
     hosts = None if allowed_hosts is None else {_host_only(h) for h in allowed_hosts}
+    want_auth = None if basic_auth is None else base64.b64encode(f"{basic_auth[0]}:{basic_auth[1]}".encode()).decode()
+
+    def authorized(header: str | None) -> bool:
+        """HTTP Basic credentials equal to the configured ones (constant-time). Always True when none are set."""
+        if want_auth is None:
+            return True
+        scheme, _, token = (header or "").partition(" ")
+        return scheme.lower() == "basic" and hmac.compare_digest(token.strip().encode(), want_auth.encode())
+
     local = {"localhost", "127.0.0.1", "[::1]"}
 
     def trusted_origin(origin: str | None, host_header: str | None) -> bool:
@@ -164,6 +192,33 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
                 "chunked" in request.headers.get("transfer-encoding", "").lower():
             return JSONResponse({"detail": "chunked request bodies are not accepted"}, status_code=411)
         return await call_next(request)
+
+    if dashboard_dir is not None and (Path(dashboard_dir) / "index.html").is_file():
+        from fastapi.responses import RedirectResponse
+        from fastapi.staticfiles import StaticFiles
+
+        @app.middleware("http")
+        async def dashboard_headers(request, call_next):
+            resp = await call_next(request)
+            if request.url.path.startswith("/dashboard"):
+                resp.headers["Content-Security-Policy"] = DASHBOARD_CSP
+                resp.headers["X-Content-Type-Options"] = "nosniff"
+                resp.headers["Cache-Control"] = "no-cache"
+            return resp
+
+        @app.get("/dashboard", include_in_schema=False)
+        async def dashboard_slash() -> RedirectResponse:
+            return RedirectResponse("/dashboard/")
+
+        app.mount("/dashboard", StaticFiles(directory=str(dashboard_dir), html=True), name="dashboard")
+
+    if want_auth is not None:
+        @app.middleware("http")  # added last = runs first: nothing is served, not even a 403, without credentials
+        async def require_auth(request, call_next):
+            if not authorized(request.headers.get("authorization")):
+                return JSONResponse({"detail": "authentication required"}, status_code=401,
+                                    headers={"WWW-Authenticate": 'Basic realm="VibeGuard", charset="UTF-8"'})
+            return await call_next(request)
 
     @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
     async def home() -> HTMLResponse:
@@ -332,6 +387,9 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
     async def live(ws: WebSocket, channels: str | None = None, runtime: str | None = None) -> None:
         wanted = DEFAULT_CHANNELS if not channels else frozenset(c for c in channels.split(",") if c in CHANNELS)
         runtimes = None if not runtime else frozenset(runtime.split(","))
+        if not authorized(ws.headers.get("authorization")):
+            await ws.close(code=1008)  # the HTTP middleware does not see WebSocket handshakes
+            return
         if not trusted_origin(ws.headers.get("origin"), ws.headers.get("host")) or (
                 hosts is not None and _host_only(ws.headers.get("host", "")) not in hosts):
             await ws.close(code=1008)  # browsers do not apply CORS to WebSockets: check it here

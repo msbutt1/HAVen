@@ -47,8 +47,8 @@
         </article>
         <article class="readout experimental" id="ro-score">
           <h2>Exposure score <span class="tag tag-exp">Experimental</span></h2>
-          <p class="value"><span class="num" id="score-rate">—</span><span class="unit">points / min</span></p>
-          <p class="sub">This recording: <strong id="score-total">—</strong> points</p>
+          <p class="value"><span class="num" id="score-rate">—</span><span class="unit" id="score-rate-unit">points / min</span></p>
+          <p class="sub">This recording: <strong id="score-total">—</strong> <span id="score-total-unit">points</span></p>
           <p class="note">Placeholder formula that weights vibration by grip. Not a validated dose.</p>
         </article>
       </div>
@@ -176,6 +176,7 @@
   <script src="js/contract.js"></script>
   <script src="js/mock-adapter.js"></script>
   <script src="js/ws-adapter.js"></script>
+  <script src="js/backend-adapter.js"></script>
   <script src="js/charts.js"></script>
   <script src="js/app.js"></script>
 </body>

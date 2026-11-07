@@ -51,6 +51,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--allow-host", action="append", default=[],
                    help="extra Host header value to accept (when listening beyond localhost)")
     s.add_argument("--http-port", type=int, default=8765)
+    s.add_argument("--dashboard", default=None, metavar="DIR|none",
+                   help="serve the dashboard from DIR at /dashboard/ (default: ../dashboard next to backend/, or "
+                        "$VG_DASHBOARD_DIR; 'none' turns it off)")
     s.add_argument("--device", choices=("sim", "serial", "stream", "none"), default="sim")
     s.add_argument("--stream", default=None, metavar="FILE|-",
                    help="with --device stream: read device telemetry from a file or stdin (-), e.g. the output of "
@@ -453,7 +456,26 @@ def main(argv: list[str] | None = None) -> int:
     if wildcard:
         print("vg-backend: WARNING listening on all interfaces; the API has no authentication and the "
               "Host check is off (cross-site requests are still refused)", file=sys.stderr)
-    app = create_app(backend, on_shutdown=backend.shutdown, allowed_hosts=allowed)
+    from .app import find_dashboard_dir
+    dash = None if args.dashboard == "none" else (Path(args.dashboard) if args.dashboard else find_dashboard_dir())
+    if dash is not None and not (dash / "index.html").is_file():
+        print(f"vg-backend: --dashboard {dash}: no index.html there, the dashboard is not served", file=sys.stderr)
+        dash = None
+    basic_auth = None
+    cred = os.environ.get("VG_BASIC_AUTH")  # "user:password"; an env var, so it is not visible in `ps`
+    if cred:
+        user, sep, pw = cred.partition(":")
+        if not sep or not user or not pw:
+            print("vg-backend: VG_BASIC_AUTH must look like user:password", file=sys.stderr)
+            return 2
+        basic_auth = (user, pw)
+    elif not args.host.startswith(("127.", "localhost", "::1")) or args.allow_host:
+        print("vg-backend: WARNING the API is reachable beyond this computer without a password; "
+              "set VG_BASIC_AUTH=user:password", file=sys.stderr)
+    app = create_app(backend, on_shutdown=backend.shutdown, allowed_hosts=allowed, dashboard_dir=dash,
+                     basic_auth=basic_auth)
+    if dash is not None:
+        print(f"vg-backend: dashboard at http://{args.host}:{args.http_port}/dashboard/", file=sys.stderr)
     print(f"vg-backend: http://{args.host}:{args.http_port}  data={backend.data_dir}  "
           f"source={'backup replay' if args.backup else (adapter.kind if adapter is not None else 'none')}",
           file=sys.stderr)
