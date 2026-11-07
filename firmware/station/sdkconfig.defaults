@@ -1,0 +1,2 @@
+# Kept minimal on purpose. The chip target is passed explicitly by tools/build.sh.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y

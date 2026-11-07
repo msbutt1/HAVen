@@ -1,0 +1,2 @@
+# Measured on board W with esptool flash-id (2026-11-07): 4 MB flash.
+CONFIG_ESPTOOLPY_FLASHSIZE_4MB=y
