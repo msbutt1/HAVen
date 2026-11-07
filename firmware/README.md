@@ -11,6 +11,7 @@ controls bounded actuators.
 | `target/` | ESP-IDF-only startup report: measured chip info, config report, GPIO/ADC table cross-check against the IDF driver | ESP32 |
 | `wearable/` | ESP32 #1 app: BioAmp EMG + IMU #1 | ESP32 |
 | `station/` | ESP32 #2 app: actuator, IMU #2, Velostat, optional OLED/DHT11 | ESP32 |
+| `diag/` | Bring-up diagnostic: IMU identity and register readback, BioAmp-free ADC check; console at 115200 ([`WIRING.md`](WIRING.md)) | ESP32 |
 | `tests/host/` | Host unit tests; every board file is compiled and checked; `check_fake_streams.py` validates generated telemetry with `signals` | host |
 | `tools/fake_device/` | `vg-fake-device`: the firmware's telemetry pipeline on a simulated clock (always `simulated`) | host |
 | `tools/build.sh` | Builds one role for one board in an isolated build dir | — |

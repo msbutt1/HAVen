@@ -20,6 +20,11 @@ target_link_libraries(test_telemetry PRIVATE vg_shared)
 target_include_directories(test_telemetry PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 add_test(NAME telemetry COMMAND test_telemetry)
 
+add_executable(test_imu test_imu.c)
+target_link_libraries(test_imu PRIVATE vg_shared)
+target_include_directories(test_imu PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+add_test(NAME imu COMMAND test_imu)
+
 # Host build of the SIMULATED fake device (same shared code as the firmware).
 add_executable(vg-fake-device ${CMAKE_CURRENT_LIST_DIR}/../../tools/fake_device/fake_device.c)
 target_link_libraries(vg-fake-device PRIVATE vg_shared)

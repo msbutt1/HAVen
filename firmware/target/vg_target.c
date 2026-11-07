@@ -70,9 +70,7 @@ int vg_target_startup(const vg_hw_config_t *cfg)
 
     vg_config_report(cfg, log_line, NULL);
 
-    vg_issue_t issues[32];
-    int n = vg_pin_check(cfg, issues, 32);
-    int errors = vg_issue_error_count(issues, n < 32 ? n : 32) + (n > 32 ? 1 : 0);
+    int errors = vg_pin_check_errors(cfg);
 
     int mismatches = cfg->chip == VG_CHIP_UNKNOWN ? 0 : cross_check_gpio_table(cfg->chip);
     ESP_LOGI(TAG, "GPIO/ADC table vs IDF driver: %d mismatches%s", mismatches,

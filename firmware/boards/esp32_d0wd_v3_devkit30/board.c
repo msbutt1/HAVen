@@ -28,6 +28,13 @@
     .chip_evidence = "esptool 5.6.0: ESP32-D0WD-V3 rev v3.1 on W (28:05:a5:07:55:54) and S (28:05:a5:07:fb:6c)", \
     .gpio16_17_free_status = VG_FACT_UNKNOWN
 
+/* Wearable IMU WIRED (reported by Salaar 2026-11-07): VCC->3V3, GND->GND,
+ * SDA->D18 (GPIO18), SCL->D19 (GPIO19); AD0->GND and FSYNC->GND (grounded later the
+ * same day, per PS-MPU-9250A-01). Verified: MPU-6500 at 0x68 before and after. */
+#define WEARABLE_IMU                                                           \
+    .imu = {.enabled = false, .sda_gpio = 18, .scl_gpio = 19, .address = 0x68,  \
+            .clock_hz = 100000}
+/* Station IMU: not wired yet; proposed pins. */
 #define PROPOSED_IMU                                                           \
     .imu = {.enabled = false, .sda_gpio = 21, .scl_gpio = 22, .address = 0x68,  \
             .clock_hz = 100000}
@@ -37,8 +44,11 @@ const vg_hw_config_t vg_board_wearable = {
     .description = "board W: chip confirmed; pins PROPOSED, nothing wired or verified",
     .role = VG_ROLE_WEARABLE,
     BOARD_W_CHIP,
-    .emg = {.enabled = false, .gpio = 36, .atten = VG_ATTEN_UNSET},
-    PROPOSED_IMU,
+    /* WIRED (reported by Salaar 2026-11-07): BioAmp OUT -> D34 (GPIO34, ADC1_CH6),
+     * BioAmp VCC -> 3V3, GND -> GND. Still disabled: BioAmp is in its default
+     * EEG/EOG jumper setting and the ADC attenuation is not chosen yet. */
+    .emg = {.enabled = false, .gpio = 34, .atten = VG_ATTEN_UNSET},
+    WEARABLE_IMU,
     .motor = {.enabled = false, .gpio = VG_PIN_NONE},
     .velostat = {.enabled = false, .gpio = VG_PIN_NONE},
     .oled = {.enabled = false},
