@@ -1,0 +1,79 @@
+{
+  "v": 1,
+  "hub_seq": 98,
+  "channel": "telemetry",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T17:59:06.197Z",
+  "payload": {
+    "schema": "vibeguard.device_telemetry",
+    "version": 1,
+    "type": "imu_batch",
+    "device_id": "sim-wearable-01",
+    "boot_id": "sim-examples-b0",
+    "seq": 31,
+    "provenance": {
+      "source": "simulated",
+      "recording_id": "sim-examples"
+    },
+    "sample_rate_hz": 400.0,
+    "first_sample_index": 280,
+    "timing": {
+      "mode": "explicit",
+      "t_us": [
+        705013,
+        707522,
+        710012,
+        712523,
+        715015,
+        717509,
+        720018,
+        722501,
+        725004,
+        727518,
+        730008,
+        732505,
+        735006,
+        737504,
+        740017,
+        742516,
+        745016,
+        747522,
+        750018,
+        752520
+      ]
+    },
+    "channels": [
+      "ax",
+      "ay",
+      "az"
+    ],
+    "units": {
+      "ax": "raw_counts",
+      "ay": "raw_counts",
+      "az": "raw_counts"
+    },
+    "samples": [
+      [
+        2,
+        1,
+        4099
+      ],
+      [
+        -1,
+        -4,
+        4102
+      ],
+      [
+        -2,
+        1,
+        4100
+      ],
+      [
+        "... trimmed for the example"
+      ]
+    ],
+    "quality": {
+      "flags": []
+    }
+  }
+}

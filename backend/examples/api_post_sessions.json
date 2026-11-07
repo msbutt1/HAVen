@@ -1,0 +1,22 @@
+{
+  "session_id": "ws-abf255313ed7",
+  "runtime": "wearable",
+  "device_id": "sim-wearable-01",
+  "state": "recording",
+  "end_reason": null,
+  "label": "example session",
+  "source": "simulated",
+  "original_source": null,
+  "recording_id": "sim-examples",
+  "simulated_history": false,
+  "started_at": "2026-11-07T17:59:06.196Z",
+  "ended_at": null,
+  "boot_ids": [
+    "sim-examples-b0"
+  ],
+  "calibration_id": null,
+  "score": null,
+  "counters": null,
+  "files": null,
+  "dir": "<data_dir>/sessions/ws-abf255313ed7"
+}

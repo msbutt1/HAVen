@@ -1,0 +1,32 @@
+{
+  "runtime": "wearable",
+  "action": "squeeze",
+  "events": [
+    {
+      "schema": "vibeguard.features",
+      "version": 1,
+      "type": "stream_event",
+      "device_id": "sim-wearable-01",
+      "boot_id": "sim-examples-b0",
+      "provenance": {
+        "source": "simulated",
+        "recording_id": "sim-examples"
+      },
+      "timebase": "device_monotonic_us",
+      "event": "calibration_state",
+      "stream": "emg",
+      "t_us": 5404000,
+      "source_seq": 221,
+      "detail": {
+        "state": "capturing_squeeze",
+        "reason": null,
+        "phase": "squeeze"
+      }
+    }
+  ],
+  "calibration": {
+    "state": "capturing_squeeze",
+    "reason": null,
+    "calibration_id": null
+  }
+}

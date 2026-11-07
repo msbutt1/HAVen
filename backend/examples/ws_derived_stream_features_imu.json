@@ -1,0 +1,93 @@
+{
+  "v": 1,
+  "hub_seq": 96,
+  "channel": "derived",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T17:59:06.197Z",
+  "payload": {
+    "schema": "vibeguard.features",
+    "version": 1,
+    "type": "stream_features",
+    "device_id": "sim-wearable-01",
+    "boot_id": "sim-examples-b0",
+    "provenance": {
+      "source": "simulated",
+      "recording_id": "sim-examples"
+    },
+    "timebase": "device_monotonic_us",
+    "stream": "imu",
+    "t_us": 752520,
+    "source_seq": 31,
+    "status": "ok",
+    "reasons": [],
+    "window": {
+      "length_s": 0.5,
+      "samples": 200,
+      "start_us": 255002,
+      "end_us": 752520,
+      "nominal_rate_hz": 400.0,
+      "rate_source": "device_hello",
+      "measured_rate_hz": 399.9855,
+      "expected_samples": 200.0,
+      "complete_samples": 200,
+      "coverage": 1.0
+    },
+    "quality": {
+      "clipped_samples": 0,
+      "clipping_detection": "device_declared_limits",
+      "device_flags": []
+    },
+    "features": {
+      "window_stats": {
+        "status": "ok",
+        "units": {
+          "ax": "raw_counts",
+          "ay": "raw_counts",
+          "az": "raw_counts"
+        },
+        "mean": {
+          "ax": 0.2,
+          "ay": 0.315,
+          "az": 4096.105
+        },
+        "ac_rms": {
+          "ax": 3.1464,
+          "ay": 3.0848,
+          "az": 2.9873
+        }
+      },
+      "vibration": {
+        "label": "measured_vibration_within_sensor_bandwidth",
+        "weighting": "none (unweighted; not ISO 5349 frequency-weighted)",
+        "window_s": 1.0,
+        "passband_hz": {
+          "low": 5.0,
+          "high": null,
+          "high_note": "sensor-limited (internal filter/ODR unknown); at most Nyquist 200 Hz"
+        },
+        "status": "warming_up",
+        "reasons": [
+          "warming_up"
+        ],
+        "units": {
+          "ax": "raw_counts",
+          "ay": "raw_counts",
+          "az": "raw_counts"
+        },
+        "static_mean": null,
+        "dynamic_rms": null,
+        "combined_rms": null,
+        "physical": {
+          "status": "warming_up",
+          "reasons": [
+            "warming_up"
+          ],
+          "units": "m/s^2",
+          "dynamic_rms": null,
+          "combined_rms": null,
+          "conversion_source": null
+        }
+      }
+    }
+  }
+}

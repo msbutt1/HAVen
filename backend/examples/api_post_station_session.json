@@ -1,0 +1,16 @@
+{
+  "station_session_id": "ss-1669d4b624e6",
+  "state": "testing",
+  "label": "example perception test",
+  "source": "live",
+  "simulated_history": false,
+  "wearable_session_id": null,
+  "protocol": {
+    "kind": "preview"
+  },
+  "started_at": "2026-11-07T17:59:12.068Z",
+  "ended_at": null,
+  "end_reason": null,
+  "summary": null,
+  "trials": []
+}

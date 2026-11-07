@@ -1,0 +1,14 @@
+{
+  "ok": true,
+  "version": "0.1.0",
+  "data_dir": "<data_dir>",
+  "runtimes": {
+    "wearable": "completed",
+    "replay-7f49b83b4c5f": "ready"
+  },
+  "recovered_on_start": {
+    "wearable_sessions_interrupted": 0,
+    "station_sessions_interrupted": 0
+  },
+  "ws_clients": 0
+}

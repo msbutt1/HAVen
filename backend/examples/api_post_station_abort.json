@@ -1,0 +1,64 @@
+{
+  "station_session_id": "ss-1669d4b624e6",
+  "state": "aborted",
+  "label": "example perception test",
+  "source": "live",
+  "simulated_history": false,
+  "wearable_session_id": null,
+  "protocol": {
+    "kind": "preview"
+  },
+  "started_at": "2026-11-07T17:59:12.068Z",
+  "ended_at": "2026-11-07T17:59:12.075Z",
+  "end_reason": "operator_abort",
+  "summary": {
+    "trials": 2,
+    "stimulus_trials": {
+      "felt": 1,
+      "not_felt": 0,
+      "missing": 1
+    },
+    "catch_trials": {
+      "felt": 0,
+      "not_felt": 0,
+      "missing": 0
+    },
+    "note": "prototype perception workflow; motor settings are settings, not measured amplitudes; not a diagnostic result"
+  },
+  "trials": [
+    {
+      "trial_id": "tr-b797426dc26a",
+      "station_session_id": "ss-1669d4b624e6",
+      "trial_index": 0,
+      "stimulus": {
+        "motor_setting": 160,
+        "units": "pwm_duty_0_255"
+      },
+      "measured_amplitude": null,
+      "is_catch": false,
+      "response": "felt",
+      "presented_at": "2026-11-07T18:00:00.000Z",
+      "responded_at": "2026-11-07T18:00:00.640Z",
+      "response_latency_ms": 640.0,
+      "recorded_at": "2026-11-07T17:59:12.070Z",
+      "note": null
+    },
+    {
+      "trial_id": "tr-47457d6a84da",
+      "station_session_id": "ss-1669d4b624e6",
+      "trial_index": 1,
+      "stimulus": {
+        "motor_setting": 120,
+        "units": "pwm_duty_0_255"
+      },
+      "measured_amplitude": null,
+      "is_catch": false,
+      "response": "missing",
+      "presented_at": "2026-11-07T18:00:06.000Z",
+      "responded_at": null,
+      "response_latency_ms": null,
+      "recorded_at": "2026-11-07T17:59:12.073Z",
+      "note": "no response within 3 s"
+    }
+  ]
+}

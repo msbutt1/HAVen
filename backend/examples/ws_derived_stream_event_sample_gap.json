@@ -1,0 +1,28 @@
+{
+  "v": 1,
+  "hub_seq": 2560,
+  "channel": "derived",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T17:59:10.326Z",
+  "payload": {
+    "schema": "vibeguard.features",
+    "version": 1,
+    "type": "stream_event",
+    "device_id": "sim-wearable-01",
+    "boot_id": "sim-examples-b0",
+    "provenance": {
+      "source": "simulated",
+      "recording_id": "sim-examples"
+    },
+    "timebase": "device_monotonic_us",
+    "event": "sample_gap",
+    "stream": "emg",
+    "t_us": 21350000,
+    "source_seq": 879,
+    "detail": {
+      "missing_samples": 400,
+      "device_reported_dropped": 0,
+      "cause": "transport_or_unreported"
+    }
+  }
+}

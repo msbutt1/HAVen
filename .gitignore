@@ -26,3 +26,6 @@ signals/out/
 .vscode/
 .idea/
 .DS_Store
+
+# Backend local data (SQLite + recorded sessions)
+backend/data/

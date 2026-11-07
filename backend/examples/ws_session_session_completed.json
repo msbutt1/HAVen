@@ -1,0 +1,92 @@
+{
+  "v": 1,
+  "hub_seq": 3614,
+  "channel": "session",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T17:59:12.057Z",
+  "payload": {
+    "event": "session_completed",
+    "session": {
+      "session_id": "ws-abf255313ed7",
+      "runtime": "wearable",
+      "device_id": "sim-wearable-01",
+      "state": "completed",
+      "end_reason": "end_of_input",
+      "label": "example session",
+      "source": "simulated",
+      "original_source": null,
+      "recording_id": "sim-examples",
+      "simulated_history": false,
+      "started_at": "2026-11-07T17:59:06.196Z",
+      "ended_at": "2026-11-07T17:59:12.056Z",
+      "boot_ids": [
+        "sim-examples-b0"
+      ],
+      "calibration_id": "cal-1e9ae2143ed1",
+      "score": {
+        "label": "experimental score, arbitrary units (not a dose, not A(8))",
+        "at_start": {
+          "accumulation": 1,
+          "cumulative_au": 0.0,
+          "valid_duration_s": 0.0,
+          "excluded_duration_s": 0.649997,
+          "boot_segments": 1,
+          "status": "paused",
+          "t_us": 754000
+        },
+        "at_end": {
+          "accumulation": 1,
+          "cumulative_au": 0.048678,
+          "valid_duration_s": 18.795008,
+          "excluded_duration_s": 11.15148,
+          "boot_segments": 1,
+          "status": "accumulating",
+          "t_us": 29999000
+        },
+        "session_au": 0.048678,
+        "session_valid_s": 18.795,
+        "status": "ok",
+        "reason": null
+      },
+      "counters": {
+        "frames": 1185,
+        "derived_records": 2327,
+        "events": {
+          "device_sensor_state": 2,
+          "seq_gap": 17,
+          "sample_gap": 2
+        },
+        "sources_seen": [
+          "simulated"
+        ],
+        "calibration_ids": [
+          "cal-1e9ae2143ed1"
+        ],
+        "duration_s": 5.86
+      },
+      "files": {
+        "telemetry.ndjson": {
+          "path": "/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-w4l31q6i/sessions/ws-abf255313ed7/telemetry.ndjson",
+          "bytes": 949740,
+          "sha256": "2440da8b25ddbac0871d04a660038283a6d4de5292ebd78a4b3a2841750b0d4c"
+        },
+        "rx_times.csv": {
+          "path": "/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-w4l31q6i/sessions/ws-abf255313ed7/rx_times.csv",
+          "bytes": 49876,
+          "sha256": "a66b464c3b8f321fab57505460a242e83d4acb1908217b5cf4d7a558ced731c9"
+        },
+        "derived.ndjson": {
+          "path": "/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-w4l31q6i/sessions/ws-abf255313ed7/derived.ndjson",
+          "bytes": 3815595,
+          "sha256": "ec8755da5196bd967976b94fe22c7575a95c1bd3e71ef7a8909b51e1594246e8"
+        },
+        "commands.ndjson": {
+          "path": "/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-w4l31q6i/sessions/ws-abf255313ed7/commands.ndjson",
+          "bytes": 241,
+          "sha256": "094bdb80b0608e74d3aab7ffe6ebce51b17d5c2575eaf703de9b397419e2ad5b"
+        }
+      },
+      "dir": "/var/folders/sn/bhy8mxsx48dcrhynjhy6wc940000gn/T/vg-examples-w4l31q6i/sessions/ws-abf255313ed7"
+    }
+  }
+}
