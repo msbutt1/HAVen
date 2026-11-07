@@ -1,0 +1,7 @@
+{
+  "schema": "vibeguard.station_link",
+  "version": 1,
+  "type": "stimulus_started",
+  "trial_id": "sim-preview-001-t001",
+  "device_t_us": 1200000
+}

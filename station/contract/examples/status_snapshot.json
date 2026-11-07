@@ -1,0 +1,19 @@
+{
+  "session_id": "sim-snapshot-001",
+  "state": "testing",
+  "phase": "awaiting_response",
+  "mode": "preview",
+  "is_preview": true,
+  "provenance": {
+    "source": "simulated"
+  },
+  "trial_index": 1,
+  "trials_completed": 0,
+  "current_trial_id": "sim-snapshot-001-t001",
+  "current_kind": "stimulus",
+  "current_setting": 60,
+  "stimulus_units": "motor_setting",
+  "reversals": 0,
+  "reversals_required": 4,
+  "outcome": null
+}

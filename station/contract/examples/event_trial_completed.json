@@ -1,0 +1,41 @@
+{
+  "schema": "vibeguard.station_event",
+  "version": 1,
+  "type": "trial_completed",
+  "session_id": "sim-preview-001",
+  "seq": 3,
+  "t_s": 0.6791,
+  "state": "testing",
+  "provenance": {
+    "source": "simulated",
+    "detail": {
+      "scenario": "example_preview"
+    }
+  },
+  "trial": {
+    "schema": "vibeguard.station_trial",
+    "version": 1,
+    "trial_id": "sim-preview-001-t001",
+    "index": 1,
+    "kind": "stimulus",
+    "stimulus_setting": 60,
+    "stimulus_units": "motor_setting",
+    "stimulus_ms": 1000,
+    "measured_amplitude": null,
+    "command_t_s": 0.0,
+    "stimulus_started_t_s": 0.0,
+    "response": "felt",
+    "response_status": "received",
+    "response_source": "button",
+    "response_t_s": 0.6791,
+    "latency_ms": 679.1,
+    "catch_outcome": null,
+    "staircase": {
+      "direction": "down",
+      "reversal": false,
+      "reversal_level": null,
+      "next_setting": 50
+    },
+    "note": null
+  }
+}

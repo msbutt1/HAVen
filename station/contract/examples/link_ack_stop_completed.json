@@ -1,0 +1,7 @@
+{
+  "schema": "vibeguard.station_link",
+  "version": 1,
+  "type": "ack",
+  "command_id": "c00003",
+  "status": "completed"
+}

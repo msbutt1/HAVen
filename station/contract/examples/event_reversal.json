@@ -1,0 +1,19 @@
+{
+  "schema": "vibeguard.station_event",
+  "version": 1,
+  "type": "reversal",
+  "session_id": "sim-preview-001",
+  "seq": 7,
+  "t_s": 3.7421,
+  "state": "testing",
+  "provenance": {
+    "source": "simulated",
+    "detail": {
+      "scenario": "example_preview"
+    }
+  },
+  "trial_id": "sim-preview-001-t003",
+  "level": 40,
+  "count": 1,
+  "required": 4
+}

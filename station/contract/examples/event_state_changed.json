@@ -1,0 +1,18 @@
+{
+  "schema": "vibeguard.station_event",
+  "version": 1,
+  "type": "state_changed",
+  "session_id": "sim-preview-001",
+  "seq": 1,
+  "t_s": 0.0,
+  "state": "testing",
+  "provenance": {
+    "source": "simulated",
+    "detail": {
+      "scenario": "example_preview"
+    }
+  },
+  "previous": "ready",
+  "current": "testing",
+  "mode": "preview"
+}

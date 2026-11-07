@@ -1,0 +1,286 @@
+{
+  "schema": "vibeguard.station_result",
+  "version": 1,
+  "session_id": "sim-preview-001",
+  "mode": "preview",
+  "is_preview": true,
+  "state": "completed",
+  "outcome": "threshold_estimated",
+  "result_label": "PREVIEW_short_run_not_equivalent_to_full_test",
+  "framing": "Vibration-perception prototype. Not a diagnostic test and not validated for detecting nerve damage. Stimulus is a motor setting (a driver command), not a measured physical amplitude.",
+  "provenance": {
+    "source": "simulated",
+    "detail": {
+      "scenario": "example_preview"
+    }
+  },
+  "stimulus_units": "motor_setting",
+  "threshold": {
+    "value": 35.0,
+    "units": "motor_setting",
+    "method": "mean_of_last_2_reversal_levels",
+    "reversal_levels_used": [
+      30,
+      40
+    ],
+    "reversal_spread": 5.0
+  },
+  "reversals": {
+    "count": 4,
+    "levels": [
+      40,
+      50,
+      30,
+      40
+    ],
+    "required": 4
+  },
+  "trial_counts": {
+    "total": 7,
+    "stimulus": 7,
+    "catch": 0,
+    "received": 7,
+    "missing": 0
+  },
+  "catch_trials": {
+    "trials": 0,
+    "passed": 0,
+    "failed": 0,
+    "no_response": 0
+  },
+  "quality": {
+    "limitations": [
+      {
+        "code": "motor_setting_not_measured_amplitude",
+        "message": "Stimulus is a motor setting; physical amplitude was not measured."
+      },
+      {
+        "code": "contact_pressure_uncontrolled",
+        "message": "Fingertip contact pressure was not measured or controlled."
+      },
+      {
+        "code": "setting_range_assumed",
+        "message": "The motor setting range is an assumed placeholder, not a calibrated scale."
+      },
+      {
+        "code": "preview_not_full_test",
+        "message": "Short preview run; not equivalent to a full test."
+      },
+      {
+        "code": "data_simulated",
+        "message": "Responses and stimulus were simulated, not a real person."
+      },
+      {
+        "code": "no_catch_trials",
+        "message": "No catch trials ran, so guessing cannot be assessed."
+      }
+    ]
+  },
+  "abort_reason": null,
+  "error": null,
+  "config": {
+    "mode": "preview",
+    "start_setting": 60,
+    "step": 10,
+    "min_setting": 1,
+    "max_setting": 100,
+    "reversals_to_stop": 4,
+    "reversals_averaged": 2,
+    "max_trials": 20,
+    "stimulus_ms": 1000,
+    "response_window_s": 4.0,
+    "inter_trial_s": 1.0,
+    "catch_probability": 0.0,
+    "catch_min_stimulus_trials": 2,
+    "max_consecutive_missing": 3,
+    "max_boundary_repeats": 3,
+    "setting_range_source": "assumed_default_pending_hardware"
+  },
+  "started_at": "2026-11-07T12:00:00+00:00",
+  "ended_at": "2026-11-07T12:00:00+00:00",
+  "duration_s": 10.097,
+  "trials": [
+    {
+      "schema": "vibeguard.station_trial",
+      "version": 1,
+      "trial_id": "sim-preview-001-t001",
+      "index": 1,
+      "kind": "stimulus",
+      "stimulus_setting": 60,
+      "stimulus_units": "motor_setting",
+      "stimulus_ms": 1000,
+      "measured_amplitude": null,
+      "command_t_s": 0.0,
+      "stimulus_started_t_s": 0.0,
+      "response": "felt",
+      "response_status": "received",
+      "response_source": "button",
+      "response_t_s": 0.6791,
+      "latency_ms": 679.1,
+      "catch_outcome": null,
+      "staircase": {
+        "direction": "down",
+        "reversal": false,
+        "reversal_level": null,
+        "next_setting": 50
+      },
+      "note": null
+    },
+    {
+      "schema": "vibeguard.station_trial",
+      "version": 1,
+      "trial_id": "sim-preview-001-t002",
+      "index": 2,
+      "kind": "stimulus",
+      "stimulus_setting": 50,
+      "stimulus_units": "motor_setting",
+      "stimulus_ms": 1000,
+      "measured_amplitude": null,
+      "command_t_s": 1.6791,
+      "stimulus_started_t_s": 1.6791,
+      "response": "felt",
+      "response_status": "received",
+      "response_source": "button",
+      "response_t_s": 2.264,
+      "latency_ms": 584.8,
+      "catch_outcome": null,
+      "staircase": {
+        "direction": "down",
+        "reversal": false,
+        "reversal_level": null,
+        "next_setting": 40
+      },
+      "note": null
+    },
+    {
+      "schema": "vibeguard.station_trial",
+      "version": 1,
+      "trial_id": "sim-preview-001-t003",
+      "index": 3,
+      "kind": "stimulus",
+      "stimulus_setting": 40,
+      "stimulus_units": "motor_setting",
+      "stimulus_ms": 1000,
+      "measured_amplitude": null,
+      "command_t_s": 3.264,
+      "stimulus_started_t_s": 3.264,
+      "response": "not_felt",
+      "response_status": "received",
+      "response_source": "button",
+      "response_t_s": 3.7421,
+      "latency_ms": 478.2,
+      "catch_outcome": null,
+      "staircase": {
+        "direction": "up",
+        "reversal": true,
+        "reversal_level": 40,
+        "next_setting": 50
+      },
+      "note": null
+    },
+    {
+      "schema": "vibeguard.station_trial",
+      "version": 1,
+      "trial_id": "sim-preview-001-t004",
+      "index": 4,
+      "kind": "stimulus",
+      "stimulus_setting": 50,
+      "stimulus_units": "motor_setting",
+      "stimulus_ms": 1000,
+      "measured_amplitude": null,
+      "command_t_s": 4.7421,
+      "stimulus_started_t_s": 4.7421,
+      "response": "felt",
+      "response_status": "received",
+      "response_source": "button",
+      "response_t_s": 5.322,
+      "latency_ms": 579.8,
+      "catch_outcome": null,
+      "staircase": {
+        "direction": "down",
+        "reversal": true,
+        "reversal_level": 50,
+        "next_setting": 40
+      },
+      "note": null
+    },
+    {
+      "schema": "vibeguard.station_trial",
+      "version": 1,
+      "trial_id": "sim-preview-001-t005",
+      "index": 5,
+      "kind": "stimulus",
+      "stimulus_setting": 40,
+      "stimulus_units": "motor_setting",
+      "stimulus_ms": 1000,
+      "measured_amplitude": null,
+      "command_t_s": 6.322,
+      "stimulus_started_t_s": 6.322,
+      "response": "felt",
+      "response_status": "received",
+      "response_source": "button",
+      "response_t_s": 6.9056,
+      "latency_ms": 583.6,
+      "catch_outcome": null,
+      "staircase": {
+        "direction": "down",
+        "reversal": false,
+        "reversal_level": null,
+        "next_setting": 30
+      },
+      "note": null
+    },
+    {
+      "schema": "vibeguard.station_trial",
+      "version": 1,
+      "trial_id": "sim-preview-001-t006",
+      "index": 6,
+      "kind": "stimulus",
+      "stimulus_setting": 30,
+      "stimulus_units": "motor_setting",
+      "stimulus_ms": 1000,
+      "measured_amplitude": null,
+      "command_t_s": 7.9056,
+      "stimulus_started_t_s": 7.9056,
+      "response": "not_felt",
+      "response_status": "received",
+      "response_source": "button",
+      "response_t_s": 8.6392,
+      "latency_ms": 733.6,
+      "catch_outcome": null,
+      "staircase": {
+        "direction": "up",
+        "reversal": true,
+        "reversal_level": 30,
+        "next_setting": 40
+      },
+      "note": null
+    },
+    {
+      "schema": "vibeguard.station_trial",
+      "version": 1,
+      "trial_id": "sim-preview-001-t007",
+      "index": 7,
+      "kind": "stimulus",
+      "stimulus_setting": 40,
+      "stimulus_units": "motor_setting",
+      "stimulus_ms": 1000,
+      "measured_amplitude": null,
+      "command_t_s": 9.6392,
+      "stimulus_started_t_s": 9.6392,
+      "response": "felt",
+      "response_status": "received",
+      "response_source": "button",
+      "response_t_s": 10.0968,
+      "latency_ms": 457.6,
+      "catch_outcome": null,
+      "staircase": {
+        "direction": "down",
+        "reversal": true,
+        "reversal_level": 40,
+        "next_setting": 30
+      },
+      "note": null
+    }
+  ]
+}

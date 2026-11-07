@@ -1,0 +1,8 @@
+{
+  "schema": "vibeguard.station_link",
+  "version": 1,
+  "type": "ack",
+  "command_id": "c00001",
+  "status": "rejected",
+  "reason": "setting out of range"
+}
