@@ -47,14 +47,14 @@ class Report:
     def failed(self) -> bool:
         return any(c.level == FAIL for c in self.checks)
 
-    def render(self) -> str:
+    def render(self, not_ready: str | None = None) -> str:
         lines = []
         for c in self.checks:
             lines.append(f"  {c.level:<4}  {c.name}" + (f": {c.detail}" if c.detail else ""))
             if c.fix and c.level != PASS:
                 lines.append(f"        -> {c.fix}")
         n = {lvl: sum(1 for c in self.checks if c.level == lvl) for lvl in (PASS, WARN, FAIL)}
-        verdict = ("NOT READY - fix the FAIL lines or switch to the labelled replay fallback" if n[FAIL]
+        verdict = ((not_ready or "NOT READY - fix the FAIL lines or switch to the labelled replay fallback") if n[FAIL]
                    else "READY" + (f" (with {n[WARN]} warning(s))" if n[WARN] else ""))
         lines.append(f"\n  {n[PASS]} pass, {n[WARN]} warn, {n[FAIL]} fail  =>  {verdict}")
         return "\n".join(lines)
@@ -146,6 +146,26 @@ def run_preflight(base: str = "http://127.0.0.1:8765", runtime: str = "wearable"
         else:
             rep.add(FAIL, "fresh live readings", f"{advanced} frames in 1 s, last data age {age}, "
                     f"data_fresh={rt2.get('data_fresh')}", "data is not flowing; do not demo from this state")
+        # the processor measures the real sample rate from the device timestamps
+        for sname in ("emg", "imu"):
+            feat = (rt2.get("latest") or {}).get(sname) or {}
+            win = feat.get("window") or {}
+            nominal, measured = win.get("nominal_rate_hz"), win.get("measured_rate_hz")
+            if nominal and measured:
+                dev = abs(measured - nominal) / nominal
+                if dev <= 0.02:
+                    rep.add(PASS, f"{sname} sample rate", f"measured {measured:.1f} Hz vs nominal {nominal:g} Hz")
+                else:
+                    rep.add(WARN if dev <= 0.1 else FAIL, f"{sname} sample rate",
+                            f"measured {measured:.1f} Hz vs nominal {nominal:g} Hz ({dev * 100:.1f}% off)",
+                            "check the timestamps and the configured sensor rate (uv run vg-backend serial-check)")
+        hello = rt2.get("hello")
+        if hello:
+            unresolved = [f"{k}.{f}" for k, v in (hello.get("streams") or {}).items()
+                          for f in ("nominal_rate_hz", "raw_limits", "sensor_model") if v.get(f) is None]
+            if unresolved:
+                rep.add(WARN, "hardware facts known", f"unresolved in the device's hello: {', '.join(unresolved)}",
+                        "clipping cannot be detected without raw_limits; fill them in the firmware")
         bad = rt2["counters"].get("invalid_frames", 0)
         if bad:
             rep.add(WARN, "invalid frames seen", f"{bad} rejected so far; last: {rt2.get('last_invalid_frame')}",

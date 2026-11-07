@@ -20,6 +20,7 @@ p.sub{margin:0;color:var(--mut)}.card{background:var(--card);border:1px solid va
 .simulated{color:var(--sim)}.replay{color:var(--rep)}.live{color:var(--live)}.ready,.recording,.completed{color:var(--ok)}.calibrating{color:var(--warn)}.disconnected,.error{color:var(--bad)}
 table{width:100%;border-collapse:collapse;font-size:14px}td,th{text-align:left;padding:5px 8px;border-bottom:1px solid var(--line)}th{color:var(--mut);font-weight:500;font-size:12px}
 a{color:inherit}code{font:13px ui-monospace,monospace;background:var(--line);padding:1px 5px;border-radius:4px}
+.unres{color:var(--warn);font-style:italic}
 .note{color:var(--mut);font-size:13px;margin-top:6px}#err{color:var(--bad);display:none;margin-top:10px;font-weight:600}
 .banner{display:none;margin:12px 0 0;padding:10px 14px;border:1.5px solid var(--warn);border-radius:10px;color:var(--warn);font-weight:600}
 </style></head><body><main>
@@ -43,6 +44,11 @@ a{color:inherit}code{font:13px ui-monospace,monospace;background:var(--line);pad
  <div><div class="k">Muscle activation (relative proxy, 0-1)</div><div class="v" id="act">-</div></div>
  <div><div class="k">Experimental score (arbitrary units)</div><div class="v" id="score">-</div></div>
 </div><div class="note">Three separate quantities. The score is an experimental formula, not a vibration dose. A dash means unavailable, never zero.</div></div>
+
+<h2>Device facts</h2>
+<div class="card"><div class="note" id="facts_head">-</div>
+<table><thead><tr><th>Stream</th><th>Nominal rate</th><th>Measured rate</th><th>Channels</th><th>Raw limits</th><th>Sensor</th></tr></thead><tbody id="facts"></tbody></table>
+<div class="note">From the device's own hello and the measured timestamps. "unresolved" means the firmware does not know (or has not said) yet: nothing is assumed.</div></div>
 
 <h2>Counters</h2>
 <div class="card"><table><tbody id="counters"></tbody></table></div>
@@ -76,7 +82,7 @@ const CAL_UNKNOWN='-';
 function blank(stateText){
  $('state').innerHTML=badge(stateText,'disconnected');$('prov').textContent='-';$('provnote').textContent='';
  for(const id of ['age','cal','rec','vib','act','score'])$(id).textContent='-';
- $('calnote').textContent='';$('banner').style.display='none';
+ $('calnote').textContent='';$('banner').style.display='none';$('facts_head').textContent='-';$('facts').innerHTML='';
 }
 // Each block renders on its own: one unexpected field must not stop the rest of the page.
 function safe(fn){try{fn()}catch(e){}}
@@ -112,6 +118,14 @@ async function tick(){
     $('act').textContent=a==null?'-':num(a,2);
     // a masked or unavailable score has no 'cumulative': show it as unavailable, never as a number
     $('score').textContent=!sc?'-':sc.status==='accumulating'&&sc.cumulative?num(sc.cumulative.value,4)+' au (accumulating)':sc.status==='paused'&&sc.cumulative?num(sc.cumulative.value,4)+' au (paused: '+((sc.reasons||[])[0]||'')+')':'unavailable ('+esc(sc.reason||((sc.reasons||[])[0])||'')+')';
+   });
+   safe(()=>{
+    const h=rt.hello,L=rt.latest||{},wl=n=>{const x=L[n];return x&&x.window&&x.window.measured_rate_hz};
+    const un=v=>v==null?'<span class="unres">unresolved</span>':esc(v);
+    const prof=rt.meta&&rt.meta.hardware_profile_name;
+    $('facts_head').textContent=h?('Firmware '+h.firmware.name+' '+h.firmware.version+(h.hardware&&h.hardware.board?' on '+h.hardware.board:'')+(prof?'  |  hardware profile: '+prof:'')):'No hello received yet.';
+    $('facts').innerHTML=h?Object.entries(h.streams||{}).map(([k,v])=>{const m=wl(k);const lim=v.raw_limits;
+      return '<tr><td>'+esc(k)+'</td><td>'+un(v.nominal_rate_hz!=null?v.nominal_rate_hz+' Hz':null)+'</td><td>'+(m==null?'-':esc(Number(m).toFixed(1))+' Hz')+'</td><td>'+esc((v.channels||[]).join(', '))+'</td><td>'+un(lim?lim.min+' .. '+lim.max:null)+'</td><td>'+un(v.sensor_model)+'</td></tr>'}).join(''):'';
    });
    safe(()=>{$('counters').innerHTML=[...Object.entries(rt.counters||{}),...Object.entries(rt.events||{})].map(([k,x])=>'<tr><td>'+esc(k)+'</td><td>'+esc(x)+'</td></tr>').join('')||'<tr><td colspan=2>nothing yet</td></tr>'});
   }else blank('no device');

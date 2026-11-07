@@ -224,6 +224,14 @@ The acceptance evidence is in [`EVIDENCE.md`](EVIDENCE.md) (regenerate with
 Ctrl-C or SIGTERM with a session open saves it as `interrupted` (`runtime_stopped`): its files and
 counters are intact and it replays fine. Stop the session first for a clean `completed` one.
 
+## Hardware bring-up
+
+`vg-backend ports`, `serial-check`, `fake-device` and `serve --profile hardware.json` prepare for the real
+wearable: they list boards, measure a real serial link (rate, drops, wrong baud, EMG raw vs envelope, mains
+hum, bandwidth) and let the firmware be rehearsed with no hardware. Start with
+[`HARDWARE_BRINGUP.md`](HARDWARE_BRINGUP.md) and `hardware.example.json`. Verified on simulated firmware over
+a pseudo-serial port only.
+
 ## Station trials (PROPOSED interface)
 
 `POST /api/station/sessions/{id}/stimulus` delivers a stimulus through a controller and opens

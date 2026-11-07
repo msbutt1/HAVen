@@ -1,0 +1,10 @@
+{
+  "_comment": "Copy to hardware.json and fill in what Collins confirms. Unknown? delete the line: nothing is assumed.",
+  "name": "wearable-v1-bench",
+  "port": "/dev/cu.usbmodem*",
+  "baud": 921600,
+  "emg": {"output": "raw", "channels": 1, "mains_hz": 60},
+  "imu": {"model": "MPU-6050", "range_g": 2, "counts_per_g": 16384,
+          "conversion_source": "MPU-6050 datasheet, accelerometer sensitivity at the +/-2 g range"},
+  "notes": "Fill in the board, EMG module model and where the IMU sits on the sleeve."
+}
