@@ -31,11 +31,17 @@ static void test_no_errors_and_motor_off(void)
     int ns = vg_pin_check(&vg_board_station, is, 32);
     CHECK(ns <= 32 && vg_issue_error_count(is, ns) == 0);
 
-    /* No board in the repository may permit motor output until the motor,
-     * driver and wiring are confirmed. Update this deliberately when they are. */
-    CHECK(!vg_board_station.motor.enabled);
-    CHECK(!vg_motor_output_permitted(&vg_board_station));
+    /* Motor output is permitted ONLY on the confirmed station board
+     * (DRV2605L + ERM confirmed 2026-11-07). Every other board/role: off. */
+    bool confirmed_station = strcmp(VG_TEST_BOARD, "esp32_d0wd_v3_devkit30") == 0;
+    CHECK(vg_motor_output_permitted(&vg_board_station) == confirmed_station);
     CHECK(!vg_motor_output_permitted(&vg_board_wearable));
+    if (confirmed_station) {
+        CHECK(vg_board_station.motor.driver == VG_MOTOR_DRIVER_DRV2605L);
+        CHECK(vg_board_station.motor.gpio == VG_PIN_NONE);
+        CHECK(vg_board_station.motor.od_clamp <= VG_DRV_OD_CLAMP_MAX);
+        CHECK(vg_board_station.motor.max_pulse_ms <= 1000);
+    }
 }
 
 static void test_board_specific(void)

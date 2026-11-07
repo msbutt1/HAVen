@@ -10,7 +10,10 @@ set(VG_SHARED_SRCS
     src/telemetry.c
     src/batcher.c
     src/link.c
-    src/imu_mpu.c)
+    src/imu_mpu.c
+    src/jsonflat.c
+    src/haptic_fake.c
+    src/station.c)
 
 if(ESP_PLATFORM)
     idf_component_register(SRCS ${VG_SHARED_SRCS} INCLUDE_DIRS include)

@@ -19,6 +19,9 @@ extern "C" {
  * measured at bring-up. */
 #define VG_TELEMETRY_UART_BAUD 921600
 
+/* Installs the UART0 driver (RX buffer 1024 for incoming commands, NO TX
+ * ring: see vg_uart_tx.c), routes GPIO1/3, and starts the TX task. Read
+ * incoming bytes with uart_read_bytes(UART_NUM_0, ...). */
 bool vg_uart_tx_start(vg_frame_queue_t *fq, int baud);
 uint64_t vg_uart_tx_bytes(void);
 

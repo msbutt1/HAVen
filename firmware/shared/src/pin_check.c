@@ -52,7 +52,9 @@ static int collect_uses(const vg_hw_config_t *c, pin_use_t *u)
     u[n++] = (pin_use_t){"emg", c->emg.gpio, c->emg.enabled, USE_ADC_IN};
     u[n++] = (pin_use_t){"imu.sda", c->imu.sda_gpio, c->imu.enabled, USE_OPEN_DRAIN};
     u[n++] = (pin_use_t){"imu.scl", c->imu.scl_gpio, c->imu.enabled, USE_OPEN_DRAIN};
-    u[n++] = (pin_use_t){"motor", c->motor.gpio, c->motor.enabled, USE_OUTPUT};
+    bool gpio_motor = c->motor.driver == VG_MOTOR_DRIVER_GPIO;
+    u[n++] = (pin_use_t){"motor", gpio_motor ? c->motor.gpio : VG_PIN_NONE,
+                         c->motor.enabled && gpio_motor, USE_OUTPUT};
     u[n++] = (pin_use_t){"velostat", c->velostat.gpio, c->velostat.enabled, USE_ADC_IN};
     u[n++] = (pin_use_t){"dht11", c->dht11.gpio, c->dht11.enabled, USE_OPEN_DRAIN};
     return n;
@@ -203,6 +205,26 @@ static acc_t check_all(const vg_hw_config_t *c, vg_issue_t *issues, int max_issu
         if (!c->motor.driver_confirmed) {
             add(&a, VG_SEV_ERROR, "driver_unconfirmed", "motor", c->motor.gpio,
                 "no confirmed driver circuit; bare GPIO drive is never allowed");
+        }
+        if (c->motor.driver == VG_MOTOR_DRIVER_DRV2605L) {
+            if (c->imu.sda_gpio == VG_PIN_NONE || c->imu.scl_gpio == VG_PIN_NONE) {
+                add(&a, VG_SEV_ERROR, "motor_no_bus", "motor", VG_PIN_NONE,
+                    "DRV2605L needs the I2C bus pins (imu.sda/scl) configured");
+            }
+            if (c->motor.i2c_address != 0x5A) {
+                add(&a, VG_SEV_ERROR, "i2c_address", "motor", VG_PIN_NONE,
+                    "DRV2605L address is fixed at 0x5A");
+            }
+            if (c->imu.enabled && c->imu.address == c->motor.i2c_address) {
+                add(&a, VG_SEV_ERROR, "i2c_address_conflict", "motor", VG_PIN_NONE,
+                    "IMU and DRV2605L share address 0x%02x", c->motor.i2c_address);
+            }
+            /* open-loop full scale must stay within the confirmed motor rating */
+            if (c->motor.od_clamp == 0 || c->motor.od_clamp > VG_DRV_OD_CLAMP_MAX) {
+                add(&a, VG_SEV_ERROR, "drive_voltage", "motor", VG_PIN_NONE,
+                    "od_clamp must be 1..%d (<= %.2f V)", VG_DRV_OD_CLAMP_MAX,
+                    VG_DRV_OD_CLAMP_MAX * 0.02159);
+            }
         }
         if (c->motor.max_pulse_ms == 0 ||
             c->motor.max_pulse_ms > VG_MOTOR_MAX_PULSE_CEILING_MS) {

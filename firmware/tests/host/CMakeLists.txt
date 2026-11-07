@@ -25,9 +25,17 @@ target_link_libraries(test_imu PRIVATE vg_shared)
 target_include_directories(test_imu PRIVATE ${CMAKE_CURRENT_LIST_DIR})
 add_test(NAME imu COMMAND test_imu)
 
+add_executable(test_station test_station.c)
+target_link_libraries(test_station PRIVATE vg_shared)
+target_include_directories(test_station PRIVATE ${CMAKE_CURRENT_LIST_DIR})
+add_test(NAME station COMMAND test_station)
+
 # Host build of the SIMULATED fake device (same shared code as the firmware).
 add_executable(vg-fake-device ${CMAKE_CURRENT_LIST_DIR}/../../tools/fake_device/fake_device.c)
 target_link_libraries(vg-fake-device PRIVATE vg_shared)
+
+add_executable(vg-fake-station ${CMAKE_CURRENT_LIST_DIR}/../../tools/fake_station/fake_station.c)
+target_link_libraries(vg-fake-station PRIVATE vg_shared)
 
 # Cross-check generated frames with the authoritative Python validator and
 # processor (signals/). Skipped (not passed) if uv is unavailable.
@@ -36,6 +44,9 @@ if(UV_EXE)
     add_test(NAME contract_validation
              COMMAND ${UV_EXE} run --project ${CMAKE_CURRENT_LIST_DIR}/../../../signals
                      python ${CMAKE_CURRENT_LIST_DIR}/check_fake_streams.py $<TARGET_FILE:vg-fake-device>)
+    add_test(NAME station_protocol
+             COMMAND ${UV_EXE} run --project ${CMAKE_CURRENT_LIST_DIR}/../../../signals
+                     python ${CMAKE_CURRENT_LIST_DIR}/check_station.py ${CMAKE_BINARY_DIR})
 else()
     message(WARNING "uv not found: contract_validation test not registered")
 endif()

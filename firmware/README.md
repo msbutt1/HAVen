@@ -13,6 +13,8 @@ controls bounded actuators.
 | `station/` | ESP32 #2 app: actuator, IMU #2, Velostat, optional OLED/DHT11 | ESP32 |
 | `diag/` | Bring-up diagnostic: IMU identity and register readback, BioAmp-free ADC check; console at 115200 ([`WIRING.md`](WIRING.md)) | ESP32 |
 | `tests/host/` | Host unit tests; every board file is compiled and checked; `check_fake_streams.py` validates generated telemetry with `signals` | host |
+| `contract/` | Station command/event protocol v1 (PROPOSED): [`STATION_PROTOCOL.md`](contract/STATION_PROTOCOL.md), validator `station_protocol.py`, example commands and events | host |
+| `tools/fake_station/` | `vg-fake-station`: the station controller with a fake motor on stdin/stdout (always `simulated`) | host |
 | `tools/fake_device/` | `vg-fake-device`: the firmware's telemetry pipeline on a simulated clock (always `simulated`) | host |
 | `tools/build.sh` | Builds one role for one board in an isolated build dir | — |
 

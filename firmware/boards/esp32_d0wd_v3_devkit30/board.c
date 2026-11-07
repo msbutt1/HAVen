@@ -16,8 +16,7 @@
  *            Address 0x68 assumes AD0 tied to GND (proposed wiring); identity is read
  *            on-device in Prompt 3. 100 kHz until the bus is verified.
  *            Disabled until the module is wired as proposed.
- *  - Motor   GPIO25: output-capable, not strapping/flash/UART. DISABLED: motor type,
- *            ratings and driver are unknown; no driver exists yet.
+ *  - Motor   DRV2605L haptic driver over I2C (see station config below); no GPIO.
  *  - Velostat GPIO34: ADC1_CH6, input-only. Disabled: divider circuit unknown.
  *  - OLED / DHT11: disabled (optional; controller/address and module type unknown).
  */
@@ -62,9 +61,14 @@ const vg_hw_config_t vg_board_station = {
     BOARD_W_CHIP,
     .emg = {.enabled = false, .gpio = VG_PIN_NONE},
     PROPOSED_IMU,
-    .motor = {.enabled = false, .gpio = 25, .active_high = true,
-              .actuator = VG_ACTUATOR_UNKNOWN, .driver_confirmed = false,
-              .max_pulse_ms = 0},
+    /* CONFIRMED 2026-11-07: Adafruit DRV2605L breakout on the station I2C bus
+     * (VIN->3V3, SDA->D21, SCL->D22), read-only probe DEVICE_ID 7, standby.
+     * Motor: coin ERM, rated 2.5-3.8 V (product listing). Open-loop full scale
+     * 3.0 V (OD_CLAMP 139). Pulses capped at 1000 ms. No GPIO drives the motor. */
+    .motor = {.enabled = true, .driver = VG_MOTOR_DRIVER_DRV2605L, .gpio = VG_PIN_NONE,
+              .i2c_address = 0x5A, .od_clamp = 139, .active_high = true,
+              .actuator = VG_ACTUATOR_ERM_BRUSHED, .driver_confirmed = true,
+              .max_pulse_ms = 1000},
     .velostat = {.enabled = false, .gpio = 34, .atten = VG_ATTEN_UNSET},
     .oled = {.enabled = false},
     .dht11 = {.enabled = false, .gpio = VG_PIN_NONE},
