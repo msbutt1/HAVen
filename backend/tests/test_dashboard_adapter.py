@@ -15,13 +15,18 @@ def test_backend_adapter_translation():
     assert r.returncode == 0, r.stderr
     o = json.loads(r.stdout.strip().splitlines()[-1])
     assert o["wsUrl"] == "ws://h:1/ws/live"
-    assert o["state"] == ["sleeve:ready", "station:disconnected"]
+    assert o["state"] == ["sleeve:ready", "station:ready"]
     assert o["history"] == [["s1", "replay", 30, 2.5, "stopped"]]          # wearable sessions only, none still recording
     assert o["t1"] == [50, 2.5, 4.2, None, "simulated", True, 183.1]       # display 0.5 -> 50 %; no total outside a recording
     assert o["t2"] == [None, None, None, False]                            # nothing invented before calibration / conversion
     assert o["ignoredOther"] is True
     assert o["start"] == ["accepted", "s9"] and o["total"] == 0.75         # cumulative 4.75 - 4 at the start
     assert o["session"] == [["s9", "stopped", None, 10]]                   # uncalibrated: no score
-    assert o["station"] == "error"                                         # not connected: never a fake success
+    assert o["histStation"] == [["ss0", "simulated", 110, 3, 410, 1, 1]]  # finished tests only; threshold re-derived from the trials
+    assert o["stStart"] == "accepted" and o["stSource"] == "simulated"     # stored as simulated, never live
+    assert o["stStim"] == [[150, False], [110, False], [70, False], [0, True], [110, False], [70, False]]
+    assert o["stResults"][3] == [4, "missing", 0]                          # a timeout is missing, never "not felt"
+    assert o["stDone"] == ["simulated", 83.3, [70, 110, 70], 1, 0, 1, False]
+    assert o["stStates"] == ["testing", "completed"] and o["stAbortIdle"] == "error"
     assert o["disc"] == "disconnected:unplugged" and o["err"] == "error:boom"
     assert o["cal"] == ["failed:recording in progress"]

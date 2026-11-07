@@ -239,10 +239,14 @@
 
   // Recordings the backend already holds (shown without a "saved" toast).
   adapter.on('history', (m) => {
-    const known = new Set(S.saved.map((i) => i.rec.session_id));
+    const known = new Set(S.saved.map((i) => i.rec.session_id || i.rec.test_id));
     for (const rec of m.sessions) {
       if (!known.has(rec.session_id)) S.saved.push({ kind: 'session', at: rec.ended_at, rec });
     }
+    for (const rec of m.tests || []) {
+      if (!known.has(rec.test_id)) S.saved.push({ kind: 'station', at: rec.completed_at, rec });
+    }
+    S.saved.sort((a, b) => String(b.at).localeCompare(String(a.at))); // newest first
     renderHistory();
   });
 
@@ -374,7 +378,7 @@
       case 'station_aborted':
         st.view = 'idle';
         st.current = null;
-        st.msg = `Test stopped: ${m.reason}. Nothing was saved.`;
+        st.msg = `Test stopped: ${m.reason}. ${SOURCE === 'backend' ? 'The backend keeps it as an aborted test; it is not a result and is not listed in History.' : 'Nothing was saved.'}`;
         break;
     }
     renderStation();
@@ -418,6 +422,7 @@
       if (r.catch_trials) parts.push(`Catch trials with no vibration: ${r.catch_trials_felt} of ${r.catch_trials} answered “felt it”.`);
       if (r.missing_responses) parts.push(`${r.missing_responses} missing response${r.missing_responses > 1 ? 's' : ''}.`);
       if (!r.measured_amplitude_available) parts.push('Motor setting only; vibration amplitude was not measured.');
+      if (r.provenance === 'simulated') parts.push('Simulated station: no motor was driven.');
       $('st-result-note').textContent = parts.join(' ');
     }
 

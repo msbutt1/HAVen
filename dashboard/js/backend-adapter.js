@@ -12,9 +12,9 @@
  * Open with  index.html?source=backend  (the default when the page is served by the backend itself).
  * Optional:  &base=http://host:port  to point at a backend on another origin, &runtime=wearable.
  *
- * The station screens are not connected to the backend in this build (the backend's station API is a
- * per-trial primitive and the staircase protocol is not wired to it yet): station commands answer with
- * an explicit error rather than pretending.
+ * The perception-test (station) screens run on the backend's per-trial station API through StationRunner
+ * (backend-station.js). The backend's station controller is SIMULATED (no motor), so every station session
+ * is stored and shown as simulated; the test sequence itself is a stand-in until Fahad's engine is wired in.
  */
 (function () {
   'use strict';
@@ -43,6 +43,7 @@
     constructor(opts = {}) {
       super();
       this.kind = 'backend';
+      this.stationGapMs = opts.stationGapMs || null;
       this.runtime = opts.runtime || 'wearable';
       this.base = (opts.base || '').replace(/\/+$/, '');
       this.wsUrl = opts.wsUrl || this._defaultWsUrl();
@@ -62,6 +63,8 @@
       this.rateEma = null;
       this.lastEmgAt = 0;
       this.announced = new Set(); // session ids already reported as saved
+      this.station = new VG.StationRunner(this);
+      this.stationState = '';
       this._timer = null;
       this._refreshQueued = false;
     }
@@ -114,6 +117,8 @@
         this.isOpen = false;
         this.status = null;
         this.lastState = '';
+        this.stationState = '';
+        this.station.connectionLost();
         if (was) {
           this.emit('connection', {
             type: 'connection', connected: false,
@@ -246,7 +251,7 @@
       this.sessionId = rt.active_session_id || null;
       const [state, detail] = this._mapState(rt);
       this._emitState(state, detail);
-      this._emitStation();
+      if (!this.stationState) this._setStation('ready');
     }
 
     _emitState(state, detail) {
@@ -257,12 +262,11 @@
       }
     }
 
-    _emitStation() {
-      if (this._stationAnnounced) return;
-      this._stationAnnounced = true;
+    _setStation(state) {
+      this.stationState = state;
       this.emit('state', {
-        type: 'state', device_id: null, device_role: 'station', state: 'disconnected',
-        detail: 'The perception-test station is not connected to the backend in this build.',
+        type: 'state', device_id: 'station-simulated', device_role: 'station', state,
+        detail: 'Simulated station: no motor is driven and results are labelled simulated.',
       });
     }
 
@@ -300,6 +304,22 @@
       };
     }
 
+    _stationRecord(row) {
+      const mode = (row.protocol && row.protocol.mode) === 'full' ? 'full' : 'preview';
+      const trials = (row.trials || []).map((t, i) => ({
+        type: 'station_trial_result', test_id: row.station_session_id, trial_id: t.trial_id, index: i + 1,
+        stimulus_setting: t.is_catch ? 0 : (t.stimulus && t.stimulus.motor_setting),
+        measured_amplitude: t.measured_amplitude || null, is_catch: !!t.is_catch, response: t.response,
+        rt_ms: t.response_latency_ms == null ? null : Math.round(t.response_latency_ms),
+      }));
+      return {
+        type: 'station_complete', test_id: row.station_session_id, device_id: 'station-simulated',
+        provenance: ['live', 'replay', 'simulated'].includes(row.source) ? row.source : 'simulated', mode,
+        started_at: row.started_at, completed_at: row.ended_at, measured_amplitude_available: false, trials,
+        ...VG.stationSummarize(trials, mode),
+      };
+    }
+
     _sessionEnded(row) {
       if (!row || !row.session_id || this.announced.has(row.session_id)) return;
       this.announced.add(row.session_id);
@@ -312,7 +332,12 @@
       const rows = r.data.items.filter((i) => i.kind === 'wearable' && i.state !== 'recording');
       rows.forEach((row) => this.announced.add(row.session_id));
       // newest first, as the History screen lists them
-      this.emit('history', { type: 'history', sessions: rows.map((row) => this._sessionRecord(row)) });
+      // history rows carry only a summary: fetch the trials of the newest finished tests (the table needs them)
+      const finished = r.data.items.filter((i) => i.kind === 'station' && i.state === 'completed').slice(0, 20);
+      const details = await Promise.all(finished.map((row) =>
+        this._http('GET', `/api/station/sessions/${encodeURIComponent(row.station_session_id)}`)));
+      const tests = details.map((d, i) => this._stationRecord(d.ok && d.data ? d.data : finished[i]));
+      this.emit('history', { type: 'history', sessions: rows.map((row) => this._sessionRecord(row)), tests });
     }
 
     // ---------------------------------------------------------------- commands
@@ -372,8 +397,17 @@
         this._calibrate();
         return done();
       }
-      if (name === 'start_station_test' || name === 'abort_station_test' || name === 'submit_response') {
-        return fail('The perception-test station is not connected to the backend in this build.');
+      if (name === 'start_station_test') {
+        const r = await this.station.start(args.mode);
+        return r.error ? fail(r.error) : done({ test_id: r.test_id });
+      }
+      if (name === 'abort_station_test') {
+        const r = await this.station.abort();
+        return r.error ? fail(r.error) : done();
+      }
+      if (name === 'submit_response') {
+        const r = await this.station.respond(args.trial_id, args.response);
+        return r.error ? fail(r.error) : done();
       }
       return fail(`Unknown command: ${name}`);
     }

@@ -35,4 +35,4 @@ is only up while this computer is on and the script is running.
 - Data directory: `~/.vibeguard/livops-data` (`VG_DATA_DIR` to change). Recordings made in the dashboard are
   stored there, labelled replay.
 - Do not point this at a real device: live EMG/IMU recordings of a person should not sit behind a public name.
-- The perception-test (station) screens are not connected to the backend yet and show that plainly.
+- The perception test runs against the backend's simulated station (no motor); its results are stored and shown as simulated.

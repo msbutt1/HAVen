@@ -15,8 +15,9 @@ cd backend && uv run vg-backend serve            # then open http://127.0.0.1:87
 Served over http(s) the dashboard talks to the backend (`js/backend-adapter.js`: live data over `/ws/live`,
 commands and history over `/api/...`); opened as a file it uses the mock feed. `?source=mock|backend` overrides,
 `&base=http://host:port` points at a backend on another origin (it must allow that origin).
-The perception-test (station) screens are not connected to the backend yet and say so. The 12-week charts on the
-History screen are still the simulated sample data.
+The perception-test screens run on the backend's station API (`js/backend-station.js`): the backend's controller is
+simulated (no motor), so every test is stored and shown as simulated, and the test sequence is a stand-in for Fahad's
+engine. The 12-week charts on the History screen are labelled sample data, not your recordings.
 
 Publishing it on livops.uz through a tunnel: see `backend/DEPLOY_LIVOPS.md`.
 
