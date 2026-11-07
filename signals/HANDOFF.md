@@ -1,363 +1,576 @@
-# Salaar handoff — firmware, signals, calibration, experimental scoring
+# VibeGuard signals — team handoff
 
-**Status (2026-11-06):** the pre-hardware software path is complete and runnable. Every
-result below was verified on **synthetic (simulated) inputs only**. Nothing has run on
-the wearable, so nothing here validates sensors, electrodes, mounting, timing on a
-microcontroller, clinical relevance, grip force, or vibration dose. No firmware exists
-yet: Prompt 7 is deferred until Collins confirms the board and sensors.
+**Owner:** Salaar (firmware, signals, calibration, experimental scoring).
+**Status (2026-11-07):** the whole host-side signal path is built, tested and runnable
+**without hardware**. Everything below was verified on **simulated data only**. Nothing
+here has run on the real wearable, so it validates no sensors, electrodes, mounting or
+microcontroller timing. It also does not establish clinical relevance, grip force, %MVC
+or a standards-compliant vibration dose. No firmware exists yet; it waits for Collins
+to confirm the board and sensors.
 
-**Owned paths:** `signals/` only.
-- Code: `src/vibeguard_signals/`
-- Device contract and fixtures: `contract/`
-- Docs: `SIMULATOR.md`, `PROCESSING.md`, `DEMO.md`
-- This file
+The existing tattoo-style sleeve needs **no fabrication**: nothing in this plan involves
+sewing, conductive fabric or custom electrodes. Gel electrodes go on the skin; the sleeve
+only secures parts and routes cables.
 
-Teammates' planning files have been untouched since baseline `5637c0e`. Commits:
-`5637c0e` (contract), `79cc417` (simulator + processing), `2bcccc5` (EMG, calibration,
-vibration, score, demo/replay).
-
-The existing tattoo-style sleeve needs **no fabrication**: no sewing, nylon,
-conductive-fabric or custom-electrode task exists anywhere in this software or plan. Use
-gel electrodes on skin; the sleeve only secures components and routes cables.
+**Contents**
+1. [Quick start](#1-quick-start-5-minutes)
+2. [What we built, in plain terms](#2-what-we-built-in-plain-terms)
+3. [Repository map](#3-repository-map)
+4. [How each teammate uses this while hardware is being made](#4-how-each-teammate-uses-this-while-hardware-is-being-made)
+5. [Output records: quick reference](#5-output-records-quick-reference)
+6. [Verified commands](#6-verified-commands)
+7. [What only hardware can answer](#7-what-only-hardware-can-answer)
+8. [Known limitations](#8-known-limitations)
+9. [Open choices and defaults](#9-open-choices-and-defaults)
+10. [History and decisions](#10-history-and-decisions)
 
 ---
 
-## 1. Verified commands
+## 1. Quick start (5 minutes)
 
-Run from `signals/`. All were re-run for this handoff; the first block was also run from
-a fresh `git clone` of `2bcccc5`, which reproduced the demo byte-for-byte.
+You need [uv](https://docs.astral.sh/uv/) and Python ≥ 3.11. Run everything from
+`signals/`.
+
+```sh
+cd signals
+uv sync                                   # installs numpy, scipy, pytest into .venv
+uv run pytest -q                          # 318 passed
+uv run vg-demo run --out out/demo --seed 1 --run-id demo-seed1
+uv run vg-demo replay out/demo            # "matches ... apart from provenance: YES"
+```
+
+The demo writes a full simulated 30 s session to `out/demo/` (git-ignored):
+
+| File | Use it for |
+|---|---|
+| `telemetry.ndjson` | What the wearable would send: one device record per line |
+| `derived.ndjson` | Everything the processor produced: features, events, score |
+| `summary.csv` | One row per 0.5 s; quickest way to see the session |
+| `summary.txt` | Human-readable phase table, event timeline, final score |
+| `manifest.json` | Seed, config, calibration, SHA-256 of every file |
+
+`summary.txt` shows what happens: calibration, rising muscle activation, vibration on and
+off, an injected EMG disconnect, a transport loss, then recovery. The final score is
+0.048601 au over 19.695 s of valid time.
+
+---
+
+## 2. What we built, in plain terms
+
+The real system will be: **wearable → serial link → backend → dashboard / station**.
+Everything Salaar owns sits on the **wearable → derived numbers** part. Until the
+hardware exists, a simulator stands in for the wearable, and everything downstream
+behaves exactly as it will with real data.
+
+```
+ [vg-sim simulator]  ──or──  [real firmware, later]
+          │  device telemetry contract v1 (NDJSON, one record per line)
+          ▼
+ [contract validator]  rejects malformed records
+          ▼
+ [Processor]  quality checks → EMG envelope → calibration → vibration → score
+          │  derived records: stream_features / stream_event / experimental_score
+          ▼
+ backend (Abduljabbar) → dashboard (Ali) / station (Fahad)
+```
+
+### 2.1 Device telemetry contract v1 (proposed)
+**What:** the agreed format for everything the wearable sends. Each line is one JSON
+record: `hello` (device description), `status` (device and sensor state), `emg_batch` or
+`imu_batch` (samples).
+
+**Why it matters:** the simulator and the future firmware emit the *same* records. Any
+code written against the contract today works with the hardware later. Every record
+carries:
+- a `seq` number, so lost records are detectable;
+- a `boot_id`, so reboots are detectable;
+- device timestamps in µs;
+- units: raw counts unless a conversion is given;
+- quality flags;
+- provenance: `live`, `simulated` or `replay`.
+
+Missing values are `null`, never 0.
+
+**Where:** `contract/TELEMETRY_CONTRACT.md` (spec), `src/vibeguard_signals/contract.py`
+(the validator), `uv run vg-validate FILE`. Example records:
+`contract/fixtures/valid/`. One broken example per error type: `contract/fixtures/invalid/`.
+
+### 2.2 Simulated wearable (`vg-sim`)
+**What:** a deterministic fake wearable. It produces synthetic EMG and accelerometer data
+in contract format, in real time or as fast as possible.
+
+**Why it matters:** it is the stand-in for the hardware. Its 12 scenarios cover clean data
+and every fault type:
+
+| Scenario | Shows |
+|---|---|
+| `demo` | The scripted 30 s session used by `vg-demo` |
+| `happy_path` | Clean run: relaxed, activation, vibration, both |
+| `relaxed`, `strong_activation` | EMG levels |
+| `stationary_gravity`, `vibration` | Accelerometer at rest versus vibrating |
+| `vibration_emg_mixed` | Synthetic vibration leaking into EMG (interference) |
+| `clipping` | EMG overdriven into ADC limits |
+| `missing_batches` | Records lost in transport |
+| `invalid_samples` | Null samples, EMG disconnected, IMU stale |
+| `reboot` | Device reboot mid-run |
+| `fault_mix` | All of the above in one run |
+
+Output is always labelled `source: simulated`; the simulator can never claim to be live.
+The same `--seed` always gives the same samples, and `--run-id` makes files
+byte-identical. **Where:** `simulator.py`, `SIMULATOR.md`.
+
+### 2.3 Streaming processor (`Processor`, `vg-process`)
+**What:** the host-side brain. It takes contract records in arrival order and produces
+derived records. It is a Python library the backend can import, plus a CLI.
+
+**What it handles:**
+- record loss, duplicates and late records;
+- reboots and timing breaks;
+- sample rates that don't match what the device claims;
+- disconnected or stale sensors, judged by device clock (files) or host clock (live);
+- changes of provenance.
+
+Every problem produces a visible event and makes the affected values `unavailable` until
+the stream warms up again. Nothing is silently repaired. **Where:** `processing/`,
+`PROCESSING.md`.
+
+### 2.4 EMG envelope
+**What:** turns raw EMG into a smooth "how active is the muscle" level, in three causal
+steps:
+1. remove the DC offset;
+2. band-pass 20–450 Hz, checked against the sample rate;
+3. take a 100 ms RMS envelope.
+
+Units stay `adc_counts_rms`.
+
+**Assumption:** the EMG module outputs **raw** EMG. If it turns out to output an
+already-smoothed envelope, this stage does not apply (see §7). **Where:** `processing/emg.py`.
+
+### 2.5 Calibration and normalized activation
+**What:** a per-wearer, two-step calibration.
+1. Relaxed capture: 3 s.
+2. Squeeze capture: 3 s.
+3. Activation is then reported on a scale where relaxed ≈ 0 and squeeze ≈ 1.
+
+A calibration is rejected if squeeze and relaxed are not clearly different
+(`insufficient_separation`). It is invalidated automatically by a reboot, a device or
+channel change, or a processing-config change. Calibrations can be saved and reloaded.
+
+**Label:** "relative muscle activation proxy". This is **not force and not %MVC.**
+**Where:** `processing/calibration.py`.
+
+### 2.6 Vibration features
+**What:** the accelerometer signal with gravity separated out, high-passed at 5 Hz. The
+output is per-axis and combined RMS: in raw counts always, and in m/s² **only** when a
+cited conversion is configured. Unweighted (not ISO 5349). **Where:** `processing/vibration.py`.
+
+### 2.7 Experimental score
+**What:** a demo metric combining vibration and activation:
+
+`rate = k · (V / v_ref)^p · (1 + w · clamp(activation, 0, cap))`
+
+Rate is in au/h, and the cumulative total in au (arbitrary units). Time only counts
+when both inputs are valid and fresh. Excluded time is reported **with its reason**,
+e.g. `activation_uncalibrated & vibration_warming_up`. **It is not a dose, not A(8), and
+not a percentage of any limit.** **Where:** `processing/score.py`.
+
+### 2.8 Demo, replay, embedding example
+- `vg-demo run` / `vg-demo replay`: the offline end-to-end session from §1. Replay
+  re-processes the recording as `provenance: replay` and proves the output is identical.
+- `vg-replay FILE --speed X`: re-emits any recording with replay provenance, optionally
+  paced in real time. Pacing never changes content.
+- `examples/embed_processor.py`: how a backend uses the processor in-process.
+
+**Where:** `demo.py`, `replay.py`, `DEMO.md`.
+
+### 2.9 Bandwidth estimate (`vg-bandwidth`)
+**What:** estimates how many bytes per second the contract needs at provisional rates.
+
+**Result:** compact JSON needs about 21.7–46 kB/s, which is **too much for a 115200-baud
+UART**. It works at ≥ 460800 baud, over native USB, or with a binary encoding. The
+choice waits for the board.
+
+---
+
+## 3. Repository map
+
+```
+signals/
+├── HANDOFF.md                  ← this file
+├── README.md                   short index
+├── SIMULATOR.md                simulator scenarios, fault semantics
+├── PROCESSING.md               processor, output formats, EMG/calibration/vibration/score detail
+├── DEMO.md                     demo, replay, embedding lifecycle
+├── pyproject.toml / uv.lock    package + CLI entry points
+├── contract/
+│   ├── TELEMETRY_CONTRACT.md   device → host contract v1 (proposed)
+│   └── fixtures/
+│       ├── valid/              one example per record kind + a short stream
+│       ├── invalid/            22 broken records, one defect each
+│       ├── invalid_manifest.json  expected error code per invalid fixture
+│       └── sim/                happy_path_seed1_3s.ndjson, fault_mix_seed1_5s.ndjson
+├── examples/embed_processor.py backend embedding example
+├── src/vibeguard_signals/
+│   ├── contract.py             validator (parse_line, validate_record, serialize_record)
+│   ├── simulator.py, sim_cli.py            vg-sim
+│   ├── validate_cli.py                     vg-validate
+│   ├── process_cli.py                      vg-process
+│   ├── replay.py, replay_cli.py            vg-replay
+│   ├── demo.py, demo_cli.py                vg-demo
+│   ├── bandwidth.py                        vg-bandwidth
+│   └── processing/
+│       ├── processor.py        Processor: feed / poll / finish / calibration API
+│       ├── config.py           ProcessingConfig and per-stage configs
+│       ├── window.py, features.py   bounded windows, window statistics
+│       ├── emg.py              EMG envelope
+│       ├── calibration.py      calibration state machine
+│       ├── vibration.py        vibration features
+│       ├── score.py            experimental score
+│       └── serialize.py        deterministic NDJSON output
+└── tests/                      318 tests (pytest)
+```
+
+Nothing outside `signals/` is touched by this work. Teammates' planning files are
+unchanged.
+
+---
+
+## 4. How each teammate uses this while hardware is being made
+
+The rule for everyone: **build against the contract and the derived records, using
+`vg-sim` or the demo files as the device.** When the hardware arrives, only the input
+source changes: a serial reader replaces `vg-sim`.
+
+### 4.1 Abduljabbar (backend)
+
+**Get a live-like device stream right now:**
+
+```sh
+# wall-clock paced, like a real device, to stdout
+uv run vg-sim --scenario fault_mix --duration 60
+# or write a file
+uv run vg-sim --scenario demo --duration 30 --fast -o sim.ndjson
+```
+
+Pipe it into your ingestion, or read it from a subprocess. Static files are also
+available: `contract/fixtures/sim/*.ndjson`, `out/demo/telemetry.ndjson`.
+
+**Decode and validate each line:**
+
+```python
+from vibeguard_signals import contract
+record, issues = contract.parse_line(raw_line)   # bytes or str
+if issues:            # invalid → reject the whole record, never use part of it
+    ...
+```
+
+**Rules for device records:**
+- Key on (`device_id`, `boot_id`); a new `boot_id` is a reset.
+- Never modify device fields.
+- Add your own wall-clock receive time; device `t_us` is µs since boot, not wall time.
+
+**Embed the processor (live mode).** This snippet was run against the happy-path fixture
+(247 outputs):
+
+```python
+import dataclasses, time
+from vibeguard_signals import contract
+from vibeguard_signals.demo import demo_processing_config
+from vibeguard_signals.processing import Processor, to_ndjson_line
+
+# demo config cites the SIMULATOR's accelerometer scale; swap in the real one later
+config = dataclasses.replace(demo_processing_config(), clock="host")
+proc = Processor(config)                    # one Processor per device
+
+def on_line(line):                          # call for each received line
+    record, issues = contract.parse_line(line)
+    outs = (proc.feed_invalid_frame(issues, "adapter") if record is None
+            else proc.feed(record, rx_time_s=time.monotonic()))
+    publish(outs)
+
+def every_50ms():                           # timer: makes silence become "stale"
+    publish(proc.poll(time.monotonic()))
+
+# calibration endpoints → proc.calibration_start("relaxed" | "squeeze") / calibration_cancel()
+# persist proc.calibration_record() (JSON); after restart: proc.load_calibration(saved)
+# end of session → publish(proc.finish())
+```
+
+Full lifecycle notes are in `DEMO.md` (*Embedding the processor*). A complete runnable
+version is `uv run python examples/embed_processor.py`.
+
+**Route outputs by `type`:** `stream_features`, `stream_event`, `experimental_score`
+(see §5). Each one carries `device_id`, `boot_id`, `provenance`, `timebase` and `t_us`.
+
+**Recording and replay** are yours in production. `vg-replay` shows the required
+semantics: only `provenance` changes, to `{source: replay, original_source,
+recording_id}`, and accelerated playback never alters timestamps.
+
+### 4.2 Ali (dashboard / screens)
+
+**Data to build against now:**
+- `out/demo/derived.ndjson`: real processor output for the whole demo session, including
+  calibration, faults and recovery. Replay it into your UI to see every state.
+- `out/demo/summary.csv`: the same session flattened to 0.5 s rows, handy for
+  prototyping charts.
+- For other UI states, process another scenario:
+  `uv run vg-sim --scenario reboot --duration 20 --fast | uv run vg-process - -o reboot.ndjson`.
+  Swap in `clipping`, `invalid_samples` or `missing_batches` for the other states.
+
+**Where each displayed value lives:**
+
+| Show | Field | Label it |
+|---|---|---|
+| Vibration | `stream_features` (stream `imu`) → `features.vibration.physical.combined_rms` (m/s²) | "measured vibration, unweighted" |
+| Muscle activation | `stream_features` (stream `emg`) → `features.emg_activation.normalized.display.emg0` (0–1 for bars); raw value in `.value` | "relative activation proxy" (not force) |
+| Calibration state | `features.emg_activation.calibration.state` and `stream_event` with `event: calibration_state` | `uncalibrated` / `capturing_relaxed` / `relaxed_captured` / `capturing_squeeze` / `calibrated` / `failed` / `invalidated` (+ `reason`) |
+| Experimental score | `experimental_score` → `rate.value` (au/h), `cumulative.value` (au), `status`, `reasons`, `excluded_by_reason` | "experimental score, arbitrary units" |
+| Data source | `provenance.source` on every record | `simulated` / `replay` / `live` |
+
+**Display rules:**
+1. **Status before numbers.** Every feature has `status`: `ok`, `degraded` (usable, with
+   `reasons`), `warming_up` or `unavailable`. The score has `accumulating` or `paused`.
+2. **`null` means unavailable.** Never render it as 0. Never keep showing an old value
+   after an `unavailable` record.
+3. **Keep the three quantities separate.** Vibration, activation and score are different
+   things; don't merge them into one gauge.
+4. **Always show provenance.** Simulated and replay data must be visibly labelled on every
+   view.
+5. **Show events as messages:** `boot_change`, `seq_gap`, `sample_gap`, `stream_stale`,
+   `stream_recovered`, `device_sensor_state`, `end_of_input`. Show calibration failures
+   too, e.g. `insufficient_separation`, which means "squeeze harder and retry".
+
+### 4.3 Fahad (station test engine)
+
+- Nothing station-specific is implemented here, and the station engine is yours.
+- **Mock now:** the stimulus command contract (deliver stimulus, abort, acknowledgement)
+  is not agreed yet. Define the interface you need and send it to Salaar; the
+  controller-side implementation is firmware, which waits for the board.
+- Report motor settings as **settings**, not as measured amplitudes. Measured vibration
+  comes from the accelerometer path (§2.6).
+- For simulated "response" data during a trial, use `vg-sim --scenario vibration` or
+  `strong_activation`, or process those scenarios as in §4.2.
+
+### 4.4 Collins (wiring / hardware)
+
+These facts are needed from Collins. Every one of them is currently `null` / unknown in
+the code.
+
+1. **Controller:** board model and revision, how many controllers, USB type (native USB
+   CDC, or a UART bridge plus its maximum baud).
+2. **EMG module:**
+   - model;
+   - **does it output raw EMG or a rectified/smoothed envelope?** (the most important one);
+   - output pin;
+   - voltage range;
+   - analog bandwidth;
+   - supply.
+3. **ADC:** resolution, reference voltage, input range.
+4. **IMU:**
+   - model;
+   - bus and address;
+   - configured ±g range;
+   - output data rate;
+   - internal low-pass setting;
+   - FIFO / data-ready support.
+5. **Wiring and power:**
+   - pin map;
+   - grounding;
+   - electrode and reference placement;
+   - where the IMU sits on the sleeve and how rigidly it is mounted.
+6. **Link throughput:** can it sustain about 32 kB/s (`uv run vg-bandwidth`)?
+7. **Local mains frequency** (50/60 Hz) and the controlled vibration source
+   (frequency, amplitude).
+
+**First bring-up sequence.** Each step uses a check that already exists:
+
+1. Identify the board and record facts 1–4.
+2. **Collins checks wiring and electrical compatibility against the manufacturers'
+   guidance before anything touches the wearer.** This covers logic levels, and EMG
+   output range versus ADC input range.
+3. Salaar compiles a minimal acquisition firmware for that board. It emits contract
+   records from fake data first, then from real sensors.
+4. Record ≥ 60 s, then run `uv run vg-validate rec.ndjson` and `uv run vg-process rec.ndjson`.
+   Check:
+   - the measured rate matches the nominal rate;
+   - there is no `rate_mismatch` and no `timing_discontinuity`;
+   - gap counts are ≈ 0.
+5. The backend swaps `vg-sim` for the serial reader.
+6. Inspect real EMG.
+   - **Raw EMG swings both ways around mid-scale; an envelope is one-sided and slow.** If
+     it is an envelope, stop and adapt the pipeline.
+   - Check for mains hum, clipping at a hard squeeze, a stationary IMU reading gravity
+     only, and an unplugged lead giving a visible fault rather than silent zeros.
+7. Calibrate a wearer. A weak squeeze must fail with `insufficient_separation`.
+8. Switch on the vibration source.
+   - Vibration should rise in m/s² with no accelerometer clipping.
+   - **Check whether the relaxed EMG rises from vibration alone** (interference, §8).
+9. End-to-end dashboard test with `live`, `replay` and `simulated` labelled.
+
+---
+
+## 5. Output records: quick reference
+
+All derived records have `schema: "vibeguard.features"`, `version: 1` (proposed), plus
+`device_id`, `boot_id`, `provenance`, `timebase: "device_monotonic_us"`, `t_us` and
+`source_seq`. The full format is in `PROCESSING.md`. The examples below are trimmed from
+the real `out/demo/derived.ndjson`.
+
+**`stream_event`**: something happened.
+```json
+{"type":"stream_event","event":"calibration_state","stream":"emg","t_us":504000,
+ "detail":{"state":"capturing_relaxed","reason":null,"phase":"relaxed"}, ...}
+```
+
+**`stream_features` (emg)** → `features.emg_activation`
+```json
+{"label":"relative_muscle_activation_proxy","input_assumption":"raw_emg",
+ "envelope":{"status":"ok","value":{"emg0":321.3498},"units":{"emg0":"adc_counts_rms"}},
+ "normalized":{"status":"ok","value":{"emg0":1.1004},"display":{"emg0":1.0},
+               "above_reference":{"emg0":true},"below_relaxed":{"emg0":false}},
+ "calibration":{"state":"calibrated","calibration_id":"cal-3341827795b8"}}
+```
+
+**`stream_features` (imu)** → `features.vibration`
+```json
+{"label":"measured_vibration_within_sensor_bandwidth",
+ "weighting":"none (unweighted; not ISO 5349 frequency-weighted)",
+ "status":"ok","static_mean":{"ax":-0.05,"ay":0.1,"az":4096.22},
+ "combined_rms":1448.35,
+ "physical":{"status":"ok","units":"m/s^2","combined_rms":3.4676,
+             "conversion_source":"simulator synthetic scale 4096 counts per g (SIMULATED; ...)"}}
+```
+
+**`experimental_score`**
+```json
+{"type":"experimental_score","status":"accumulating","reasons":[],
+ "rate":{"value":12.021476,"units":"au/h"},"cumulative":{"value":0.004945,"units":"au"},
+ "valid_duration_s":5.4485,"excluded_duration_s":7.4515,
+ "excluded_by_reason":{"activation_capturing_squeeze":3.0,
+                       "activation_uncalibrated & vibration_warming_up":0.45, ...},
+ "inputs":{"vibration":{"status":"ok","value":3.4672,"units":"m/s^2","age_s":0.051},
+           "activation":{"status":"ok","value":-0.0017,"units":"normalized","age_s":0.0}}}
+```
+
+---
+
+## 6. Verified commands
+
+All of these were re-run for this handoff, from `signals/`. The first block was also run
+from a fresh `git clone`, which reproduced the demo byte-for-byte.
 
 | Command | Verified result |
 |---|---|
-| `uv sync` | exit 0 (Python ≥ 3.11, numpy, scipy, pytest dev) |
+| `uv sync` | exit 0 |
 | `uv run pytest -q` | **318 passed**: contract 46, simulator 41, processing 35, review fixes 47, EMG 51, vibration/score 53, demo 13, second review 32 |
-| `uv run vg-demo run --out out/demo --seed 1 --run-id demo-seed1` | exit 0; 1216 telemetry / 2390 derived records; final score 0.048601 au over 19.695 s valid |
-| `uv run vg-demo replay out/demo` | exit 0; "matches the original apart from provenance: YES" |
-| `uv run vg-validate -q contract/fixtures/valid/* contract/fixtures/sim/*` | 325/325 valid, exit 0 |
-| `uv run vg-validate -q contract/fixtures/invalid/*.json` | 0/22 valid, exit 1 (intended; one reason each) |
+| `uv run vg-demo run --out out/demo --seed 1 --run-id demo-seed1` | 1216 telemetry / 2390 derived records; 0.048601 au over 19.695 s valid |
+| `uv run vg-demo replay out/demo` | matches apart from provenance: YES |
+| `uv run vg-validate -q contract/fixtures/valid/* contract/fixtures/sim/*` | 325/325 valid |
+| `uv run vg-validate -q contract/fixtures/invalid/*.json` | 0/22 valid, exit 1 (intended) |
 | `uv run vg-sim --scenario fault_mix --seed 1 --duration 10 --fast \| uv run vg-validate -` | 379/379 valid |
-| `uv run vg-sim --scenario fault_mix --duration 10 --fast \| uv run vg-process -` | 379/379 accepted, 749 outputs |
-| `uv run vg-sim --scenario happy_path --duration 3 \| uv run vg-process --clock host -` | 124/124 accepted (wall-paced, host clock) |
-| `uv run vg-replay out/demo/telemetry.ndjson --speed 10 \| uv run vg-process -` | 1216/1216 accepted; 30 s replayed in about 3 s |
-| `uv run python examples/embed_processor.py` | final score 0.048601 au (same implementation as the demo); calibration persisted and reloaded |
-| `uv run vg-bandwidth` | exit 0; table in `contract/TELEMETRY_CONTRACT.md` |
-| `uv run vg-sim --list` | 12 scenarios |
+| `uv run vg-sim --scenario fault_mix --duration 10 --fast \| uv run vg-process -` | 379/379 accepted |
+| `uv run vg-sim --scenario happy_path --duration 3 \| uv run vg-process --clock host -` | 124/124 accepted |
+| `uv run vg-replay out/demo/telemetry.ndjson --speed 10 \| uv run vg-process -` | 1216/1216 accepted, about 3 s |
+| `uv run python examples/embed_processor.py` | 0.048601 au; calibration persisted and reloaded |
+| host-clock embedding snippet (§4.1) on `happy_path_seed1_3s.ndjson` | 247 outputs |
+| `uv run vg-bandwidth` / `uv run vg-sim --list` | exit 0 / 12 scenarios |
 
 ---
 
-## 2. Components: completed versus deferred
-
-| Completed (software, synthetic-verified) | Where |
-|---|---|
-| Device telemetry contract v1 (**proposed**): separate EMG/IMU batches, per-boot `seq`, sample indices, device-µs timing, units, quality flags, provenance; strict validator + CLI | `contract/TELEMETRY_CONTRACT.md`, `contract.py`, `vg-validate` |
-| Deterministic simulated wearable: 12 scenarios including faults, never `live` | `simulator.py`, `vg-sim`, `SIMULATOR.md` |
-| Streaming processor: continuity, gaps, duplicates, reboots, staleness (device or host clock), rate mismatch, bounded windows, provenance | `processing/processor.py`, `vg-process`, `PROCESSING.md` |
-| Causal EMG envelope (offset → Nyquist-checked band-pass → 100 ms RMS); **assumes raw EMG** | `processing/emg.py` |
-| Relaxed/squeeze calibration state machine, normalized activation proxy, validated load/export, conservative invalidation | `processing/calibration.py` |
-| Vibration features: gravity separated, per-axis and combined dynamic RMS, m/s² only with a cited conversion, unweighted | `processing/vibration.py` |
-| Experimental score (au/h, au), order-independent interval finalisation, excluded time by reason | `processing/score.py` |
-| Offline demo, replay, CSV/text summaries, embedding example | `demo.py`, `vg-demo`, `vg-replay`, `examples/`, `DEMO.md` |
-
-| Deferred / not implemented | Why / owner |
-|---|---|
-| **All firmware** (Prompt 7 portable skeleton, board adapters, build/flash) | Board and sensors unconfirmed; no speculative adapters (Salaar, after Collins) |
-| Physical wire format / serial transport | Depends on board and link throughput (see §6) |
-| Controller-level stimulus commands | Contract to be agreed with Fahad; the station engine is his |
-| Backend ingestion, storage, APIs, production replay | Abduljabbar |
-| Dashboard and station screens | Ali |
-| Notch / adaptive cancellation of interference in EMG | Out of scope; hour-12 gate (§5) |
-| Alternative pipeline for a pre-smoothed EMG envelope | Not built speculatively; bring-up check #1 (§4) |
-| ISO frequency weighting, physical-unit EMG (mV) | Not justified with the available inputs |
-| Stretch items (temperature flag, OLED, second IMU, pressure gating) | Not started |
-
----
-
-## 3. Integration
-
-### Abduljabbar (backend): minimal path
-
-1. **Input now.** Use `uv run vg-sim --scenario fault_mix --duration 60` (wall-paced
-   NDJSON on stdout), or the files `contract/fixtures/sim/*.ndjson` and
-   `out/demo/telemetry.ndjson`. Every line is one contract-v1 record; examples are in
-   `contract/fixtures/valid/`.
-2. **Decode.** `record, issues = contract.parse_line(raw_line)`; a record is valid only if
-   `issues == []`. Never mutate device fields. Key on (`device_id`, `boot_id`); a new
-   `boot_id` is a reset. Add your own wall-clock receive time; device timestamps are µs
-   since boot.
-3. **Process in-process:** see `examples/embed_processor.py` and `DEMO.md`
-   (*Embedding*). Steps:
-   - one `Processor(ProcessingConfig(clock="host", ...))` per device;
-   - `proc.feed(record, rx_time_s=time.monotonic())`, plus `proc.poll(time.monotonic())`
-     from a ~50 ms timer;
-   - calibration API → `proc.calibration_start("relaxed" | "squeeze")` /
-     `calibration_cancel()`;
-   - persist `proc.calibration_record()`, reload with `load_calibration`;
-   - `proc.finish()` at the end of the stream.
-4. **Outputs** are `stream_features`, `stream_event` and `experimental_score` records
-   (`schema: vibeguard.features`, proposed); their format is in `PROCESSING.md`. Each one
-   carries `device_id`, `boot_id`, `provenance` and `timebase`.
-5. **Recording / replay.** Production recording is yours. `vg-replay` shows the required
-   semantics: provenance becomes `replay` with `original_source` and `recording_id`
-   preserved, everything else is unchanged, and pacing is declared separately.
-
-### Ali (display semantics)
-
-- **Show the status, not just numbers.** Every feature has a `status`: `ok`, `degraded`
-  (usable, with `reasons`), `warming_up`, or `unavailable`. **Values are `null` when not
-  usable; never show them as 0,** and never keep showing an old value after an
-  `unavailable` record.
-- **Keep the three quantities visibly separate:**
-  1. Measured vibration: `features.vibration.physical.combined_rms`, m/s², labelled
-     unweighted.
-  2. Normalized muscle activation: `features.emg_activation.normalized`, labelled
-     "relative activation proxy". Use `display` (0–1) for bars, and show the
-     `above_reference` / `below_relaxed` flags.
-  3. Experimental score: the `experimental_score` records, rate in au/h and cumulative in
-     au, labelled experimental. Show `status`, `reasons` and `excluded_by_reason`.
-- **Label provenance everywhere.** `simulated` and `replay` must be visible on every view.
-  Simulated history must be labelled as such.
-- **Calibration state** is in `features.emg_activation.calibration`, and changes arrive as
-  `calibration_state` events with reasons. Failures (e.g. `insufficient_separation`,
-  `interrupted_gap`) are messages for the user.
-
-### Fahad (station)
-
-- Nothing station-related is implemented here.
-- The stimulus command contract (deliver stimulus, abort, acknowledgement) is still to be
-  agreed. Its controller side is Salaar's firmware, which waits for the board.
-- Motor settings must be reported as settings, not measured amplitudes.
-
-### Decisions still needing alignment
-
-1. Whether the backend accepts the device record shape as is, or wraps it without mutating
-   it.
-2. The receive-time field name and owner.
-3. The live stale limit (0.25 s proposed) and score freshness limits (0.25 s).
-4. Batch duration (~50 ms proposed).
-5. The physical wire format and link, after the board is confirmed.
-6. The stimulus command contract with Fahad.
-
----
-
-## 4. For Collins: hardware facts needed, and first bring-up
-
-### Facts needed
-
-All of these are currently `null` / unconfirmed in the code:
-
-1. **Controller:** board model and revision, controller count (one or two), USB-serial
-   type (native USB CDC or UART bridge with its maximum baud).
-2. **EMG front end:**
-   - module model;
-   - **output type: raw EMG or an already rectified/smoothed envelope** (pin used);
-   - output voltage range;
-   - analog bandwidth;
-   - supply.
-3. **ADC:** resolution, reference voltage and input range. These give `raw_limits`
-   (clipping detection) and any mV conversion.
-4. **IMU:**
-   - model;
-   - bus (I²C/SPI) and address;
-   - configured range (±g);
-   - output data rate;
-   - internal low-pass setting;
-   - FIFO/data-ready availability.
-   These give `conversion` + `conversion_source`, the vibration upper band edge, and the
-   staleness detection mode.
-5. **Actual connection and power arrangement:** wiring and pin map, grounding, electrode
-   placement and reference electrode, where the IMU is mounted on the sleeve and how
-   rigidly.
-6. **Serial throughput budget:** can the link carry about 32 kB/s (EMG 1 kHz + IMU
-   400 Hz, compact JSON; `vg-bandwidth`)? That rules out 115200-baud UART for JSON.
-7. **Local mains frequency** (50/60 Hz) and the controlled vibration source to be used
-   (frequency, amplitude).
-
-### First bring-up sequence
-
-Each step names the check that already exists in software:
-
-1. **Identify the board** and record facts 1–4 above in the hardware map.
-2. **Verify wiring and electrical compatibility against the manufacturers' guidance**
-   (logic levels, EMG module supply and output range versus the ADC input range, IMU
-   voltage) **before** connecting the wearer. That check is Collins's.
-3. **Compile and flash a minimal acquisition test** on the confirmed board (Salaar,
-   Prompt 7 then begins): emit contract-v1 records from fake data first, then from real
-   sensors.
-4. **Confirm units and timing.** Record ≥ 60 s, then run `uv run vg-validate -` and
-   `uv run vg-process -` on the recording. Check:
-   - `measured_rate_hz` against the nominal rate;
-   - no `rate_mismatch` or `timing_discontinuity`;
-   - `sample_gap` / `seq_gap` counts, which must be ~0 for a stable link.
-5. **Replace the fake adapter.** The real serial stream feeds the backend's adapter in
-   place of `vg-sim`; the simulator stays for tests.
-6. **Inspect real recordings.**
-   - EMG at rest and while squeezing: **raw EMG swings both ways around mid-scale; an
-     envelope is one-sided and slow.** If it's an envelope, **stop**: the current
-     pipeline does not apply.
-   - Check for mains hum, clipping at hard squeeze, a stationary IMU giving gravity only,
-     and a deliberately unplugged electrode lead giving a visible fault (not silent zeros).
-7. **Calibrate a wearer** (relaxed, then squeeze). Check normalized ≈0 relaxed and ≈1
-   squeeze, and that a deliberately weak squeeze fails with `insufficient_separation`.
-8. **Test simultaneous vibration** with the controlled source. Check: vibration rises in
-   m/s²; the accelerometer does not clip; and **whether the relaxed EMG envelope rises
-   from vibration alone** (interference, §5).
-9. **Integrate the dashboard** through the backend, with live, replay and simulated
-   sources labelled.
-
----
-
-## 5. Hardware-only acceptance checks and fallback gates
-
-### Acceptance checks
-
-None of these can pass in software. Each needs the real wearable:
+## 7. What only hardware can answer
 
 | Check | Pass condition |
 |---|---|
-| Sample rate measured | `measured_rate_hz` within ~1 % of nominal over 10 min; jitter recorded |
-| Dropped samples measured | `sample_gap` / `overrun` / `seq_gap` counts recorded; ~0 at the chosen link settings |
-| Filters fit the rate and bandwidth | No `filter_config_invalid`; EMG band within the front end's analog bandwidth; vibration band within the IMU's ODR and low-pass |
-| EMG output type | Raw EMG confirmed (else stop; see §4, step 6) |
-| Calibration on a wearer | Succeeds; weak or near-zero squeeze rejected; normalized activation tracks squeeze |
-| Clipping surfaced | Hard squeeze / strong tap produces `clipped` / `degraded`, once real `raw_limits` are configured |
-| Disconnect visible | Unplugged electrode → unavailable or stale status, never stale-looking values; USB unplug → host-clock `stream_stale` within ~0.3 s |
-| Vibration within sensor capability | Controlled source changes m/s² as expected; stationary reads near the noise floor; no accelerometer clipping |
-| EMG during vibration | Relaxed envelope with vibration on ≈ without (else the hour-12 gate) |
-| Restart | Device reboot → `boot_change`, calibration invalidated, recalibration works |
-| Backup recording | Real session recorded; replays as `replay` with its `recording_id` |
-| Score by design | Same vibration with stronger grip raises the score; presented as the formula's behaviour, **not** validated transmission |
+| Sample rate | Measured rate within ~1 % of nominal over 10 min; jitter recorded |
+| Dropped samples | `sample_gap` / `overrun` / `seq_gap` ≈ 0 at the chosen link settings |
+| Filters fit | No `filter_config_invalid`; EMG band within the module's bandwidth; vibration band within the IMU's ODR and low-pass |
+| EMG output type | Raw EMG confirmed; otherwise stop and adapt |
+| Calibration on a wearer | Succeeds; a weak squeeze is rejected; activation tracks the squeeze |
+| Clipping visible | A hard squeeze or tap shows `clipped` / `degraded` once real `raw_limits` are set |
+| Disconnect visible | An unplugged lead gives an unavailable or stale status; a USB unplug gives `stream_stale` within ~0.3 s (host clock) |
+| Vibration | The controlled source changes m/s² as expected; at rest it reads near the noise floor; no clipping |
+| EMG during vibration | Relaxed envelope with vibration on ≈ the same as without (else the hour-12 gate) |
+| Reboot | `boot_change`, calibration invalidated, recalibration works |
+| Backup recording | A real session recorded, and replays as `replay` |
+| Score behaviour | Same vibration with a stronger grip gives a higher score. That is the formula's behaviour by design, **not** validated transmission |
 
-### Fallback gates (from Salaar's plan)
-
-- **Hour 6: EMG acquisition unstable.** Collins and Salaar pair on it: gel electrodes,
-  secured cables, drop cosmetic assembly.
-- **Hour 12: EMG uninterpretable during vibration.** Demonstrate muscle activation and
-  vibration **separately**, and remove the combined-measurement claims. The score is then
-  shown only as an algorithm demonstration on recorded or simulated data, or not at all.
-  No adaptive cancellation, no custom electrodes.
-- **Hour 36:** freeze features and keep a known-good build and recording.
-
-### Known limitations (verified on synthetic data)
-
-- **EMG vibration interference.** An in-band 60 Hz synthetic tone (75 counts) raises the
-  relaxed envelope from ~23 to ~59 counts. Nothing removes it.
-- **Transport-loss ordering.** The processor's device-clock staleness rule reacts to which
-  stream's first post-loss batch arrives first. Around a transport loss, two arrival
-  orders can give slightly different invalidations (both conservative) and so slightly
-  different scores: about 0.05 s of valid time in the demo. The score never counts time
-  its inputs report invalid. Exact order invariance is tested only for loss-free streams
-  (`PROCESSING.md`, D18).
-- **Missing samples are never imputed.** Frequent nulls keep the EMG and vibration
-  filters warming up.
-- **No physical score without a conversion.** Without a confirmed accelerometer
-  conversion there are no m/s² values and no score; the demo uses the simulator's own
-  scale, cited as such.
-- **No stale-sensor inference.** A frozen sensor without a device `stale` flag is
-  schema-valid; detection depends on firmware.
+**Fallback gates:**
+- **Hour 6** (EMG unstable): Collins and Salaar pair on it with gel electrodes, secured
+  cables, and the cosmetic assembly dropped.
+- **Hour 12** (EMG uninterpretable during vibration): show activation and vibration
+  **separately**, and drop the combined claims. The score becomes an algorithm demo on
+  recorded or simulated data only.
+- **Hour 36:** freeze features; keep a known-good build and recording.
 
 ---
 
-## 6. Remaining choices (distinct from tested facts)
+## 8. Known limitations
 
-**Tested facts (synthetic inputs only):**
-- The contract validator rejects all 22 defect fixtures and accepts all valid and
-  simulated streams.
-- The simulator is deterministic (byte-identical with a fixed `--run-id`).
-- Gaps, reboots, duplicates, stale streams, disconnects, rate mismatch and
-  provenance changes invalidate visibly.
-- EMG envelope of an in-band sinusoid = A/√2 within 4 %; vibration RMS = A/√2 within 3 %;
-  stationary gravity gives < 0.5 counts of dynamic RMS.
-- Calibration is reproducible; captures fail across any reset; malformed loaded records
-  are rejected (15 variants).
-- Score totals and attribution are order-independent within the freshness limits;
-  invalid or stale time never accumulates.
-- Demo replay matches the original apart from provenance.
+These are verified on synthetic data.
 
-**Open choices and assumptions** (defaults in place; change via config, not code):
+- **EMG vibration interference.** An in-band synthetic 60 Hz tone raises the relaxed
+  envelope from ~23 to ~59 counts, and nothing removes it. There is no notch or adaptive
+  cancellation, by design. See `vg-sim --scenario vibration_emg_mixed`.
+- **Transport-loss ordering.** Around a transport loss, the processor's device-clock
+  staleness rule reacts to which stream's first post-loss batch arrives first. Two arrival
+  orders can therefore give slightly different, both conservative, invalidations and
+  scores: about 0.05 s of valid time in the demo. The score never counts time its inputs
+  report as invalid. Exact order independence is tested for loss-free streams only.
+- **No imputation.** Missing samples stay missing; frequent nulls keep filters warming up.
+- **No conversion, no physical score.** Without a confirmed accelerometer conversion there
+  are no m/s² values and no score. The demo cites the simulator's own scale.
+- **No stale inference.** A frozen sensor without a device `stale` flag looks valid;
+  detecting it depends on the firmware.
+- **The pipeline assumes raw EMG.** A pre-smoothed envelope pipeline was not built
+  speculatively.
+
+---
+
+## 9. Open choices and defaults
+
+All of these are config values, not code changes.
 
 | Choice | Current default | Decide when / with |
 |---|---|---|
-| Wire format and link | NDJSON; ≥ 460800 baud or native USB, else binary framing | Board + measured throughput (Collins/Salaar) |
+| Wire format and link | NDJSON; ≥ 460800 baud or native USB, else binary | Board + throughput test (Collins/Salaar) |
 | Batch duration | 50 ms | Link test |
-| EMG band | 20–450 Hz (needs ≥ 1000 Hz sampling) | Real rate + analog bandwidth |
-| EMG input type | raw EMG assumed | Bring-up step 6 |
-| EMG envelope window / settle | 100 ms / 100 ms | First real recordings |
-| Vibration high-pass / window | 5 Hz / 1 s; upper edge sensor-limited | IMU ODR and low-pass |
-| Accelerometer conversion | none (no m/s², no score) | IMU range from datasheet + config |
-| Calibration captures / thresholds | 3 s, discard 0.5 s, ratio ≥ 2, separation ≥ 1 unit | First wearer trials |
-| Calibration across reboot | invalidated (`survives_reboot=False`) | Team preference |
-| Stale / freshness limits | 0.25 s | Backend live view |
-| Score coefficients | k = 1 au/h, v_ref = 1 m/s², exponent 2, weight 1, cap 2 | Demo narrative only; no physical meaning |
-| Stimulus command contract | none | With Fahad |
-| Prompt 7 firmware skeleton | deferred | When Collins confirms board and sensors |
+| EMG band | 20–450 Hz (needs ≥ 1000 Hz sampling) | Real rate and module bandwidth |
+| EMG envelope window | 100 ms | First real recordings |
+| Vibration high-pass / window | 5 Hz / 1 s | IMU ODR and low-pass |
+| Accelerometer conversion | none → no m/s², no score | IMU range from the datasheet |
+| Calibration capture / thresholds | 3 s capture, ratio ≥ 2, separation ≥ 1 | First wearer trials |
+| Calibration across reboot | invalidated | Team preference |
+| Stale / freshness limits | 0.25 s | Backend live view (Abduljabbar) |
+| Score coefficients | k = 1, v_ref = 1 m/s², p = 2, w = 1, cap = 2 | Demo narrative only; no physical meaning |
+| Backend record wrapping, receive-time field | not decided | Abduljabbar |
+| Stimulus command contract | none | Fahad |
+| Firmware (Prompt 7) | deferred | When Collins confirms board and sensors |
 
 ---
 
-## Appendix: decision log (condensed)
+## 10. History and decisions
 
-- **D1** Layout: `signals/` only. One authoritative implementation in
-  `src/vibeguard_signals/`; `firmware/` deferred.
-- **D2** Tooling: uv, project venv; pytest dev-only; stdlib validator; numpy/scipy from
-  Prompt 4 (the SciPy 1.18 `butter`/`sosfilt` docs were checked).
-- **D3** Ownership:
-  - Salaar: contract, simulator, processing, calibration, future controller firmware and
-    stimulus commands.
-  - Abduljabbar: APIs, adapters, storage, production replay.
-  - Fahad: station sequencing.
-  - Ali: screens.
-- **D4** Device contract v1 is proposed and distinct from the backend API. NDJSON for
-  host/simulator; physical wire format open.
-- **D5** Device acquires only; host processes.
-- **D6** Hand-written validator: cross-field rules in one place.
-- **D7** Simulator: stdlib, seeded per boot/stream/purpose; device / simulation / wall time
-  kept separate; random identity per run.
-- **D8** Sensor faults are valid telemetry; only protocol defects are invalid; flags report
-  conditions and are never inferred.
-- **D9** No serial transport until the board is confirmed.
-- **D10** Processor layers. Conservative resets. Reordered records dropped. Device-reported
-  disconnect/stale is sticky until `ok`, so firmware must send status on transitions.
-- **D11** Device clock for files and replay; host clock + `poll()` live.
-- **D12** First review:
-  - rate mismatch is an availability condition;
-  - rejections happen before any state mutation;
-  - the device clipping flag is honoured;
-  - timed host polling;
-  - distinct boot IDs;
-  - valid low-rate timestamps.
-- **D13** EMG pipeline: causal, Nyquist-validated, no imputation; `input_assumption: raw_emg`
-  on every output.
-- **D14** Calibration:
-  - median references; ratio and absolute separation rules;
-  - unbounded value plus clamped display and range flags;
-  - conservative invalidation;
-  - labelled a relative activation proxy.
-- **D15** Vibration: gravity separate, unweighted, m/s² only with a cited conversion.
-- **D16** Score formula in arbitrary units; invalid or stale time excluded with reasons; a
-  provenance change starts a new accumulation; boots never joined.
-- **D17** Demo and replay reuse the single implementation; replay rewrites only provenance;
-  pacing is content-neutral.
-- **D18** Score intervals:
-  - an update covers (its previous update, t], at most the freshness limit back;
-  - finalisation waits for every required input, or provable staleness;
-  - keys name all blocking inputs;
-  - order-independent within freshness (tested); not claimed across transport loss.
-- **D19** Every EMG reset fails an active capture; loaded calibrations are validated before
-  installation.
-- **D20** (Prompt 8) The bandwidth estimator's sizing record is relabelled `simulated`, so
-  no software path emits `source: "live"`. Estimates rose 200 B/s (now 21,740 / 32,140 /
-  45,960 B/s). Prompt 7 is deferred: a firmware skeleton would not unblock integration,
-  which already runs through the contract, simulator and API.
+| Step | Result | Commit |
+|---|---|---|
+| Prompt 1 | Contract v1, fixtures, validator | `5637c0e` |
+| Prompts 2–3 | Simulator (scenarios, faults); processor skeleton; first review (6 fixes) | `79cc417` |
+| Prompts 4–6 | EMG envelope, calibration, vibration, score, demo/replay; second review (3 fixes) | `2bcccc5` |
+| Prompt 7 | **Deferred**: a firmware skeleton would not unblock anyone before the board is known | — |
+| Prompt 8 | Handoff; all commands re-verified incl. fresh clone; bandwidth sizing record relabelled `simulated` | `174f0ba` + this file |
 
-## Appendix: progress history
-
-| Step | Result |
-|---|---|
-| Prompt 0 | Baseline: planning docs only; owned paths agreed |
-| Prompt 1 | Contract, 8 valid + 22 invalid fixtures, validator (46 tests) → commit `5637c0e` |
-| Prompt 2 | Simulator, 11 scenarios, 2 tracked recordings (86 tests) |
-| Prompt 3 | Processing skeleton (121 tests); first review: 6 findings fixed (168) → `79cc417` |
-| Prompt 4 | EMG envelope + calibration (219) |
-| Prompt 5 | Vibration + experimental score (267); scoring cases mutation-checked (272) |
-| Prompt 6 | Demo, replay, embedding example (286); second review: 3 findings fixed (318) → `2bcccc5` |
-| Prompt 7 | Deferred until hardware is confirmed |
-| Prompt 8 | This handoff; all commands re-verified, including from a fresh clone |
+**Key decisions:**
+- **Scope.** Only `signals/` is touched. There is one implementation, in
+  `src/vibeguard_signals/`.
+- **Processing location.** The device only acquires; all processing runs on the host.
+- **Contract.** The device contract is separate from the backend API. Its physical wire
+  format stays open until the board is known.
+- **Faults versus defects.** Sensor faults are valid telemetry; only protocol defects make
+  a record invalid. Flags report conditions and are never inferred.
+- **Resets.** They are conservative and visible, never silently repaired. Duplicate and
+  late records are rejected before any state changes.
+- **Clocks.** Device clock for files and replay (deterministic); host clock with `poll()`
+  for live use.
+- **Labelling.** No software path emits `source: live`. Simulated data is always labelled.
+- **Score accounting.** Time counts only when both inputs cover it. Excluded time names
+  every blocking input.
+- **Replay.** It changes only provenance, and pacing never changes content.
