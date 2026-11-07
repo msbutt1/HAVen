@@ -134,7 +134,12 @@ def processing_config_for(adapter_kind: str, counts_per_g: float | None = None,
     """
     if adapter_kind in ("sim", "replay-sim"):
         return demo_processing_config()
-    if counts_per_g:
+    if counts_per_g is not None:
+        from .hardware import ProfileError, validate_counts_per_g
+        try:
+            counts_per_g = validate_counts_per_g(counts_per_g, "counts per g")
+        except ProfileError as exc:
+            raise ValueError(str(exc)) from exc
         if not conversion_source:
             raise ValueError("an accelerometer conversion needs its source (datasheet + range)")
         g = 9.80665

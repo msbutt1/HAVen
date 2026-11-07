@@ -105,8 +105,9 @@ async function tick(){
     $('rec').textContent=rt.active_session_id?'session '+String(rt.active_session_id).slice(-6):'not recording';
     const b=$('banner');
     if(rt.state==='completed'){b.textContent='PLAYBACK FINISHED: this recording has ended and nothing is updating. Play it again with POST /api/runtimes/wearable/restart, or restart the server with --loop.';b.style.display='block'}
-    else if(rt.state==='disconnected'||rt.state==='error'){b.textContent=rt.state==='error'?'The device runtime stopped: '+esc(rt.error||'unknown error'):'DEVICE DISCONNECTED: the values below are not current.';b.style.display='block'}
+    else if(rt.state==='disconnected'||rt.state==='error'){b.textContent=rt.state==='error'?'The device runtime stopped: '+String(rt.error||'unknown error'):'DEVICE DISCONNECTED: the values below are not current.';b.style.display='block'}
     else if(rt.data_fresh===false){b.textContent='NO NEW DATA: the device is connected but has sent nothing valid recently. Values are not current.';b.style.display='block'}
+    else if((rt.warnings||[]).length){b.textContent=(rt.warnings||[]).join(' | ');b.style.display='block'}
     else b.style.display='none';
    });
    safe(()=>{
@@ -117,7 +118,7 @@ async function tick(){
     const a=emg&&emg.normalized&&emg.normalized.status==='ok'&&emg.normalized.display?emg.normalized.display.emg0:null;
     $('act').textContent=a==null?'-':num(a,2);
     // a masked or unavailable score has no 'cumulative': show it as unavailable, never as a number
-    $('score').textContent=!sc?'-':sc.status==='accumulating'&&sc.cumulative?num(sc.cumulative.value,4)+' au (accumulating)':sc.status==='paused'&&sc.cumulative?num(sc.cumulative.value,4)+' au (paused: '+((sc.reasons||[])[0]||'')+')':'unavailable ('+esc(sc.reason||((sc.reasons||[])[0])||'')+')';
+    $('score').textContent=!sc?'-':(sc.reasons||[]).includes('vibration_no_conversion')?'- (no IMU sensitivity configured: vibration stays in raw counts)':sc.status==='accumulating'&&sc.cumulative?num(sc.cumulative.value,4)+' au (accumulating)':sc.status==='paused'&&sc.cumulative?num(sc.cumulative.value,4)+' au (paused: '+((sc.reasons||[])[0]||'')+')':'unavailable ('+esc(sc.reason||((sc.reasons||[])[0])||'')+')';
    });
    safe(()=>{
     const h=rt.hello,L=rt.latest||{},wl=n=>{const x=L[n];return x&&x.window&&x.window.measured_rate_hz};

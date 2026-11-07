@@ -205,6 +205,11 @@ def start_backup_replay(backend: Backend, path: str | Path, name: str = "wearabl
     original = meta.get("original_source") or meta.get("source")
     config = processing_config_for("replay-sim" if original == "simulated" else "replay")
     config = _config_from_manifest(path / "manifest.json", config)
+    hw_meta = {}  # which hardware the recording came from (the profile stored with the session)
+    rm = (_check_manifest(path / "manifest.json").get("runtime_meta") or {})
+    for k in ("hardware_profile", "hardware_profile_name", "effective_serial"):
+        if rm.get(k) is not None:
+            hw_meta[k] = rm[k]
     adapter = ReplayAdapter(path / "telemetry.ndjson",
                             recording_id=meta.get("recording_id") or f"backup-{meta['from_session_id']}",
                             speed=speed, fast=fast)
@@ -214,4 +219,4 @@ def start_backup_replay(backend: Backend, path: str | Path, name: str = "wearabl
         meta={"backup": str(path.resolve()), "backup_label": meta["label_for_dashboard"],
               "recording_id": meta.get("recording_id"), "original_source": original,
               "speed": speed, "fast": fast, "exported_from": meta["from_session_id"],
-              "interrupted_recording": bool(meta.get("interrupted")), **(extra_meta or {})})
+              "interrupted_recording": bool(meta.get("interrupted")), **hw_meta, **(extra_meta or {})})

@@ -39,3 +39,18 @@ listed. Everything below was reproduced.
 - **`verify-backup` is an integrity check, not authentication**: BACKUP.json is not signed, so someone who
   edits a file and recomputes its hash passes.
 - **Station controller** is simulated; the stimulus contract is proposed, not agreed.
+
+## Hardware tooling (never run on a real board)
+
+- **Pseudo-terminal limits.** `fake-device` on macOS only accepts some baud rates (115200, 230400), does not
+  throttle, and on Linux starts its first boot before any program connects (the first hello may be missed). A
+  close-and-reopen under about 50 ms is not noticed. Real USB timing, driver buffering and re-enumeration are
+  unmeasured.
+- **DTR/RTS cannot be observed on a pty.** `--no-dtr` / `serial.dtr: false` set the lines before opening, but whether
+  it stops a given board resetting depends on the OS driver and the board; native-USB boards that wait for DTR need it
+  left on. Nothing in the backend writes to the device, so a firmware that waits for a host command stays silent.
+- **EMG rawness is a heuristic.** `serial-check` judges it from the spectrum (power above 20 Hz after removing drift)
+  and one-sidedness; it separates the obvious cases (smooth envelope, rectified output) from raw EMG in tests on
+  synthetic signals, but real EMG modules may surprise it. The profile's `emg.output` is a statement by a human,
+  not a measurement.
+- **Host-clock cross-check** needs about 3 s of data and only warns on a >3% disagreement.

@@ -66,6 +66,9 @@ def build_parser() -> argparse.ArgumentParser:
                         "--device serial; flags given on the command line override it")
     s.add_argument("--port", help="serial port or glob, e.g. '/dev/cu.usbmodem*'")
     s.add_argument("--baud", type=int, default=None, help="serial baud rate (default 921600)")
+    s.add_argument("--no-dtr", action="store_true",
+                   help="do not assert DTR/RTS when opening the serial port (avoids resetting auto-reset boards "
+                        "on every reconnect; native-USB boards that wait for DTR need it left on)")
     s.add_argument("--imu-counts-per-g", type=float, default=None,
                    help="confirmed accelerometer sensitivity (counts per g) for m/s^2 output")
     s.add_argument("--imu-conversion-source", default=None,
@@ -98,11 +101,24 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--save", type=Path, default=None, help="also save the raw bytes (NDJSON) for vg-process / vg-validate")
     c.add_argument("--mains-hz", type=int, choices=(50, 60), default=None)
     c.add_argument("--try-bauds", default=None, help="comma-separated baud rates to try first (finds the right one)")
+    c.add_argument("--probe-seconds", type=float, default=3.0,
+                   help="with --try-bauds: how long each rate may talk (a board that resets on open gets up to 10 s "
+                        "to start)")
+    c.add_argument("--no-dtr", action="store_true",
+                   help="do not assert DTR/RTS when opening: auto-reset boards (Arduino-style, ESP32 dev kits) are "
+                        "not restarted by every check or probe")
+    c.add_argument("--profile", type=Path, default=None,
+                   help="hardware profile: takes mains_hz and dtr/rts from it and compares channels with the hello")
     c.add_argument("--json", action="store_true", help="print the measurements as JSON too")
 
     d = sub.add_parser("fake-device", parents=[common],
                        help="a pseudo-serial port that behaves like the firmware (rehearse without hardware)")
-    d.add_argument("--scenario", default="demo", help="simulator scenario (vg-sim --list)")
+    d.add_argument("--scenario", default="happy_path",
+                   help="simulator scenario (vg-sim --list). The default has no injected faults; 'demo' and "
+                        "'fault_mix' do, on purpose")
+    d.add_argument("--duration", type=float, default=120.0,
+                   help="seconds before the simulated firmware restarts with a new boot (default 120; a longer run "
+                        "takes longer to start)")
     d.add_argument("--seed", type=int, default=1)
     d.add_argument("--speed", type=float, default=1.0)
     d.add_argument("--baud-limit", type=int, default=None, help="throttle to this baud rate (e.g. 115200)")
@@ -111,7 +127,8 @@ def build_parser() -> argparse.ArgumentParser:
     d.add_argument("--hang-after", type=float, default=None, help="stop sending after N s (hung MCU)")
     d.add_argument("--unplug-after", type=float, default=None, help="pull the cable after N s")
     d.add_argument("--no-hello", action="store_true")
-    d.add_argument("--rate-error", type=float, default=0.0, help="stretch the device clock (0.1 = 10%% slow)")
+    d.add_argument("--rate-error", type=float, default=0.0,
+                   help="stretch the device clock of both streams (0.05 = 5%% slow); at most 0.10")
     d.add_argument("--once", action="store_true", help="play the run once instead of looping")
 
     v = sub.add_parser("verify-backup", parents=[common], help="check a backup folder is complete and unmodified")
@@ -138,34 +155,55 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.cmd == "fake-device":
+        import signal
+
         from .hardware import FakeDevice
 
         try:
-            dev = FakeDevice(args.scenario, args.seed, speed=args.speed, baud_limit=args.baud_limit, mode=args.mode,
-                             hang_after_s=args.hang_after, unplug_after_s=args.unplug_after, loop=not args.once,
-                             drop_hello=args.no_hello, rate_error=args.rate_error).start()
+            dev = FakeDevice(args.scenario, args.seed, duration_s=args.duration, speed=args.speed,
+                             baud_limit=args.baud_limit, mode=args.mode, hang_after_s=args.hang_after,
+                             unplug_after_s=args.unplug_after, loop=not args.once, drop_hello=args.no_hello,
+                             rate_error=args.rate_error).start()
         except (OSError, ValueError) as exc:
             print(f"vg-backend: {exc}", file=sys.stderr)
             return 2
-        print(f"fake device (SIMULATED firmware, mode {args.mode}) on  {dev.path}\n"
-              f"  try:  uv run vg-backend serial-check --port {dev.path} --baud 115200 --seconds 10\n"
-              f"        uv run vg-backend serve --device serial --port {dev.path} --baud 115200\n"
-              "Ctrl-C to stop.", flush=True)
+        signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
+        print(f"fake device (SIMULATED firmware, mode {args.mode}, scenario {args.scenario}) on  {dev.path}\n"
+              f"  try:  uv run vg-backend serial-check --port {dev.path} --baud 230400 --seconds 10\n"
+              f"        uv run vg-backend serve --device serial --port {dev.path} --baud 230400\n"
+              "  A pseudo-port only accepts some baud rates (230400 and 115200 work; 460800 and up fail on macOS) and does\n"
+              "  not throttle, so the check's link-bandwidth line will FAIL here: that is the real finding (this stream\n"
+              "  needs ~31 kB/s). Judge the other lines. It restarts as a new boot (hello first) every time a program\n"
+              "  opens the port. Ctrl-C to stop.", flush=True)
+        code = 0
         try:
-            while dev._thread.is_alive():
+            while dev.alive:
                 time.sleep(0.5)
+            print(f"fake device stopped: {dev.ended_because or 'the device thread ended'}", file=sys.stderr)
+            code = 1 if (dev.ended_because or "").startswith("error") else 0
         except KeyboardInterrupt:
             pass
         finally:
             dev.stop()
-        return 0
+        return code
 
     if args.cmd == "serial-check":
-        from .hardware import find_baud, list_ports, serial_check
+        from .hardware import ProfileError, find_baud, load_profile, serial_check
 
         if not math.isfinite(args.seconds) or not 1 <= args.seconds <= 3600:
             print("vg-backend: --seconds must be between 1 and 3600", file=sys.stderr)
             return 2
+        if not math.isfinite(args.probe_seconds) or not 0.5 <= args.probe_seconds <= 60:
+            print("vg-backend: --probe-seconds must be between 0.5 and 60", file=sys.stderr)
+            return 2
+        profile = None
+        if args.profile is not None:
+            try:
+                profile = load_profile(args.profile)
+            except ProfileError as exc:
+                print(f"vg-backend: hardware profile: {exc}", file=sys.stderr)
+                return 2
+        dtr = False if args.no_dtr else None
         baud = args.baud
         if args.try_bauds:
             try:
@@ -173,22 +211,28 @@ def main(argv: list[str] | None = None) -> int:
             except ValueError:
                 print("vg-backend: --try-bauds must be comma-separated integers", file=sys.stderr)
                 return 2
-            print(f"trying {len(bauds)} baud rates on {args.port} ({3} s each)...")
-            results = find_baud(args.port, bauds, progress=print)
+            print(f"trying {len(bauds)} baud rates on {args.port} ({args.probe_seconds:g} s each, longer while a board "
+                  "that resets on open is still starting)...")
+            results = find_baud(args.port, bauds, probe_s=args.probe_seconds, progress=print, dtr=dtr, rts=dtr)
             good = [r for r in results if r.get("valid", 0) > 0]
             if not good:
-                print("no baud rate produced valid frames. Run `vg-backend ports`, check the cable, and that the "
-                      "firmware is sending contract v1 NDJSON.")
+                print("no baud rate produced valid frames. Run `vg-backend ports`; check the cable and that the firmware "
+                      "is sending contract v1 NDJSON. A board that resets on open can need longer: --probe-seconds 8")
                 return 1
             best = max(good, key=lambda r: (r.get("share", 0), r["valid"]))
             baud = best["baud"]
+            working = [r["baud"] for r in good if r.get("share", 0) >= 0.99]
+            if len(working) > 1:
+                print(f"several rates work ({', '.join(map(str, working))}): this is probably native USB, where the baud "
+                      "setting is ignored; any of them will do")
             print(f"best: {baud} baud ({best['valid']}/{best['lines']} valid)\n")
         print(f"checking {args.port} at {baud} baud for {args.seconds:g} s ...")
-        res = serial_check(args.port, baud, args.seconds, args.save, args.mains_hz, progress=print)
+        res = serial_check(args.port, baud, args.seconds, args.save, args.mains_hz, progress=print, dtr=dtr, rts=dtr,
+                           profile=profile)
         print(res.report.render(not_ready="NOT READY - fix the FAIL lines before connecting this to the backend"))
         if args.json:
             print(json.dumps(res.stats, indent=2, default=str))
-        if args.save:
+        if args.save and Path(args.save).exists():
             print(f"\nraw capture saved to {args.save}: analyse it with  uv run --project ../signals vg-validate {args.save}")
         return 1 if res.report.failed else 0
 
@@ -248,6 +292,8 @@ def main(argv: list[str] | None = None) -> int:
     runtime_meta: dict = {}
     try:  # validate everything before the data directory is touched
         adapter = config = None
+        if args.backup is not None and args.profile is not None:
+            raise ValueError("--profile describes a serial device; it cannot be combined with --backup")
         if args.backup is not None:
             from .backup import BackupError, verify_backup
             try:
@@ -258,23 +304,54 @@ def main(argv: list[str] | None = None) -> int:
             adapter = SimAdapter(scenario=args.scenario, seed=args.seed, duration_s=args.duration,
                                  speed=args.speed, loop=True)
             config = processing_config_for("sim")
+        elif args.device == "none" and args.profile is not None:
+            from .hardware import ProfileError, load_profile
+            try:
+                load_profile(args.profile)  # still validated: a broken profile is an error even if unused
+            except ProfileError as exc:
+                raise ValueError(f"hardware profile: {exc}") from exc
+            print("vg-backend: --device none: the hardware profile is valid but no device is opened", file=sys.stderr)
         elif args.device == "serial" or args.profile is not None:
             profile = None
             if args.profile is not None:
-                from .hardware import HardwareProfile, ProfileError, load_profile
+                from .hardware import ProfileError, load_profile
                 try:
                     profile = load_profile(args.profile)
                 except ProfileError as exc:
                     raise ValueError(f"hardware profile: {exc}") from exc
-            port = args.port or (profile.port if profile else None)
-            baud = args.baud or (profile.baud if profile and profile.baud else 921600)
-            cpg = args.imu_counts_per_g or (profile.imu_counts_per_g if profile else None)
-            src = args.imu_conversion_source or (profile.imu_conversion_source if profile else None)
+            from .hardware import ProfileError as _PE, validate_baud, validate_counts_per_g
+            try:
+                port = args.port or (profile.port if profile else None)
+                if args.baud is not None:
+                    baud = validate_baud(args.baud, "--baud")
+                elif profile and profile.baud:
+                    baud = profile.baud
+                elif profile is not None or args.device == "serial":
+                    raise _PE("the baud rate is not set: put \"baud\" in the profile or pass --baud (nothing is assumed; "
+                              "`serial-check --try-bauds` finds it)")
+                cpg = src = None
+                if args.imu_counts_per_g is not None:
+                    cpg = validate_counts_per_g(args.imu_counts_per_g, "--imu-counts-per-g")
+                    src = args.imu_conversion_source
+                    if not src:
+                        raise _PE("--imu-counts-per-g needs --imu-conversion-source: a command-line sensitivity must "
+                                  "cite its own source (the profile's citation is for the profile's number)")
+                elif args.imu_conversion_source:
+                    raise _PE("--imu-conversion-source without --imu-counts-per-g would cite a datasheet for no value")
+                elif profile and profile.imu_counts_per_g:
+                    cpg, src = profile.imu_counts_per_g, profile.imu_conversion_source
+            except _PE as exc:
+                raise ValueError(str(exc)) from exc
             if not port:
                 raise ValueError("--device serial needs --port (or a profile with a port)")
-            adapter = SerialAdapter(port, baud)
+            dtr = False if args.no_dtr else (profile.dtr if profile else None)
+            rts = False if args.no_dtr else (profile.rts if profile else None)
+            adapter = SerialAdapter(port, baud, dtr=dtr, rts=rts)
             config = processing_config_for("serial", cpg, src)
-            runtime_meta = {"hardware_profile": profile.describe(), "hardware_profile_name": profile.name} if profile else {}
+            runtime_meta = {"effective_serial": {"port": port, "baud": baud, "counts_per_g": cpg,
+                                                 "conversion_source": src, "dtr": dtr, "rts": rts}}
+            if profile:
+                runtime_meta.update({"hardware_profile": profile.describe(), "hardware_profile_name": profile.name})
         if not math.isfinite(args.speed) or not 0 < args.speed <= 1000:
             raise ValueError("--speed must be a number above 0 and at most 1000")
         if args.loop and args.backup is None:

@@ -56,9 +56,10 @@ def test_ports_listing_is_well_formed_and_renders_when_empty():
 
 # ------------------------------------------------------------------------------ profile
 
-def test_the_example_profile_loads_and_cites_its_conversion(tmp_path):
+def test_the_example_profile_loads_but_invents_no_sensor_facts():
     p = load_profile(Path(__file__).resolve().parents[1] / "hardware.example.json")
-    assert p.emg_output == "raw" and p.imu_counts_per_g == 16384 and "datasheet" in p.imu_conversion_source
+    assert p.emg_output == "raw" and p.name == "wearable-v1-bench"
+    assert p.imu_counts_per_g is None and p.imu_conversion_source is None  # nothing is a made-up datasheet value
 
 
 @pytest.mark.parametrize("patch,message", [
@@ -231,14 +232,17 @@ def test_mains_hum_is_detected_and_attributed_to_the_frequency():
     assert c.level == WARN and "60 Hz" in c.detail
     clean = _craft(lambda t: 2048 + 90 * math.sin(2 * math.pi * 31 * t) + 70 * math.sin(2 * math.pi * 133 * t))
     res2 = serial_check("x", BAUD, seconds=2, adapter_factory=lambda p, b: _Replayer(clean), mains_hz=60)
-    assert not [c for c in res2.report.checks if c.name == "mains hum"]
+    assert check(res2.report, "mains hum").level == PASS  # always reported: a missing line is not a PASS
 
 
 def test_clipping_at_the_declared_adc_limits_is_reported():
-    frames = _craft(lambda t: 4095 if int(t * 1000) % 5 == 0 else 2048 + (int(t * 1000) % 7))
-    res = serial_check("x", BAUD, seconds=2, adapter_factory=lambda p, b: _Replayer(frames))
+    heavy = _craft(lambda t: 4095 if int(t * 1000) % 5 == 0 else 2048 + (int(t * 1000) % 7))  # 20% railed
+    res = serial_check("x", BAUD, seconds=2, adapter_factory=lambda p, b: _Replayer(heavy))
     c = check(res.report, "emg clipping")
-    assert c.level == WARN and res.stats["emg"]["clipped_samples"] > 100
+    assert c.level == FAIL and res.stats["emg"]["clipped_samples"] > 100  # saturated input: not just a warning
+    light = _craft(lambda t: 4095 if int(t * 1000) % 400 == 0 else 2048 + 300 * math.sin(97 * t) + (int(t * 1000) % 7))
+    res2 = serial_check("x", BAUD, seconds=2, adapter_factory=lambda p, b: _Replayer(light))
+    assert check(res2.report, "emg clipping").level == WARN
 
 
 # ------------------------------------------------------------------------------ end to end: serve --profile on a fake device

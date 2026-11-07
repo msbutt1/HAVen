@@ -19,6 +19,8 @@ Adapters:
 from __future__ import annotations
 
 import glob
+import os
+import re
 import itertools
 import time
 import uuid
@@ -233,6 +235,30 @@ class ReplayAdapter(_PacedFrames):
                 "speed": self.speed, "fast": self.fast, "skipped_frames": len(self.skipped)}
 
 
+_KEEP_INPUT_CLASS = None
+
+
+def _keep_input_serial_class():
+    """A pyserial Serial that does not discard pending input while opening (real pyserial only; a test
+    double installed as ``serial.Serial`` is left alone)."""
+    global _KEEP_INPUT_CLASS
+    import serial
+
+    base = serial.Serial
+    if not str(getattr(base, "__module__", "")).startswith("serial"):
+        return None
+    if _KEEP_INPUT_CLASS is None or _KEEP_INPUT_CLASS.__base__ is not base:
+        class _KeepInputSerial(base):  # type: ignore[misc, valid-type]
+            _opening = False
+
+            def reset_input_buffer(self):
+                if self._opening:
+                    return  # keep whatever the firmware already sent
+                return super().reset_input_buffer()
+        _KEEP_INPUT_CLASS = _KeepInputSerial
+    return _KEEP_INPUT_CLASS
+
+
 class SerialAdapter(DeviceAdapter):
     """Real firmware over USB serial (NDJSON framing).
 
@@ -245,9 +271,15 @@ class SerialAdapter(DeviceAdapter):
     kind = "serial"
     clock = "host"
 
-    def __init__(self, port: str, baud: int = 921600):
+    def __init__(self, port: str, baud: int = 921600, dtr: bool | None = None, rts: bool | None = None):
+        """``dtr`` / ``rts``: leave None for the driver default (asserted at open). Auto-reset boards
+        (Arduino-style, ESP32 dev kits) restart their firmware whenever DTR is asserted, i.e. on every
+        open; pass False to avoid that. Native-USB boards that wait for the host (``while(!Serial)``)
+        need DTR, so the default stays on."""
         self.port_pattern = port
         self.baud = baud
+        self.dtr, self.rts = dtr, rts
+        self.candidates: list[str] = []  # every port the pattern matched at the last open
         self.port: str | None = None
         self._ser = None
         self._buf = bytearray()
@@ -255,14 +287,22 @@ class SerialAdapter(DeviceAdapter):
         self._discarding = False
         self.oversize_resyncs = 0  # visible in describe(): newline-free runs longer than one frame
         self.partial_discarded = 0  # first lines after (re)connect that could not be a frame
+        self.hello_recovered = 0    # a hello found glued behind boot text on that first line
         self._check_first = False
+        self._first_discard = False
+
+    @staticmethod
+    def _natural(name: str):
+        return [int(t) if t.isdigit() else t for t in re.split(r"(\d+)", name)]
 
     def _resolve(self) -> str:
         if any(c in self.port_pattern for c in "*?["):
-            matches = sorted(glob.glob(self.port_pattern))
+            matches = sorted(glob.glob(self.port_pattern), key=self._natural)  # ttyACM2 before ttyACM10
+            self.candidates = matches
             if not matches:
                 raise AdapterDisconnected(f"no port matches {self.port_pattern}")
             return matches[0]
+        self.candidates = [self.port_pattern]
         return self.port_pattern
 
     def open(self) -> None:
@@ -270,8 +310,39 @@ class SerialAdapter(DeviceAdapter):
 
         port = self._resolve()
         try:
-            self._ser = serial.Serial(port, self.baud, timeout=0)
-        except (serial.SerialException, OSError) as exc:
+            kw: dict = {"timeout": 0}
+            if os.name == "posix":
+                kw["exclusive"] = True  # a second program (serial monitor, another vg-backend) is refused, not interleaved
+            keep = _keep_input_serial_class()
+            if keep is not None:
+                # pyserial flushes the input buffer inside open(). A firmware that sends its hello the instant
+                # DTR rises (native USB, `while(!Serial)`) would lose it, so the flush is skipped on open.
+                ser = keep()
+                ser.port, ser.baudrate = port, self.baud
+                ser.timeout = 0
+                if "exclusive" in kw:
+                    ser.exclusive = True
+                if self.dtr is not None:
+                    ser.dtr = self.dtr
+                if self.rts is not None:
+                    ser.rts = self.rts
+                ser._opening = True
+                try:
+                    ser.open()
+                finally:
+                    ser._opening = False
+            elif self.dtr is None and self.rts is None:
+                ser = serial.Serial(port, self.baud, **kw)
+            else:  # set the modem lines BEFORE opening, so an auto-reset board is not reset by the open
+                ser = serial.Serial(**kw)
+                ser.port, ser.baudrate = port, self.baud
+                if self.dtr is not None:
+                    ser.dtr = self.dtr
+                if self.rts is not None:
+                    ser.rts = self.rts
+                ser.open()
+            self._ser = ser
+        except (serial.SerialException, OSError, ValueError) as exc:
             raise AdapterDisconnected(f"cannot open {port}: {exc}") from exc
         self.port = port
         self._buf.clear()
@@ -282,12 +353,14 @@ class SerialAdapter(DeviceAdapter):
         # validator as a visible invalid_record.
         self._discarding = False
         self._check_first = True
+        self._first_discard = False
 
     def _split(self) -> None:
         if self._check_first and self._buf:
             self._check_first = False
             if self._buf[:1] != b"{":
                 self._discarding = True
+                self._first_discard = True  # boot text may end without a newline, glued to the hello
                 self.partial_discarded += 1
         while True:
             nl = self._buf.find(b"\n")
@@ -297,13 +370,20 @@ class SerialAdapter(DeviceAdapter):
                     self._discarding = True
                     self.oversize_resyncs += 1
                     self._buf.clear()
-                elif self._discarding:
+                elif self._discarding and not (self._first_discard and len(self._buf) <= MAX_LINE_BYTES):
                     self._buf.clear()
+                    self._first_discard = False
                 return
             line = bytes(self._buf[:nl + 1])
             del self._buf[:nl + 1]
             if self._discarding:
                 self._discarding = False
+                if self._first_discard:
+                    self._first_discard = False
+                    k = line.rfind(b'{"schema"')  # a hello right behind unterminated boot text is kept
+                    if k >= 0:
+                        self.hello_recovered += 1
+                        self._ready.append(line[k:])
                 continue
             # an over-long line is passed on truncated either way; the validator rejects it
             self._ready.append(line if len(line) <= MAX_LINE_BYTES else line[:MAX_LINE_BYTES + 1])
@@ -344,7 +424,8 @@ class SerialAdapter(DeviceAdapter):
     def describe(self) -> dict:
         return {**super().describe(), "port": self.port, "port_pattern": self.port_pattern,
                 "baud": self.baud, "oversize_resyncs": self.oversize_resyncs,
-                "partial_discarded": self.partial_discarded}
+                "partial_discarded": self.partial_discarded, "hello_recovered": self.hello_recovered,
+                "port_candidates": self.candidates, "dtr": self.dtr, "rts": self.rts}
 
 
 def new_id(prefix: str) -> str:

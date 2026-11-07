@@ -446,7 +446,7 @@ class FakeLink:
         link = self
 
         class FakeSerial:
-            def __init__(self, port, baud, timeout=None):
+            def __init__(self, port, baud, timeout=None, **kwargs):
                 with link.lock:
                     if not link.connections:
                         raise serial.SerialException(f"could not open port {port}")

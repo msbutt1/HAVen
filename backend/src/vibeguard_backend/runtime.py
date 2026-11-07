@@ -295,6 +295,7 @@ class DeviceRuntime:
         self.last_rx_mono: float | None = None
         self.last_invalid: dict | None = None
         self.last_frame_error: str | None = None
+        self.warnings: list[str] = []  # e.g. profile facts that contradict what the device says
         self.silent = False
         self.last_valid_mono: float | None = None  # last record the processor accepted
         self.connected_mono: float | None = None   # when the link last came up
@@ -387,7 +388,7 @@ class DeviceRuntime:
             "data_fresh": self._data_fresh(),
             "counters": dict(self.counters.copy()), "events": dict(self.events.copy()),
             "last_invalid_frame": self.last_invalid, "last_frame_error": self.last_frame_error,
-            "started_at": self.started_at, "meta": self.meta,
+            "started_at": self.started_at, "meta": self.meta, "warnings": list(self.warnings),
         }
 
     def _data_fresh(self) -> bool:
@@ -446,11 +447,15 @@ class DeviceRuntime:
                         backoff = min(backoff * 2, 2.0)
                         continue
                     self._set_connection("connected", None)
-                    backoff = 0.25
+                    # backoff is NOT reset here: a port that opens and then fails to read (a USB device
+                    # that re-enumerates, a board stuck in reset) would otherwise be re-opened in a tight
+                    # loop, and every open resets an auto-reset board so it never finishes booting
                 try:
                     line = self.adapter.read_line(POLL_S)
                 except AdapterDisconnected as exc:
                     self._set_connection("disconnected", str(exc))
+                    self._idle(backoff)
+                    backoff = min(backoff * 2, 2.0)
                     continue
                 except EndOfStream:
                     self._end_of_stream()
@@ -458,6 +463,8 @@ class DeviceRuntime:
                 now = time.monotonic()
                 if line is not None:
                     self._on_line(line, now)
+                    if self.last_valid_mono is not None and self.last_valid_mono >= (self.connected_mono or 0.0):
+                        backoff = 0.25  # valid data has arrived on this connection: the link is healthy
                 self._tick(now)
         except Exception as exc:  # noqa: BLE001 - adapter failures we cannot recover from
             log.exception("runtime %s crashed", self.name)
@@ -658,6 +665,27 @@ class DeviceRuntime:
         self.hub.publish("device" if rtype in ("hello", "status") else "telemetry", self.name, record)
         return accepted
 
+    def _check_profile(self, hello: dict) -> None:
+        """Flag hardware-profile facts that contradict what the device says about itself."""
+        hp = self.meta.get("hardware_profile")
+        if not isinstance(hp, dict):
+            return
+        found = []
+        want = (hp.get("emg") or {}).get("channels")
+        got = len(((hello.get("streams") or {}).get("emg") or {}).get("channels") or [])
+        if want is not None and got and want != got:
+            found.append(f"profile_mismatch: the profile says {want} EMG channel(s), the device's hello says {got}")
+        imu_model = (hp.get("imu") or {}).get("model")
+        dev_model = ((hello.get("streams") or {}).get("imu") or {}).get("sensor_model")
+        if imu_model and dev_model and str(imu_model).lower() not in str(dev_model).lower() \
+                and str(dev_model).lower() not in str(imu_model).lower():
+            found.append(f"profile_mismatch: the profile says the IMU is '{imu_model}', the device says '{dev_model}'")
+        for w in found:
+            if w not in self.warnings:
+                self.warnings.append(w)
+                self.counters["profile_mismatch"] += 1
+                self.hub.publish("runtime", self.name, {"event": "profile_mismatch", "warning": w, "at": utc_now_iso()})
+
     def _commit_record(self, record: dict) -> None:
         dev, boot, prov = record["device_id"], record["boot_id"], record["provenance"]
         if boot != self.boot_id or record["type"] == "hello":
@@ -666,6 +694,7 @@ class DeviceRuntime:
         self.provenance = prov
         if record["type"] == "hello":
             self.hello = record
+            self._check_profile(record)
         elif record["type"] == "status":
             self.device_status = record
         s = self.session

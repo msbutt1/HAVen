@@ -152,11 +152,12 @@ def run_preflight(base: str = "http://127.0.0.1:8765", runtime: str = "wearable"
             win = feat.get("window") or {}
             nominal, measured = win.get("nominal_rate_hz"), win.get("measured_rate_hz")
             if nominal and measured:
+                from .hardware import RATE_PASS, RATE_WARN  # the same thresholds serial-check uses
                 dev = abs(measured - nominal) / nominal
-                if dev <= 0.02:
+                if dev <= RATE_PASS:
                     rep.add(PASS, f"{sname} sample rate", f"measured {measured:.1f} Hz vs nominal {nominal:g} Hz")
                 else:
-                    rep.add(WARN if dev <= 0.1 else FAIL, f"{sname} sample rate",
+                    rep.add(WARN if dev <= RATE_WARN else FAIL, f"{sname} sample rate",
                             f"measured {measured:.1f} Hz vs nominal {nominal:g} Hz ({dev * 100:.1f}% off)",
                             "check the timestamps and the configured sensor rate (uv run vg-backend serial-check)")
         hello = rt2.get("hello")
