@@ -19,7 +19,11 @@ from typing import Any
 
 from .. import contract
 from . import features
+from .calibration import LABEL, LABEL_NOTE, CalContext, CalibrationManager
 from .config import ProcessingConfig, StreamConfig
+from .emg import INPUT_ASSUMPTION, EmgPipeline
+from .score import ScoreEngine
+from .vibration import VibrationPipeline
 from .window import SampleWindow, WindowSample
 
 OUTPUT_SCHEMA = "vibeguard.features"
@@ -56,6 +60,7 @@ class _Stream:
         self.name = name
         self.cfg = cfg
         self.window: SampleWindow | None = None
+        self.on_reset = None  # algorithm state hook (EMG pipeline), called on every reset
         self.full_reset()
 
     def full_reset(self) -> None:
@@ -82,6 +87,8 @@ class _Stream:
         self.batch_flags.clear()
         self.segment_start: float | None = None
         self.unavailable_reason = reason
+        if self.on_reset is not None:
+            self.on_reset(reason)
 
     def configure_rate(self, rate: float, source: str) -> bool:
         """Set the expected rate; (re)build the bounded window. Returns True if changed."""
@@ -106,7 +113,18 @@ class Processor:
         self.device_id: str | None = None
         self.boot_id: str | None = None
         self._retired: deque[str] = deque(maxlen=self.config.retired_boot_memory)
+        self._emg = EmgPipeline(self.config.emg_processing)
+        self.calibration = CalibrationManager(self.config.calibration)
         self._streams = {s: _Stream(s, self.config.stream(s)) for s in STREAMS}
+        self._vib = VibrationPipeline(self.config.vibration, self.config.imu.conversion,
+                                      self.config.imu.conversion_source)
+        self.score = ScoreEngine(self.config.score)
+        self._pending: list[dict] = []  # score records produced while building features
+        self._streams["emg"].on_reset = self._emg.reset
+        # Every EMG reset (stream-level or a null sample inside a batch) reaches an active
+        # capture directly, even if the next batch alone completes the filter warm-up.
+        self._emg.reset_listener = self.calibration.on_signal_reset
+        self._streams["imu"].on_reset = self._vib.reset
         self._start_boot_state()
 
     # ------------------------------------------------------------------ API
@@ -143,6 +161,9 @@ class Processor:
             self._prov = _min_provenance(record["provenance"])
             self._event(out, "boot_change", None, None, record["seq"],
                         {"previous_boot_id": previous, "hello_received": record["type"] == "hello"})
+            if previous is not None:
+                self.calibration.on_boot_change()
+                self.score.on_boot_change()
 
         # Every rejection happens before any state is mutated: a duplicate or late
         # record must not change provenance, windows, or sequence state.
@@ -160,6 +181,10 @@ class Processor:
             self._event(out, "provenance_changed", None, None, seq,
                         {"previous": self._prov, "new": prov})
             self._prov = prov
+            self.calibration.invalidate("provenance_changed")
+            self.score.reset_accumulation()  # never sum live, simulated and replayed data
+            self._event(out, "score_accumulation_reset", None, None, seq,
+                        {"reason": "provenance_changed", "accumulation": self.score.accumulation})
             for st in self._streams.values():
                 self._invalidate(out, st, "provenance_changed", seq)
         self._remember_seq(seq)
@@ -173,7 +198,7 @@ class Processor:
         else:
             self._on_batch(out, "emg" if rtype == "emg_batch" else "imu", record, rx_time_s)
         self._check_stale(out, rx_time_s)
-        return out
+        return self._drain(out)
 
     def feed_invalid_frame(self, issues: list[contract.Issue], where: str | None = None) -> list[dict]:
         """Report a frame that could not even be decoded (transport-layer failure)."""
@@ -188,7 +213,7 @@ class Processor:
             raise ValueError("poll() is only meaningful in host clock mode")
         out: list[dict] = []
         self._check_stale(out, now_s)
-        return out
+        return self._drain(out)
 
     def finish(self) -> list[dict]:
         """End of input: no stream may keep looking current."""
@@ -196,6 +221,14 @@ class Processor:
         for st in self._streams.values():
             if st.last_t is not None:
                 self._invalidate(out, st, "end_of_input", self._seq_last)
+        self._drain(out)
+        # Finalise whatever is still pending; time no input reported is excluded as end_of_input.
+        self.score.flush("end_of_input")
+        final = self._base("experimental_score")
+        final.update({"t_us": None if self.score.newest is None else round(self.score.newest),
+                      "source_seq": self._seq_last, "trigger": "end_of_input",
+                      **self.score.snapshot(None)})
+        out.append(final)
         self._event(out, "end_of_input", None, None, self._seq_last, {})
         for name, st in self._streams.items():
             if st.window is not None:
@@ -204,12 +237,44 @@ class Processor:
                     self.summary.buffer_max_occupancy.get(name, 0), st.window.max_occupancy)
         return out
 
+    # -- calibration commands (backend calibration API calls these) ------------
+
+    def calibration_start(self, phase: str) -> list[dict]:
+        """Begin a 'relaxed' or 'squeeze' capture at the next usable EMG envelope update."""
+        self.calibration.start(phase, self._cal_ctx())
+        return self._drain([])
+
+    def calibration_cancel(self) -> list[dict]:
+        self.calibration.cancel()
+        return self._drain([])
+
+    def load_calibration(self, record: dict) -> list[dict]:
+        """Install an exported calibration record; it is used only while compatible."""
+        self.calibration.load(record, self._cal_ctx())
+        return self._drain([])
+
+    def calibration_record(self) -> dict | None:
+        """The active calibration (for persistence by the backend), or None."""
+        return self.calibration.active
+
     def buffer_sizes(self) -> dict[str, tuple[int, int]]:
         """(current length, capacity) per stream."""
         return {n: (len(s.window), s.window.capacity) if s.window else (0, 0)
                 for n, s in self._streams.items()}
 
     # ------------------------------------------------------------ internals
+
+    def _cal_ctx(self) -> CalContext:
+        return CalContext(self.device_id, self.boot_id, self._prov, self._emg.signature,
+                          self._emg.describe() if self._emg.signature else None)
+
+    def _drain(self, out: list[dict]) -> list[dict]:
+        events, self.calibration.events = self.calibration.events, []
+        for kind, detail, _ in events:
+            self._event(out, kind, "emg", self._streams["emg"].last_t, self._seq_last, detail)
+        out.extend(self._pending)
+        self._pending = []
+        return out
 
     def _start_boot_state(self) -> None:
         self._seq_last: int | None = None
@@ -318,6 +383,10 @@ class Processor:
                         {"channels": rec["channels"], "units": rec["units"]})
             st.reset("channels_changed")
         st.channels, st.units = list(rec["channels"]), dict(rec["units"])
+        if name == "emg":
+            self._emg.configure(st.rate, st.channels, st.units)  # type: ignore[arg-type]
+        else:
+            self._vib.configure(st.rate, st.channels, st.units)  # type: ignore[arg-type]
 
         if st.next_index is not None:
             if first < st.next_index:
@@ -366,16 +435,20 @@ class Processor:
 
         limits, _ = self._limits_for(st)
         overflowed = False
+        clip_list: list[bool | None] = []
         for t, row in zip(times, rec["samples"]):
             if limits is None:
                 clipped = None
             else:
                 clipped = any(v is not None and (v <= limits[0] or v >= limits[1]) for v in row)
+            clip_list.append(clipped)
             if st.segment_start is None and any(v is not None for v in row):
                 st.segment_start = t
             if st.segment_start is not None:
                 overflowed |= st.window.append(WindowSample(t, tuple(row), clipped))  # type: ignore[union-attr]
         st.window.evict_older_than(times[-1])  # type: ignore[union-attr]
+        pipeline = self._emg if name == "emg" else self._vib
+        pipeline.process(rec["samples"], clip_list, "clipped" in flags)
         st.batch_flags.append((times[-1], flags))
         while st.batch_flags and st.batch_flags[0][0] <= times[-1] - st.cfg.window_s * 1e6:
             st.batch_flags.popleft()
@@ -476,8 +549,36 @@ class Processor:
                 },
             },
         })
+        if st.name == "emg":
+            rec["features"]["emg_activation"] = act = self._emg_activation(t_end)
+            self.score.update_activation(t_end, act["normalized"])
+        else:
+            rec["features"]["vibration"] = vib = self._vib.state()
+            self.score.update_vibration(t_end, vib)
+        score = self._base("experimental_score")
+        score.update({"t_us": None if t_end is None else round(t_end), "source_seq": seq,
+                      "trigger": st.name, **self.score.snapshot(t_end)})
+        self._pending.append(score)
         self.summary.feature_status[st.name][status] += 1
         return rec
+
+    def _emg_activation(self, t_end: float | None) -> dict:
+        env = self._emg.state()
+        ctx = self._cal_ctx()
+        self.calibration.check_compatible(ctx)
+        self.calibration.observe(env, t_end, ctx)
+        out = {
+            "label": LABEL,
+            "label_note": LABEL_NOTE,
+            "input_assumption": INPUT_ASSUMPTION,  # unconfirmed: hardware bring-up requirement
+            "envelope": {"status": env.status, "reasons": list(env.reasons), "value": env.values,
+                         "units": env.units, "window_s": self.config.emg_processing.envelope_window_s},
+            "normalized": self.calibration.normalized(env, ctx),
+            "calibration": self.calibration.summary(),
+        }
+        if env.detail:
+            out["envelope"]["detail"] = env.detail
+        return out
 
 
 def _min_provenance(prov: dict) -> dict:

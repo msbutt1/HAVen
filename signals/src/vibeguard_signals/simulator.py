@@ -99,7 +99,33 @@ _HAPPY = (
     Phase(0.8, 1.0, activation=0.05),
 )
 
+def _f(seconds: float, total: float = 30.0) -> float:
+    return seconds / total
+
+
+# Scripted offline demo, designed for a 30 s run (phases scale with --duration).
+DEMO_TIMELINE = (
+    # (start_s, end_s, description)
+    (0.0, 4.0, "relaxed (relaxed calibration capture)"),
+    (4.0, 8.0, "stronger activation (squeeze calibration capture)"),
+    (8.0, 11.0, "relaxed, no vibration"),
+    (11.0, 15.0, "relaxed, synthetic vibration 0.5 g"),
+    (15.0, 19.0, "stronger activation + vibration 0.5 g"),
+    (19.0, 26.0, "moderate activation + vibration 0.3 g; faults at 19.5-20.5 s and 21.0-21.4 s"),
+    (26.0, 30.0, "relaxed, no vibration"),
+)
+_DEMO = Scenario(
+    "demo",
+    "Scripted 30 s offline demo: calibration, stronger activation, vibration on/off, "
+    "EMG disconnect (19.5-20.5 s) and transport loss (21.0-21.4 s), recovery.",
+    (Phase(_f(0), _f(4)), Phase(_f(4), _f(8), activation=0.8), Phase(_f(8), _f(11)),
+     Phase(_f(11), _f(15), vib_g=0.5), Phase(_f(15), _f(19), activation=0.8, vib_g=0.5),
+     Phase(_f(19), _f(26), activation=0.5, vib_g=0.3), Phase(_f(26), _f(30))),
+    (Fault("disconnect", _f(19.5), _f(20.5), "emg"), Fault("transport_loss", _f(21.0), _f(21.4))),
+)
+
 SCENARIOS: dict[str, Scenario] = {s.name: s for s in (
+    _DEMO,
     Scenario("happy_path", "Clean run: relaxed, stronger activation, vibration, both, relaxed. No faults.",
              _HAPPY),
     Scenario("relaxed", "Relaxed synthetic EMG, stationary IMU.", (Phase(0.0, 1.0),)),

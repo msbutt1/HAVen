@@ -1,7 +1,7 @@
 # vibeguard-signals
 
 Salaar-owned host-side reference package for VibeGuard. It holds the device telemetry
-contract, its validator, and a deterministic simulated wearable, and the host processing skeleton.
+contract, its validator, and a deterministic simulated wearable, and host processing (quality handling, EMG envelope, calibration, vibration features, experimental score).
 
 All data produced here is labelled simulated. Nothing here establishes clinical accuracy,
 calibrated grip force, or standards-compliant vibration dose.
@@ -9,6 +9,7 @@ calibrated grip force, or standards-compliant vibration dose.
 - Contract spec: [`contract/TELEMETRY_CONTRACT.md`](contract/TELEMETRY_CONTRACT.md) (proposed)
 - Simulator: [`SIMULATOR.md`](SIMULATOR.md)
 - Processing: [`PROCESSING.md`](PROCESSING.md)
+- Offline demo and replay: [`DEMO.md`](DEMO.md)
 - Commands, decisions, progress: [`HANDOFF.md`](HANDOFF.md)
 
 ```sh
