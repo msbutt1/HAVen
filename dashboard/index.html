@@ -1,0 +1,182 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VibeGuard dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <h1 class="brand">VibeGuard</h1>
+    <div class="devices" aria-live="polite">
+      <span class="device" id="dev-sleeve" data-state="disconnected"><span class="dot" aria-hidden="true"></span>Sleeve <b class="device-state">Disconnected</b></span>
+      <span class="device" id="dev-station" data-state="disconnected"><span class="dot" aria-hidden="true"></span>Station <b class="device-state">Disconnected</b></span>
+    </div>
+    <button id="btn-connect" class="btn">Connect</button>
+  </header>
+
+  <div id="source-band" class="source-band" data-source="none" role="status">Not connected. Press Connect to start the data feed.</div>
+  <div id="error-banner" class="error-banner" role="alert" hidden></div>
+
+  <nav class="tabs" role="tablist" aria-label="Screens">
+    <button role="tab" id="tab-live" data-view="live" aria-controls="view-live">Live</button>
+    <button role="tab" id="tab-calibrate" data-view="calibrate" aria-controls="view-calibrate">Calibrate</button>
+    <button role="tab" id="tab-station" data-view="station" aria-controls="view-station">Perception test</button>
+    <button role="tab" id="tab-history" data-view="history" aria-controls="view-history">History</button>
+  </nav>
+
+  <main>
+    <!-- LIVE -->
+    <section id="view-live" class="view" role="tabpanel" aria-labelledby="tab-live">
+      <p class="freshness" id="freshness" data-fresh="none">No data. Connect the sleeve.</p>
+      <div class="readouts">
+        <article class="readout" id="ro-activation">
+          <h2>Muscle activation</h2>
+          <p class="value"><span class="num" id="act-num">—</span><span class="unit">% of max squeeze</span></p>
+          <div class="meter" aria-hidden="true"><div class="meter-fill" id="act-fill"></div></div>
+          <p class="note" id="act-note">Not calibrated. Run calibration to see activation.</p>
+        </article>
+        <article class="readout" id="ro-vibration">
+          <h2>Wrist vibration</h2>
+          <p class="value"><span class="num" id="vib-num">—</span><span class="unit">m/s²</span></p>
+          <p class="note">Estimate from a hobby motion sensor. Not a standards-grade measurement.</p>
+        </article>
+        <article class="readout experimental" id="ro-score">
+          <h2>Exposure score <span class="tag tag-exp">Experimental</span></h2>
+          <p class="value"><span class="num" id="score-rate">—</span><span class="unit">points / min</span></p>
+          <p class="sub">This recording: <strong id="score-total">—</strong> points</p>
+          <p class="note">Placeholder formula that weights vibration by grip. Not a validated dose.</p>
+        </article>
+      </div>
+      <p class="quality" id="quality" hidden></p>
+
+      <div class="charts">
+        <figure class="chart"><figcaption><span class="swatch sw-act"></span>Muscle activation, last 30 s</figcaption><canvas id="chart-act"></canvas></figure>
+        <figure class="chart"><figcaption><span class="swatch sw-vib"></span>Wrist vibration, last 30 s</figcaption><canvas id="chart-vib"></canvas></figure>
+        <figure class="chart"><figcaption><span class="swatch sw-score"></span>Exposure score rate (experimental), last 30 s</figcaption><canvas id="chart-score"></canvas></figure>
+      </div>
+
+      <div class="recording-bar">
+        <button id="btn-record" class="btn btn-primary">Start recording</button>
+        <span id="rec-status" class="rec-status">Connect the sleeve to record.</span>
+      </div>
+    </section>
+
+    <!-- CALIBRATE -->
+    <section id="view-calibrate" class="view" role="tabpanel" aria-labelledby="tab-calibrate" hidden>
+      <div class="cal-layout">
+        <div>
+          <ol class="cal-steps" id="cal-steps">
+            <li data-step="relax">Relax your forearm <span>3 s</span></li>
+            <li data-step="squeeze">Squeeze as hard as you can <span>3 s</span></li>
+            <li data-step="done">Saved</li>
+          </ol>
+          <div class="cal-stage">
+            <p class="cal-prompt" id="cal-prompt">Put the sleeve on, rest your arm on the table, then start.</p>
+            <p class="cal-count" id="cal-count" aria-hidden="true"></p>
+            <div class="bar"><div class="bar-fill" id="cal-bar"></div></div>
+          </div>
+          <div class="row">
+            <button id="btn-calibrate" class="btn btn-primary">Start calibration</button>
+            <span class="hint" id="cal-hint"></span>
+          </div>
+        </div>
+        <div>
+          <figure class="chart chart-tall"><figcaption><span class="swatch sw-act"></span>Raw muscle signal (envelope), last 15 s</figcaption><canvas id="chart-raw"></canvas></figure>
+          <dl class="cal-result" id="cal-result">
+            <div><dt>Rest level</dt><dd id="cal-rest">—</dd></div>
+            <div><dt>Max squeeze level</dt><dd id="cal-max">—</dd></div>
+            <div><dt>Calibrated</dt><dd id="cal-at">Not yet</dd></div>
+          </dl>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATION -->
+    <section id="view-station" class="view" role="tabpanel" aria-labelledby="tab-station" hidden>
+      <div id="st-idle" class="st-panel">
+        <p class="lead">Finds the lowest motor setting the person reports feeling at their fingertip.</p>
+        <fieldset class="modes">
+          <legend>Test length</legend>
+          <label><input type="radio" name="st-mode" value="preview" checked> Short preview, 6 trials (about 30 s)</label>
+          <label><input type="radio" name="st-mode" value="full"> Full session, runs until 8 reversals</label>
+        </fieldset>
+        <div class="row">
+          <button id="btn-st-start" class="btn btn-primary">Start test</button>
+          <span class="hint" id="st-hint"></span>
+        </div>
+      </div>
+
+      <div id="st-running" class="st-panel" hidden>
+        <div class="st-head">
+          <span id="st-progress" class="st-progress">Trial 1</span>
+          <button id="btn-st-abort" class="btn btn-danger">Abort test</button>
+        </div>
+        <p class="st-prompt" id="st-prompt">Keep your fingertip on the motor.</p>
+        <div class="bar"><div class="bar-fill" id="st-window"></div></div>
+        <div class="st-buttons">
+          <button id="btn-felt" class="btn btn-big" disabled>Felt it <kbd>F</kbd></button>
+          <button id="btn-notfelt" class="btn btn-big" disabled>Didn’t feel it <kbd>N</kbd></button>
+        </div>
+        <p class="note">No answer within the window is saved as a missing response, not as “didn’t feel it”.</p>
+      </div>
+
+      <div id="st-complete" class="st-panel" hidden>
+        <p class="st-result"><span class="num" id="st-threshold">—</span><span class="unit">threshold, motor setting out of 255</span></p>
+        <p class="note" id="st-result-note"></p>
+        <button id="btn-st-again" class="btn">Run another test</button>
+      </div>
+
+      <p class="st-msg" id="st-msg" role="status" hidden></p>
+
+      <table class="log" id="st-log">
+        <caption>Trials in this test</caption>
+        <thead><tr><th scope="col">Trial</th><th scope="col">Motor setting</th><th scope="col">Response</th><th scope="col">Response time</th></tr></thead>
+        <tbody id="st-log-rows"></tbody>
+      </table>
+      <p class="note">Motor settings are drive levels sent to the motor, not measured vibration amplitudes.</p>
+    </section>
+
+    <!-- HISTORY -->
+    <section id="view-history" class="view" role="tabpanel" aria-labelledby="tab-history" hidden>
+      <h2 class="section-title">Saved since this page opened</h2>
+      <p class="empty" id="hist-empty">Nothing saved yet. Record a session on the Live screen or run a perception test.</p>
+      <table class="log" id="hist-table" hidden>
+        <thead><tr><th scope="col">Saved</th><th scope="col">What</th><th scope="col">Data source</th><th scope="col">Summary</th></tr></thead>
+        <tbody id="hist-rows"></tbody>
+      </table>
+
+      <div class="sim-block">
+        <div class="sim-head">
+          <h2 class="section-title">Example worker over 12 weeks</h2>
+          <span class="tag tag-sim">Simulated</span>
+        </div>
+        <p class="note">Made-up data showing how trends would appear over months of use. Time is compressed. These are not real measurements.</p>
+        <figure class="chart chart-tall"><figcaption><span class="swatch sw-score"></span>Weekly exposure score (experimental)</figcaption><canvas id="chart-hist-score"></canvas></figure>
+        <figure class="chart chart-tall"><figcaption><span class="swatch sw-act"></span>Weekly perception threshold (motor setting, higher means less sensitive)</figcaption><canvas id="chart-hist-threshold"></canvas></figure>
+        <p class="flag" id="hist-flag"></p>
+      </div>
+    </section>
+  </main>
+
+  <aside id="mock-panel" class="mock-panel" hidden aria-label="Mock controls">
+    <h2>Mock controls</h2>
+    <button id="mk-squeeze" class="btn btn-small">Hold to squeeze <kbd>S</kbd></button>
+    <label class="toggle"><input type="checkbox" id="mk-vibe"> Tool running</label>
+    <button id="mk-drop" class="btn btn-small">Drop connection</button>
+    <button id="mk-error" class="btn btn-small">Inject sleeve error</button>
+  </aside>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/contract.js"></script>
+  <script src="js/mock-adapter.js"></script>
+  <script src="js/ws-adapter.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>
