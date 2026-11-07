@@ -50,11 +50,16 @@ def test_results_over_a_simulated_controller_are_never_labelled_live():
     assert link.provenance["source"] == "simulated" and engine.result["provenance"]["source"] == "simulated"
 
 
-def test_a_real_transport_is_labelled_live():
-    class Wire:  # stand-in for a serial port; no simulation flag
+def test_only_a_transport_that_says_it_is_real_hardware_is_labelled_live():
+    class Wire:
         def write_line(self, line): pass
         def read_lines(self): return []
-    assert LinkStationAdapter(Wire(), lambda: 0.0, lambda s: None).provenance["source"] == "live"
+
+    class Real(Wire):
+        is_simulated = False
+    # Fails closed: a transport that says nothing is NOT live.
+    assert LinkStationAdapter(Wire(), lambda: 0.0, lambda s: None).provenance["source"] == "simulated"
+    assert LinkStationAdapter(Real(), lambda: 0.0, lambda s: None).provenance["source"] == "live"
 
 
 def test_abort_over_the_link_sends_stop_and_waits_for_the_motor_off_ack():

@@ -136,6 +136,7 @@ Host → controller, `schema: vibeguard.station_command`:
 
 | `type` | Fields | Meaning |
 |---|---|---|
+| `hello` | `command_id` | identify yourself; answered with a `hello` below |
 | `deliver_stimulus` | `command_id`, `trial_id`, `setting` (int ≥ 0), `duration_ms` | run the motor at that setting for that long; setting 0 = motor off (catch trial) |
 | `stop_stimulus` | `command_id` | motor off now |
 
@@ -143,15 +144,29 @@ Controller → host, `schema: vibeguard.station_link`:
 
 | `type` | Fields | Meaning |
 |---|---|---|
+| `hello` | `command_id?`, `firmware: {name, version}`, `setting_range: {min, max}` | sent on boot and in answer to a `hello` command. `setting_range` is the motor settings the controller accepts (integers, `1 <= min < max`; 0 is always "off"); **the host scales the staircase to it**, replacing the assumed 1–100 placeholder. A hello with no `command_id` after the handshake means the controller rebooted: the host ends the session in `error` |
 | `ack` | `command_id`, `status` (`accepted`\|`rejected`\|`completed`), `reason?` | `deliver_stimulus` is `accepted` (or `rejected`); `stop_stimulus` is `completed` once the motor is confirmed off |
 | `stimulus_started` / `stimulus_ended` | `trial_id`, `device_t_us` | motor timing |
 | `response` | `response` (`felt`\|`not_felt`), `device_t_us`, `trial_id?` | button press |
 | `error` | `message` | controller fault; ends the session in `error` |
 
-The host treats a missing `ack` within 1 s as a fault and a missing stop confirmation within
-0.5 s as `abort_stop_not_confirmed`. Lines that are not valid link messages are counted and
-ignored. Questions for Salaar: which two buttons map to felt / not felt, the motor driver
-setting range, and whether `device_t_us` shares a timebase with the wearable stream.
+The host sends `hello` when it connects and resends it every second for up to 5 s (a board that
+resets when the port opens misses the first one; its boot-time hello also counts). It refuses to
+send a setting outside the reported range. It treats a missing `ack` within 1 s as a fault and a
+missing stop confirmation within 0.5 s as `abort_stop_not_confirmed`. The next stimulus is never
+sent while the previous one is still running (`busy` is a rejection). A stop is sent whenever a
+session ends. Lines that are not valid link messages are counted and ignored.
+Defaults: 115200 baud, USB serial, one line per message, lines up to 255 bytes. Ids are 1–64
+characters; session ids are limited to 58 so that trial ids (`<session_id>-tNNN`) fit.
+A `stop_stimulus` is honoured as soon as the controller recognises it, even if the rest of the
+line is damaged; any other command must be a single flat, well-formed object (no junk before or
+after, no repeated keys) or it is ignored or rejected. A source is labelled `live` only when the
+transport explicitly says it is real hardware; anything else is labelled `simulated`.
+
+A reference controller implementation is in `firmware/station_controller/` (protocol core tested
+on a PC against this contract; board layer uncompiled). Open questions for Salaar: whether he
+adopts it or replaces it, the real motor driver range, and whether `device_t_us` shares a
+timebase with the wearable stream.
 
 ## Files
 

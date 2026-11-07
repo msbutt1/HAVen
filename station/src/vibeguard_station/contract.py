@@ -178,7 +178,9 @@ def validate_command(c) -> list[str]:
     if not (isinstance(c.get("command_id"), str) and _ID.match(c["command_id"])):
         p.append("command_id: invalid")
     kind = c.get("type")
-    if kind == "deliver_stimulus":
+    if kind == "hello":
+        pass
+    elif kind == "deliver_stimulus":
         if not (isinstance(c.get("trial_id"), str) and _ID.match(c["trial_id"])):
             p.append("trial_id: invalid")
         if not (_is_int(c.get("setting")) and c["setting"] >= 0):
@@ -186,7 +188,7 @@ def validate_command(c) -> list[str]:
         if not (_is_int(c.get("duration_ms")) and c["duration_ms"] >= 1):
             p.append("duration_ms: must be an integer >= 1")
     elif kind != "stop_stimulus":
-        p.append("type: must be 'deliver_stimulus' or 'stop_stimulus'")
+        p.append("type: must be 'hello', 'deliver_stimulus' or 'stop_stimulus'")
     return p
 
 
@@ -208,6 +210,13 @@ def validate_link_message(m) -> list[str]:
             p.append("device_t_us: must be an integer >= 0")
         if kind == "response" and m.get("response") not in RESPONSES:
             p.append(f"response: must be one of {RESPONSES}")
+    elif kind == "hello":
+        fw, rng = m.get("firmware"), m.get("setting_range")
+        if not (isinstance(fw, dict) and isinstance(fw.get("name"), str) and isinstance(fw.get("version"), str)):
+            p.append("firmware: must be {name, version}")
+        if not (isinstance(rng, dict) and _is_int(rng.get("min")) and _is_int(rng.get("max"))
+                and 1 <= rng["min"] < rng["max"]):
+            p.append("setting_range: must be {min, max} integers with 1 <= min < max")
     elif kind == "error":
         if not isinstance(m.get("message"), str):
             p.append("message: required")

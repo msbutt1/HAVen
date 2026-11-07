@@ -5,10 +5,14 @@ object per line, UTF-8, NDJSON). Salaar owns the firmware side; nothing here
 has run against hardware. See ``contract/STATION_CONTRACT.md``.
 
 Host -> controller (``vibeguard.station_command``):
+    hello            {command_id}                                   (ask the controller to identify itself)
     deliver_stimulus {command_id, trial_id, setting, duration_ms}   (setting 0 = motor off)
     stop_stimulus    {command_id}                                   (motor off NOW)
 
 Controller -> host (``vibeguard.station_link``):
+    hello             {command_id?, firmware: {name, version}, setting_range: {min, max}}
+                      (sent on boot and in answer to ``hello``; the range is the motor settings
+                      the controller accepts, 0 = off. A hello with no request means it rebooted.)
     ack               {command_id, status: accepted | rejected | completed, reason?}
     stimulus_started  {trial_id, device_t_us}
     stimulus_ended    {trial_id, device_t_us}
@@ -31,6 +35,7 @@ from .adapters import AdapterError, AdapterEvent, SimulatedStationAdapter
 COMMAND_SCHEMA = "vibeguard.station_command"
 LINK_SCHEMA = "vibeguard.station_link"
 VERSION = 1
+MAX_LINE_CHARS = 4096  # longest line parsed; real messages are under 400 characters
 
 
 class LineTransport(Protocol):
@@ -61,14 +66,23 @@ class LinkStationAdapter:
         self._awaiting_ack: dict[str, float] = {}  # command_id -> time sent
         self._buffer: list[AdapterEvent] = []
         self.malformed_lines = 0  # garbage on the link is counted, never used
+        self.device_info: dict | None = None  # from the controller's hello
+        self._handshake_done = False
+        self._hello_ids: set[str] = set()  # replies to these are ours, not a reboot
 
     @property
     def provenance(self) -> dict:
-        # "live" only when the transport is real; a simulated transport can never claim it.
-        simulated = getattr(self._tx, "is_simulated", False)
-        prov = {"source": "simulated" if simulated else "live"}
-        if self._detail:
-            prov["detail"] = dict(self._detail)
+        # Fails closed: "live" only when the transport explicitly says it is real hardware
+        # (``is_simulated = False``). Anything else, including a transport that says nothing, is
+        # labelled simulated, so a fake can never present itself as live.
+        real = getattr(self._tx, "is_simulated", True) is False
+        prov = {"source": "live" if real else "simulated"}
+        detail = dict(self._detail)
+        if self.device_info:
+            fw = self.device_info["firmware"]
+            detail["firmware"] = f"{fw['name']} {fw['version']}"
+        if detail:
+            prov["detail"] = detail
         return prov
 
     # -- commands ---------------------------------------------------------------
@@ -84,9 +98,57 @@ class LinkStationAdapter:
         return cid
 
     def deliver_stimulus(self, trial_id: str, setting: int, duration_ms: int) -> None:
+        if self.device_info and setting != 0:
+            rng = self.device_info["setting_range"]
+            if not rng["min"] <= setting <= rng["max"]:
+                raise AdapterError(f"setting {setting} is outside the controller's range "
+                                   f"{rng['min']}-{rng['max']}")
         cid = self._send({"type": "deliver_stimulus", "trial_id": trial_id,
                           "setting": int(setting), "duration_ms": int(duration_ms)})
         self._awaiting_ack[cid] = self._clock()
+
+    def request_hello(self, timeout_s: float = 5.0, retry_s: float = 1.0) -> dict:
+        """Handshake: learn the controller's firmware and motor-setting range (blocks briefly).
+
+        A boot-time hello already in flight also satisfies it. Raises ``AdapterError`` if the
+        controller does not answer or reports an unusable range.
+        """
+        # Resend while waiting: an ESP32 often resets when the port opens and misses the first one.
+        # Its boot-time hello (no command_id) also counts.
+        self._hello_ids.add(self._send({"type": "hello"}))
+        now = self._clock()
+        deadline, next_try = now + timeout_s, now + retry_s
+        while True:
+            answer = None
+            for msg in self._read():
+                if msg.get("type") == "hello" and answer is None:
+                    answer = msg
+                else:  # keep everything else in the batch (a button press right after the hello)
+                    self._buffer.extend(self._to_events([msg]))
+            if answer is not None:
+                self.device_info = self._parse_hello(answer)
+                self._handshake_done = True
+                return self.device_info
+            now = self._clock()
+            if now >= deadline:
+                raise AdapterError("controller did not answer hello (check port, baud rate and firmware)")
+            if now >= next_try:
+                self._hello_ids.add(self._send({"type": "hello"}))
+                next_try = now + retry_s
+            self._sleep(0.01)
+
+    @staticmethod
+    def _parse_hello(msg: dict) -> dict:
+        fw, rng = msg.get("firmware"), msg.get("setting_range")
+        ok = (isinstance(fw, dict) and isinstance(fw.get("name"), str) and isinstance(fw.get("version"), str)
+              and isinstance(rng, dict) and all(isinstance(rng.get(k), int) and not isinstance(rng.get(k), bool)
+                                                for k in ("min", "max")))
+        if not ok:
+            raise AdapterError("controller hello is malformed")
+        if not 1 <= rng["min"] < rng["max"]:
+            raise AdapterError(f"controller reports an unusable setting range {rng['min']}-{rng['max']}")
+        return {"firmware": {"name": fw["name"], "version": fw["version"]},
+                "setting_range": {"min": rng["min"], "max": rng["max"]}}
 
     def stop_stimulus(self) -> None:
         """Send stop and wait (briefly) for the motor-off confirmation."""
@@ -112,9 +174,12 @@ class LinkStationAdapter:
             raise AdapterError(f"link read failed: {exc}") from exc
         out = []
         for raw in lines:
+            if len(raw) > MAX_LINE_CHARS:  # no valid message is anywhere near this long
+                self.malformed_lines += 1
+                continue
             try:
                 msg = json.loads(raw)
-            except ValueError:
+            except (ValueError, RecursionError):  # e.g. 100000 nested brackets
                 self.malformed_lines += 1
                 continue
             if (not isinstance(msg, dict) or msg.get("schema") != LINK_SCHEMA
@@ -141,6 +206,9 @@ class LinkStationAdapter:
                 self.malformed_lines += 1
                 continue
             if kind == "ack":
+                if m.get("status") not in ("accepted", "rejected", "completed"):
+                    self.malformed_lines += 1  # an ack with no usable status acknowledges nothing
+                    continue
                 self._awaiting_ack.pop(m.get("command_id"), None)
                 if m.get("status") == "rejected":
                     events.append(AdapterEvent("fault", now, detail=f"command rejected: {m.get('reason')}"))
@@ -149,6 +217,11 @@ class LinkStationAdapter:
             elif kind == "response":
                 events.append(AdapterEvent("response", now, response=m.get("response"),
                                            source="button", trial_id=m.get("trial_id")))
+            elif kind == "hello":
+                # Only reached when nobody asked: after the handshake this means the controller
+                # rebooted (the motor is off, the trial is lost).
+                if self._handshake_done and m.get("command_id") not in self._hello_ids:
+                    events.append(AdapterEvent("fault", now, detail="controller restarted during the session"))
             elif kind == "error":
                 events.append(AdapterEvent("fault", now, detail=f"controller error: {m.get('message')}"))
         return events
@@ -174,9 +247,11 @@ class SimulatedController:
 
     is_simulated = True  # read by LinkStationAdapter so results are labelled simulated
 
-    def __init__(self, clock: Callable[[], float], sim: SimulatedStationAdapter):
+    def __init__(self, clock: Callable[[], float], sim: SimulatedStationAdapter, *,
+                 setting_range: tuple[int, int] = (1, 100)):
         self._clock = clock
         self.sim = sim
+        self.setting_range = setting_range
         self._out: list[str] = []
         self.received: list[dict] = []
         self.reject_commands = False
@@ -188,7 +263,13 @@ class SimulatedController:
         if self.silent:
             return
         cid = msg["command_id"]
-        if msg["type"] == "deliver_stimulus":
+        if msg["type"] == "hello":
+            lo, hi = self.setting_range
+            self._out.append(encode({"schema": LINK_SCHEMA, "version": VERSION, "type": "hello",
+                                     "command_id": cid,
+                                     "firmware": {"name": "simulated-station-controller", "version": "0"},
+                                     "setting_range": {"min": lo, "max": hi}}))
+        elif msg["type"] == "deliver_stimulus":
             if self.reject_commands:
                 self._out.append(encode({"schema": LINK_SCHEMA, "version": VERSION, "type": "ack",
                                          "command_id": cid, "status": "rejected", "reason": "simulated rejection"}))

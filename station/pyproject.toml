@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "VibeGuard station: vibration-perception staircase test engine, simulated adapter, and result records (Fahad-owned)."
 readme = "README.md"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "pyserial>=3.5",
+]
 
 [project.scripts]
 vg-station = "vibeguard_station.cli:main"

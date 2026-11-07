@@ -1,9 +1,14 @@
-"""``vg-station``: run a SIMULATED station session, or regenerate the example payloads.
+"""``vg-station``: station test runner.
 
-    vg-station run --mode preview --seed 1 --out out/station
-    vg-station examples --out contract/examples
+    vg-station run --mode preview --seed 1 --out out/station   # instant SIMULATED session
+    vg-station examples --out contract/examples                # regenerate example payloads
+    vg-station ports                                           # list serial ports
+    vg-station selftest --port COM5                            # first check after wiring
+    vg-station live --port COM5 --mode preview                 # real-time test on the controller
+    vg-station live --simulate --mode preview                  # same path, no hardware
 
-Every run here uses the simulated adapter and is labelled simulated.
+``run`` always uses the simulated adapter. ``live`` and ``selftest`` talk to the controller
+(or, with --simulate, a simulated one); simulated runs are labelled simulated.
 """
 
 from __future__ import annotations
@@ -90,6 +95,23 @@ def main(argv=None) -> int:
     run.add_argument("--session-id", default=None)
     run.add_argument("--out", default="out/station")
     run.set_defaults(func=cmd_run)
+    from .hardware_cli import cmd_live, cmd_ports, cmd_selftest
+    sub.add_parser("ports", help="list serial ports").set_defaults(func=cmd_ports)
+    for name, fn, helptext in (("selftest", cmd_selftest, "check wiring: hello, stop, motor pulses, buttons"),
+                               ("live", cmd_live, "run a real-time test on the controller")):
+        sp = sub.add_parser(name, help=helptext)
+        sp.add_argument("--port", default=None, help="serial port, e.g. COM5")
+        sp.add_argument("--baud", type=int, default=115200)
+        sp.add_argument("--simulate", action="store_true", help="use a simulated controller (no hardware)")
+        if name == "selftest":
+            sp.add_argument("--no-motor", action="store_true", help="skip the motor pulses")
+            sp.add_argument("--button-wait", type=float, default=15.0, help="seconds to wait for each button")
+        else:
+            sp.add_argument("--mode", choices=("full", "preview"), default="preview")
+            sp.add_argument("--seed", type=int, default=1)
+            sp.add_argument("--session-id", default=None)
+            sp.add_argument("--results-dir", default="results")
+        sp.set_defaults(func=fn)
     ex = sub.add_parser("examples", help="regenerate contract/examples/*.json")
     ex.add_argument("--out", default="contract/examples")
     ex.set_defaults(func=cmd_examples)

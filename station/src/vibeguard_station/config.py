@@ -8,7 +8,7 @@ driver; ``setting_range_source`` records that in every saved result.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 
 MODES = ("full", "preview")
 STIMULUS_UNITS = "motor_setting"
@@ -49,6 +49,19 @@ class StationConfig:
                     max_trials=20, catch_probability=0.0)
         base.update(overrides)
         return cls(mode="preview", **base)
+
+    def for_device_range(self, lo: int, hi: int) -> "StationConfig":
+        """Rescale the staircase to the motor-setting range the controller reported.
+
+        Start at 60 % of the range and step by 5 % (10 % in preview), the same proportions as the
+        defaults. The range source becomes ``device_hello`` instead of the assumed placeholder.
+        """
+        span = hi - lo
+        step = max(1, round(span / 20)) * (2 if self.mode == "preview" else 1)
+        cfg = replace(self, min_setting=lo, max_setting=hi, start_setting=lo + round(0.6 * span),
+                      step=step, setting_range_source="device_hello")
+        cfg.validate()
+        return cfg
 
     def validate(self) -> None:
         if self.mode not in MODES:

@@ -48,9 +48,12 @@ from .store import AlreadySavedError
 from .records import (EVENT_SCHEMA, RESPONSES, VERSION, Counters, TrialRecord, build_result)
 from .staircase import Staircase
 
+STIMULUS_MARGIN_S = 0.05
 STATES = ("ready", "testing", "completed", "aborted", "error")
 SOURCES = ("live", "simulated", "replay")
-_ID = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
+# 58, not 64: trial ids are "<session_id>-tNNN" and must fit the 64-character id limit that the
+# controller enforces.
+_ID = re.compile(r"^[A-Za-z0-9._:-]{1,58}$")
 
 
 class StationStateError(Exception):
@@ -74,7 +77,7 @@ class StationEngine:
         self._wall = wall_clock
         self.session_id = f"station-{uuid.uuid4().hex[:12]}" if session_id is None else session_id
         if not _ID.match(self.session_id):
-            raise ValueError("session_id must be 1-64 characters of [A-Za-z0-9._:-]")
+            raise ValueError("session_id must be 1-58 characters of [A-Za-z0-9._:-]")
         prov = copy.deepcopy(adapter.provenance)
         if prov.get("source") not in SOURCES:
             raise ValueError(f"adapter provenance.source must be one of {SOURCES}")
@@ -345,6 +348,7 @@ class StationEngine:
             trial.response_status = status
         if note is not None:
             trial.note = note
+        stimulus_end = self._cmd_t + self.cfg.stimulus_ms / 1000.0  # the motor may still be running
         self._current = None
         self._deadline = None
         self._cmd_t = None
@@ -360,7 +364,10 @@ class StationEngine:
         if reason is not None:
             self._finish("completed", reason)
         else:
-            self._pending_at = self._clock() + self.cfg.inter_trial_s
+            # Never start the next stimulus while the previous one is still running (the controller
+            # would reject it as busy), however quickly the person answered.
+            # A small margin covers link latency between our clock and the controller's timer.
+            self._pending_at = max(self._clock() + self.cfg.inter_trial_s, stimulus_end + STIMULUS_MARGIN_S)
 
     def _fail(self, error: str) -> None:
         """Adapter failure: try to stop the motor, close the trial, end in ``error``."""
@@ -380,6 +387,11 @@ class StationEngine:
         self._current = None
         self._deadline = None
         self._pending_at = None
+        if state == "completed":
+            try:  # the last answer may have come mid-stimulus: make sure the motor is off
+                self.adapter.stop_stimulus()
+            except Exception:
+                self._counters.stop_not_confirmed = True
         self.state = state
         duration = self._clock() - self._t0
         self.result = build_result(

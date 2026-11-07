@@ -1,5 +1,9 @@
 # VibeGuard station — status and handoff
 
+> **FOR TEAMMATES (Ali, Abduljabbar, Salaar, Collins).** This is Fahad's handoff for the
+> station test engine. Find your section under "For teammates" below, and note the
+> assumptions that need your confirmation.
+
 **Owner:** Fahad (station engine, integration). **Status (2026-11-07):** the engine, simulated
 adapter, controller-link adapter (against a simulated controller), records, validators, local
 store, CLI and example payloads are built and tested. Everything was verified on **simulated
@@ -20,6 +24,14 @@ uv run vg-station run --abort-after 3                     # abort path
 uv run vg-station examples                                # regenerate contract/examples/
 ```
 
+## Ready to connect
+
+When the wiring and firmware exist, follow [`HARDWARE.md`](HARDWARE.md): `vg-station ports`,
+`vg-station selftest --port COMx`, then `vg-station live --port COMx --mode preview`. The laptop side
+(serial transport, handshake, real-time runner, self-test, result saving) is built and tested against
+simulated controllers, a pyserial loopback port, and a compiled PC build of the reference firmware core.
+Not yet run against a real ESP32, motor or buttons. `vg-station live --simulate` rehearses the whole path.
+
 ## What is built
 
 | Module | Purpose |
@@ -33,6 +45,9 @@ uv run vg-station examples                                # regenerate contract/
 | `store.py` | `ResultStore`: one JSON file per session, never overwritten |
 | `contract.py` | Validators for results, trials, events, commands, link messages |
 | `simulation.py`, `examples.py`, `cli.py` | Virtual-time driver, example generator, `vg-station` |
+| `serial_transport.py`, `live.py`, `selftest.py`, `hardware_cli.py` | USB serial transport (pyserial), real-time runner, hardware self-test, `ports` / `selftest` / `live` commands |
+| `firmware/station_controller/` | **Reference** ESP32 controller: portable protocol core (tested on a PC) + board sketch (uncompiled, pins unset on purpose) |
+| `HARDWARE.md` | Wiring checklist, bring-up steps, troubleshooting |
 
 ## Acceptance checks (from `project-plan/Fahad/Fahad_05_testing_and_acceptance.md`)
 
@@ -79,10 +94,20 @@ stamped when polled (a stalled UI loop can turn a valid press into a missing one
 without a trial id can be misattributed if `inter_trial_s` is 0; no locking, so call
 `abort()` and `tick()` from one thread.
 
+A second review of the hardware path (serial transport, handshake, reference firmware) found 8
+more issues, all fixed with regression tests in `tests/test_review_fixes2.py`: the sketch would not
+compile on Arduino-ESP32 core 2.x; session ids of 59+ characters made every trial fail (limit is now
+58); a transport that said nothing was labelled live (now fails closed to simulated); a garbage line
+could raise `RecursionError`; the controller could answer "busy" just after a stimulus ended; the
+controller's JSON reader accepted leading/trailing junk and ignored a damaged stop; an ack without a
+valid status counted as accepted; events right after the hello were dropped.
+
 ## Not done / deferred
 
-- No real serial transport (`LinkStationAdapter` takes any `LineTransport`; a pyserial one
-  waits for the board and Salaar's firmware).
+- Nothing has run on real hardware: the serial transport, the handshake and the reference
+  firmware are tested only against simulation, a pyserial loopback port and a PC build of the core.
+  The `.ino` board layer has never been compiled (no ESP32 toolchain on this PC). Pins, PWM
+  frequency and the motor driver are Collins's to confirm.
 - No pressure-pad (Velostat) gating; contact pressure is reported as uncontrolled.
 - Persistence into the backend; the local `ResultStore` is the stand-in.
 - No UI. No integration checklist / failure log, pitch, slides or submission material yet.
