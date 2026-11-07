@@ -1,0 +1,8 @@
+# The chip target is passed explicitly by tools/build.sh.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+# UART0 (CP2102 USB bridge) carries ONLY telemetry: no console, no logs.
+# The ESP32 boot ROM still prints a short banner at reset (it cannot be
+# disabled by Kconfig on ESP32); the host skips undecodable lines.
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_LOG_DEFAULT_LEVEL_NONE=y
+CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
