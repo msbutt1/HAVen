@@ -1,10 +1,11 @@
 {
-  "_comment": "Copy to hardware.json and fill in ONLY what Collins has confirmed. Nothing here is a real measurement: 'name' and the EMG output type are the only required facts. Leave out imu.counts_per_g until the sensor and its range are confirmed: without it vibration stays in raw counts and the score is unavailable (by design). emg.output defaults to raw when omitted, which is the pipeline's assumption: confirm it with `serial-check` ('emg is raw'), do not rely on the default.",
-  "name": "wearable-v1-bench",
-  "port": "/dev/cu.usbmodem*",
+  "_comment": "Copy to hardware.json and fill in ONLY what Collins/Salaar have confirmed. This example is for the ESP32 wearable (CP2102 USB-UART). Nothing here is a measurement: 'name', 'baud' and emg.output must be stated. Leave out imu.counts_per_g until the sensor and its range are confirmed: without it vibration stays in raw counts and the score is unavailable (by design). Confirm emg.output with `serial-check` ('emg is raw').",
+  "name": "wearable-W",
+  "device_id": "vg-w-2805a5075554",
+  "port": "/dev/cu.usbserial-*",
   "baud": 921600,
   "emg": {"output": "raw", "channels": 1, "mains_hz": 60},
   "imu": {"model": "FILL-IN"},
-  "serial": {},
-  "notes": "Board, EMG module model, where the IMU sits on the sleeve. Example for an IMU once confirmed: \"imu\": {\"model\": \"MPU-6050\", \"range_g\": 2, \"counts_per_g\": 16384, \"conversion_source\": \"MPU-6050 datasheet, sensitivity at the +/-2 g range\"}. For auto-reset boards (Arduino-style, ESP32): \"serial\": {\"dtr\": false, \"rts\": false}."
+  "serial": {"dtr": false, "rts": false},
+  "notes": "Board W of the two wearable boards (both show the same USB serial number, so device_id picks the port). On Linux the port is /dev/ttyUSB*. DTR/RTS are wired to EN/IO0 for auto-reset: keeping both off avoids resetting the board on every open. The firmware is 921600 baud provisional until measured on the board. Example once an IMU is confirmed: \"imu\": {\"model\": \"MPU-6050\", \"range_g\": 2, \"counts_per_g\": 16384, \"conversion_source\": \"MPU-6050 datasheet, sensitivity at the +/-2 g range\"}."
 }

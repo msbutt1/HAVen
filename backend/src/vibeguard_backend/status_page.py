@@ -47,6 +47,7 @@ a{color:inherit}code{font:13px ui-monospace,monospace;background:var(--line);pad
 
 <h2>Device facts</h2>
 <div class="card"><div class="note" id="facts_head">-</div>
+<div class="note" id="facts_acq"></div><div class="note" id="facts_counters"></div>
 <table><thead><tr><th>Stream</th><th>Nominal rate</th><th>Measured rate</th><th>Channels</th><th>Raw limits</th><th>Sensor</th></tr></thead><tbody id="facts"></tbody></table>
 <div class="note">From the device's own hello and the measured timestamps. "unresolved" means the firmware does not know (or has not said) yet: nothing is assumed.</div></div>
 
@@ -82,7 +83,7 @@ const CAL_UNKNOWN='-';
 function blank(stateText){
  $('state').innerHTML=badge(stateText,'disconnected');$('prov').textContent='-';$('provnote').textContent='';
  for(const id of ['age','cal','rec','vib','act','score'])$(id).textContent='-';
- $('calnote').textContent='';$('banner').style.display='none';$('facts_head').textContent='-';$('facts').innerHTML='';
+ $('calnote').textContent='';$('banner').style.display='none';$('facts_head').textContent='-';$('facts').innerHTML='';$('facts_acq').textContent='';$('facts_counters').textContent='';
 }
 // Each block renders on its own: one unexpected field must not stop the rest of the page.
 function safe(fn){try{fn()}catch(e){}}
@@ -125,6 +126,10 @@ async function tick(){
     const un=v=>v==null?'<span class="unres">unresolved</span>':esc(v);
     const prof=rt.meta&&rt.meta.hardware_profile_name;
     $('facts_head').textContent=h?('Firmware '+h.firmware.name+' '+h.firmware.version+(h.hardware&&h.hardware.board?' on '+h.hardware.board:'')+(prof?'  |  hardware profile: '+prof:'')):'No hello received yet.';
+    const hw=(h&&h.hardware)||{},acq=hw.acquisition,cp=hw.config_problems;
+    $('facts_acq').textContent=(acq?'Acquisition: '+acq:'')+(cp&&String(cp).toLowerCase()!=='none'?'   |   Config problems: '+cp:'');
+    const dc=(rt.device_status&&rt.device_status.counters)||{},bad=Object.entries(dc).filter(([k,x])=>x>0&&/dropped|errors/.test(k));
+    $('facts_counters').textContent=bad.length?'DEVICE-REPORTED LOSS: '+bad.map(([k,x])=>k+'='+x).join(', ')+' (the firmware itself dropped data)':(Object.keys(dc).length?'Device counters: no drops or errors reported.':'');
     $('facts').innerHTML=h?Object.entries(h.streams||{}).map(([k,v])=>{const m=wl(k);const lim=v.raw_limits;
       return '<tr><td>'+esc(k)+'</td><td>'+un(v.nominal_rate_hz!=null?v.nominal_rate_hz+' Hz':null)+'</td><td>'+(m==null?'-':esc(Number(m).toFixed(1))+' Hz')+'</td><td>'+esc((v.channels||[]).join(', '))+'</td><td>'+un(lim?lim.min+' .. '+lim.max:null)+'</td><td>'+un(v.sensor_model)+'</td></tr>'}).join(''):'';
    });

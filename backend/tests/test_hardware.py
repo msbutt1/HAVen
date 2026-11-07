@@ -58,7 +58,8 @@ def test_ports_listing_is_well_formed_and_renders_when_empty():
 
 def test_the_example_profile_loads_but_invents_no_sensor_facts():
     p = load_profile(Path(__file__).resolve().parents[1] / "hardware.example.json")
-    assert p.emg_output == "raw" and p.name == "wearable-v1-bench"
+    assert p.emg_output == "raw" and p.name == "wearable-W" and p.device_id == "vg-w-2805a5075554"
+    assert p.baud == 921600 and p.dtr is False and p.rts is False  # the ESP32 board: auto-reset lines left off
     assert p.imu_counts_per_g is None and p.imu_conversion_source is None  # nothing is a made-up datasheet value
 
 

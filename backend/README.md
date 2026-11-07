@@ -229,7 +229,8 @@ counters are intact and it replays fine. Stop the session first for a clean `com
 `vg-backend ports`, `serial-check`, `fake-device` and `serve --profile hardware.json` prepare for the real
 wearable: they list boards, measure a real serial link (rate, drops, wrong baud, EMG raw vs envelope, mains
 hum, bandwidth) and let the firmware be rehearsed with no hardware. `--no-dtr` stops auto-reset boards restarting on
-every open; `emg.output` and `baud` must be stated in a profile (nothing is assumed). Start with
+every open; `emg.output` and `baud` must be stated in a profile (nothing is assumed). `serve --device-id vg-w-... ` picks the wearable among several ports (both boards share one USB serial number);
+`serve --device stream --stream fake.ndjson` reads the firmware's own `vg-fake-device` output. Start with
 [`HARDWARE_BRINGUP.md`](HARDWARE_BRINGUP.md) and `hardware.example.json`. Verified on simulated firmware over
 a pseudo-serial port only.
 

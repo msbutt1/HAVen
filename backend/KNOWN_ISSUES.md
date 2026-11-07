@@ -54,3 +54,7 @@ listed. Everything below was reproduced.
   synthetic signals, but real EMG modules may surprise it. The profile's `emg.output` is a statement by a human,
   not a measurement.
 - **Host-clock cross-check** needs about 3 s of data and only warns on a >3% disagreement.
+- **Firmware not run yet.** The ESP32 firmware (Salaar) is described, not in this repository, and has not been connected.
+  The backend was built to its README: 921600 baud, CP2102, `device_id` selection, boot banner skipped, hello every 5 s,
+  DTR/RTS off. Behaviour that only the real board can show (whether the open still resets it, real throughput and error
+  rate at 921600, the exact `hardware`/`counters` keys) is unverified; `serial-check` reports whatever it actually sends.

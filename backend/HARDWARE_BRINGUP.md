@@ -7,6 +7,51 @@ connected yet: the first real run may find things this guide does not cover. Tel
 
 All commands run from `backend/` as `uv run vg-backend ...`.
 
+## The wearable firmware (ESP32), as described by Salaar
+
+What the backend relies on (from the firmware README; the real-board capture at 921600 is still pending, so treat
+the baud rate as provisional until `serial-check` has measured it):
+
+- **Link:** UART0 through a **CP2102** USB-UART bridge, **921600 baud 8N1, no flow control**. Port names:
+  macOS `/dev/cu.usbserial-*` (or `/dev/cu.SLAB_USBtoUART`), Linux `/dev/ttyUSB*`. The stream is contract v1
+  NDJSON, the same as the simulator: one decoder (`contract.parse_line`) serves both.
+- **Two boards, one USB serial number.** Both wearable boards report the same USB serial number, so the OS cannot
+  tell them apart. The firmware's `device_id` (`vg-w-<base MAC>`; board W is `vg-w-2805a5075554`) is in every record.
+  Use it: `serve --device-id vg-w-2805a5075554 --port '/dev/cu.usbserial-*'` (or `device_id` in the profile) opens each
+  matching port, keeps the one whose stream carries that id, and hands over what it already read. `serial-check
+  --device-id ...` does the same and fails if the port carries another board.
+- **Opening the port may reset the board.** DTR/RTS are wired to EN/IO0 for auto-reset on these dev boards. Keep both
+  off while probing and opening: `--no-dtr` or `"serial": {"dtr": false, "rts": false}` in the profile (the example
+  profile has it). A reset is always visible: a new `boot_id` and a `boot_change` event.
+- **A boot banner appears at every reset**, printed by the ESP32 ROM at 115200, so at 921600 it is garbage. The backend
+  counts those lines as invalid frames and skips them; it never repairs them. `serial-check` shows how many and quotes
+  the first. The first valid record after a reset is a hello with `seq` 0 and a new `boot_id`.
+- **hello is re-sent every 5 s, status every 1 s**, so a host that connects late learns the stream within 5 s. Run
+  `serial-check` for at least 10 s.
+- **Today the firmware is FAKE:** its hello says `acquisition: FAKE ... (SIMULATED)` and every record is
+  `provenance.source = "simulated"`. `serial-check` reports both (`acquisition is real`, `data labelled live`) as WARN:
+  fine for link testing, not for a person. Real sensors will say live.
+- **The firmware reports its own losses** in status `counters`: `emg_dropped_samples` / `imu_dropped_samples` (its
+  sample rings overflowed), `tx_dropped_records` / `tx_dropped_bytes` (its frame queue dropped whole records because the
+  UART could not keep up: a seq gap on the host), `encode_errors`. `serial-check` prints them as `device counters`, and the
+  status page's Device facts card shows DEVICE-REPORTED LOSS when any is above zero.
+- **Load at 921600:** about 26-37 kB/s, i.e. 28-40% of the link, more than 2x headroom; at 115200 it cannot fit (the
+  firmware's own simulation dropped 471 records). If 921600 proves unreliable on these boards or cables the fallback order is
+  460800, then a minimal binary framing.
+- **The firmware's own `vg-fake-device`** prints the exact byte stream the board will send. Feed it to the backend:
+
+  ```sh
+  cd firmware && cmake -S tests/host -B build/host -G Ninja && cmake --build build/host
+  build/host/vg-fake-device --seconds 30 > fake.ndjson
+  cd ../backend
+  uv run vg-backend serve --device stream --stream ../firmware/fake.ndjson          # as fast as it is read
+  uv run vg-backend serve --device stream --stream ../firmware/fake.ndjson --paced   # at the device's own speed
+  build/host/vg-fake-device --seconds 30 | uv run vg-backend serve --device stream --stream -
+  ```
+
+  The records keep the provenance the producer gave them (`simulated`); nothing is relabelled. This exercises the
+  decoder and processing, not the serial driver: for that, use the pseudo-terminal rehearsal below.
+
 ## 0. Before the board arrives: rehearse
 
 ```sh
@@ -41,7 +86,7 @@ power-only.
 ## 2. Is the link good? `serial-check`
 
 ```sh
-uv run vg-backend serial-check --port '/dev/cu.usbmodem*' --baud 921600 --seconds 30 --save rec.ndjson
+uv run vg-backend serial-check --port '/dev/cu.usbserial-*' --baud 921600 --seconds 30 --no-dtr --device-id vg-w-2805a5075554 --save rec.ndjson
 ```
 
 Unsure of the baud rate: `--try-bauds 115200,230400,460800,921600` finds the one that gives valid frames. A rate the

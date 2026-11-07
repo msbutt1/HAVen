@@ -51,7 +51,14 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--allow-host", action="append", default=[],
                    help="extra Host header value to accept (when listening beyond localhost)")
     s.add_argument("--http-port", type=int, default=8765)
-    s.add_argument("--device", choices=("sim", "serial", "none"), default="sim")
+    s.add_argument("--device", choices=("sim", "serial", "stream", "none"), default="sim")
+    s.add_argument("--stream", default=None, metavar="FILE|-",
+                   help="with --device stream: read device telemetry from a file or stdin (-), e.g. the output of "
+                        "the firmware's vg-fake-device; records keep the provenance the producer gave them")
+    s.add_argument("--paced", action="store_true", help="with --device stream: play at the device's own speed")
+    s.add_argument("--device-id", default=None,
+                   help="serial: only accept the port whose stream carries this device_id (the two wearable boards share "
+                        "one USB serial number; the firmware's device_id, vg-w-<MAC>, tells them apart)")
     s.add_argument("--backup", type=Path, default=None,
                    help="start with this backup recording as the 'wearable' (labelled REPLAY); overrides --device")
     s.add_argument("--loop", action="store_true",
@@ -104,6 +111,8 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--probe-seconds", type=float, default=3.0,
                    help="with --try-bauds: how long each rate may talk (a board that resets on open gets up to 10 s "
                         "to start)")
+    c.add_argument("--device-id", default=None,
+                   help="only read the port whose stream carries this device_id (with a glob that matches several boards)")
     c.add_argument("--no-dtr", action="store_true",
                    help="do not assert DTR/RTS when opening: auto-reset boards (Arduino-style, ESP32 dev kits) are "
                         "not restarted by every check or probe")
@@ -227,8 +236,13 @@ def main(argv: list[str] | None = None) -> int:
                       "setting is ignored; any of them will do")
             print(f"best: {baud} baud ({best['valid']}/{best['lines']} valid)\n")
         print(f"checking {args.port} at {baud} baud for {args.seconds:g} s ...")
+        factory = None
+        expect_id = args.device_id or (profile.device_id if profile else None)
+        if expect_id:
+            from .serial_select import DeviceIdSerialAdapter
+            factory = lambda p, b: DeviceIdSerialAdapter(p, b, expect_id, dtr=dtr, rts=dtr)  # noqa: E731
         res = serial_check(args.port, baud, args.seconds, args.save, args.mains_hz, progress=print, dtr=dtr, rts=dtr,
-                           profile=profile)
+                           profile=profile, adapter_factory=factory, expect_device_id=expect_id)
         print(res.report.render(not_ready="NOT READY - fix the FAIL lines before connecting this to the backend"))
         if args.json:
             print(json.dumps(res.stats, indent=2, default=str))
@@ -304,6 +318,23 @@ def main(argv: list[str] | None = None) -> int:
             adapter = SimAdapter(scenario=args.scenario, seed=args.seed, duration_s=args.duration,
                                  speed=args.speed, loop=True)
             config = processing_config_for("sim")
+        elif args.device == "stream":
+            from .hardware import ProfileError as _SPE, validate_counts_per_g as _vcg
+            from .stream import StreamAdapter
+            if not args.stream:
+                raise ValueError("--device stream needs --stream FILE (or - for stdin)")
+            if args.profile is not None:
+                raise ValueError("--profile describes a serial device; it cannot be combined with --device stream")
+            cpg = src = None
+            if args.imu_counts_per_g is not None:
+                try:
+                    cpg = _vcg(args.imu_counts_per_g, "--imu-counts-per-g")
+                except _SPE as exc:
+                    raise ValueError(str(exc)) from exc
+                src = args.imu_conversion_source
+            adapter = StreamAdapter(args.stream, paced=args.paced, speed=args.speed)
+            config = processing_config_for("serial", cpg, src)
+            runtime_meta = {"stream_source": args.stream}
         elif args.device == "none" and args.profile is not None:
             from .hardware import ProfileError, load_profile
             try:
@@ -346,16 +377,24 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("--device serial needs --port (or a profile with a port)")
             dtr = False if args.no_dtr else (profile.dtr if profile else None)
             rts = False if args.no_dtr else (profile.rts if profile else None)
-            adapter = SerialAdapter(port, baud, dtr=dtr, rts=rts)
+            expect_id = args.device_id or (profile.device_id if profile else None)
+            if expect_id:
+                from .serial_select import DeviceIdSerialAdapter
+                adapter = DeviceIdSerialAdapter(port, baud, expect_id, dtr=dtr, rts=rts)
+            else:
+                adapter = SerialAdapter(port, baud, dtr=dtr, rts=rts)
             config = processing_config_for("serial", cpg, src)
             runtime_meta = {"effective_serial": {"port": port, "baud": baud, "counts_per_g": cpg,
-                                                 "conversion_source": src, "dtr": dtr, "rts": rts}}
+                                                 "conversion_source": src, "dtr": dtr, "rts": rts,
+                                                 "expect_device_id": expect_id}}
             if profile:
                 runtime_meta.update({"hardware_profile": profile.describe(), "hardware_profile_name": profile.name})
         if not math.isfinite(args.speed) or not 0 < args.speed <= 1000:
             raise ValueError("--speed must be a number above 0 and at most 1000")
         if args.loop and args.backup is None:
             raise ValueError("--loop only applies to --backup")
+        if args.device_id is not None and args.device != "serial" and args.profile is None:
+            raise ValueError("--device-id only applies to a serial device")
         backend = Backend(args.data_dir, exclusive=True)
     except DataDirInUse as exc:
         print(f"vg-backend: {exc}", file=sys.stderr)

@@ -94,6 +94,7 @@ class HardwareProfile:
     imu_conversion_source: str | None = None
     dtr: bool | None = None             # False: do not assert DTR at open (auto-reset boards)
     rts: bool | None = None
+    device_id: str | None = None        # the firmware's device_id (vg-w-<MAC>): picks the right port among several
     notes: str | None = None
     raw: dict = field(default_factory=dict)
 
@@ -101,7 +102,8 @@ class HardwareProfile:
         return {k: v for k, v in self.raw.items()}
 
 
-TOP_KEYS = {"name", "port", "baud", "emg", "imu", "serial", "notes", "_comment"}
+TOP_KEYS = {"name", "port", "baud", "device_id", "emg", "imu", "serial", "notes", "_comment"}
+DEVICE_ID = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
 EMG_KEYS = {"output", "channels", "mains_hz"}
 IMU_KEYS = {"model", "range_g", "counts_per_g", "conversion_source"}
 SERIAL_KEYS = {"dtr", "rts"}
@@ -210,13 +212,17 @@ def load_profile(path: str | Path) -> HardwareProfile:
         if v is not None and not isinstance(v, bool):
             raise ProfileError(f"serial.{k} must be true or false")
     notes = _text(data["notes"], "'notes'", 2000, minlen=0, multiline=True) if data.get("notes") is not None else None
+    device_id = data.get("device_id")
+    if device_id is not None and (not isinstance(device_id, str) or not DEVICE_ID.match(device_id)):
+        raise ProfileError("'device_id' must be the firmware's device_id (1-64 characters of A-Z a-z 0-9 . _ : -), "
+                           "for example vg-w-2805a5075554")
     if output is None:
         raise ProfileError("emg.output is required: say \"raw\" only once the EMG module is confirmed to output raw "
                            "EMG (the pipeline assumes it; `serial-check` tests it). Nothing is assumed")
     return HardwareProfile(
         name=name, port=port, baud=baud, emg_output=output, emg_channels=channels, mains_hz=mains,
         imu_model=model, imu_counts_per_g=cpg, imu_range_g=range_g, imu_conversion_source=src,
-        dtr=dtr, rts=rts, notes=notes, raw=data)
+        dtr=dtr, rts=rts, device_id=device_id, notes=notes, raw=data)
 
 
 # ---------------------------------------------------------------------------------- serial check
@@ -296,7 +302,7 @@ def _classify_open_error(msg: str) -> str:
 def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str | Path | None = None,
                  mains_hz: int | None = None, adapter_factory: Callable[[str, int], SerialAdapter] | None = None,
                  progress: Callable[[str], None] | None = None, dtr: bool | None = None, rts: bool | None = None,
-                 profile: HardwareProfile | None = None) -> SerialCheckResult:
+                 profile: HardwareProfile | None = None, expect_device_id: str | None = None) -> SerialCheckResult:
     """Read a real serial link for ``seconds`` and report what the backend would see."""
     rep = Report()
     say = progress or (lambda _m: None)
@@ -335,6 +341,9 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
     invalid, invalid_examples = Counter(), {}
     flags: Counter = Counter()
     status_states: Counter = Counter()
+    last_counters: dict = {}
+    device_ids: Counter = Counter()
+    hello_times: list[float] = []
     provenance: Counter = Counter()
     hello: dict | None = None
     seq_last: dict[str, int] = {}
@@ -397,6 +406,7 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
             if first_valid_at is None:
                 first_valid_at = at
             provenance[rec["provenance"]["source"]] += 1
+            device_ids[rec["device_id"]] += 1
             key = rec["boot_id"]
             if key in seq_last:
                 if rec["seq"] > seq_last[key] + 1:
@@ -422,10 +432,12 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
             kind = rec["type"]
             if kind == "hello":
                 hello = rec
+                hello_times.append(at)
                 for sname in ("emg", "imu"):
                     acc[sname].raw_limits = (rec["streams"].get(sname) or {}).get("raw_limits")
             elif kind == "status":
                 status_states[rec["state"]] += 1
+                last_counters = rec.get("counters") or last_counters
             elif kind in ("emg_batch", "imu_batch"):
                 a = acc["emg" if kind == "emg_batch" else "imu"]
                 sg = a.seg
@@ -564,6 +576,15 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
         stats["hello"] = {"firmware": hello["firmware"], "hardware": hw, "streams": {k: {
             "nominal_rate_hz": v.get("nominal_rate_hz"), "channels": v.get("channels"),
             "raw_limits": v.get("raw_limits"), "sensor_model": v.get("sensor_model")} for k, v in s.items()}}
+        acq = str(hw.get("acquisition") or "")
+        if "FAKE" in acq.upper() or "SIMULATED" in acq.upper():
+            rep.add(WARN, "acquisition is real", f"the firmware says: {acq}",
+                    "this build produces synthetic samples, not sensor readings: fine for link testing, not for a person")
+        problems = hw.get("config_problems")
+        if problems and str(problems).strip().lower() not in ("none", "null", "[]", "ok", ""):
+            rep.add(WARN, "firmware configuration", f"config_problems: {problems}", "the firmware reports a configuration problem")
+        if len(hello_times) >= 2:
+            stats["hello_interval_s"] = round((hello_times[-1] - hello_times[0]) / (len(hello_times) - 1), 2)
         if profile is not None and profile.emg_channels is not None:
             got = len((s.get("emg") or {}).get("channels") or [])
             if got and got != profile.emg_channels:
@@ -648,9 +669,35 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
             rms = {c: round(float(np.std(v)), 1) for c, v in zip(a.channels, a.values) if v}
             stats["imu"].update({"mean_counts": means, "std_counts": rms})
 
+    if expect_device_id:
+        ids = dict(device_ids)
+        if set(ids) == {expect_device_id}:
+            rep.add(PASS, "device id", f"{expect_device_id} on every record")
+        else:
+            rep.add(FAIL, "device id", f"expected {expect_device_id}, saw {ids}",
+                    "this port carries another board (both wearables share one USB serial number): use --device-id with a "
+                    "glob, or the right port")
+    elif len(device_ids) > 1:
+        rep.add(WARN, "device id", f"records from several devices: {dict(device_ids)}", "two boards on one link?")
+    if last_counters:
+        stats["device_counters"] = dict(last_counters)
+        meaning = {
+            "emg_dropped_samples": "EMG samples dropped on the device (its sample ring overflowed: the serializer is behind)",
+            "imu_dropped_samples": "IMU samples dropped on the device (its sample ring overflowed)",
+            "tx_dropped_records": "records the firmware's frame queue dropped because the UART could not keep up (a seq gap on the host)",
+            "tx_dropped_bytes": "bytes in those dropped records",
+            "encode_errors": "records the firmware could not encode",
+        }
+        bad = {k: v for k, v in last_counters.items() if k in meaning and isinstance(v, int) and v > 0}
+        if bad:
+            rep.add(WARN, "device counters", "; ".join(f"{k}={v} ({meaning[k]})" for k, v in bad.items()),
+                    "tx drops mean the link is too slow for the stream: raise the baud rate or shrink batches; sample drops mean "
+                    "the firmware's serializer is starved")
+        else:
+            rep.add(PASS, "device counters", "all drop and error counters are zero")
     lost_note = []
     if seq_missing:
-        lost_note.append(f"{seq_missing} record(s) missing (seq gaps)")
+        lost_note.append(f"{seq_missing} record(s) missing (seq gaps: the firmware's TX queue dropped them, or the link lost them)")
     if dropped_before:
         lost_note.append(f"{dropped_before} sample(s) dropped on the device")
     if sample_gap_total:
