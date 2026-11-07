@@ -185,6 +185,7 @@ def _score_view(score: dict | None) -> dict | None:
             "valid_duration_s": score.get("valid_duration_s"),
             "excluded_duration_s": score.get("excluded_duration_s"),
             "boot_segments": score.get("boot_segments"),
+            "excluded_by_reason": score.get("excluded_by_reason") or {},
             "status": score.get("status"), "t_us": score.get("t_us")}
 
 
@@ -221,7 +222,20 @@ def session_score_summary(start: dict | None, first: dict | None, end: dict | No
         return out
     out["session_au"] = round(e["cumulative_au"] - s["cumulative_au"], 6)  # type: ignore[index]
     out["session_valid_s"] = round((e["valid_duration_s"] or 0) - (s["valid_duration_s"] or 0), 4)  # type: ignore[index]
-    out["status"] = "ok"
+    # Why time was not scored during THIS session (end minus start, per reason).
+    before = (s.get("excluded_by_reason") or {}) if start is not None else {}
+    delta = {k: round(v - before.get(k, 0.0), 3) for k, v in (e.get("excluded_by_reason") or {}).items()}
+    out["excluded_by_reason"] = {k: v for k, v in sorted(delta.items(), key=lambda kv: -kv[1]) if v > 0}
+    if out["session_valid_s"] > 0:
+        out["status"] = "ok"
+        out["explanation"] = (f"{out['session_valid_s']} s of this session had both a fresh vibration and a "
+                              f"calibrated activation reading and were scored: {out['session_au']} au.")
+    else:
+        out["status"] = "no_valid_time"
+        out["reason"] = "no_time_with_both_inputs_valid"
+        out["explanation"] = ("No time in this session had both a fresh vibration and a calibrated activation "
+                              "reading, so nothing was scored. 0 au here means 'not measured', not 'low'. "
+                              "See excluded_by_reason; calibrate (relaxed, then squeeze) and record again.")
     return out
 
 

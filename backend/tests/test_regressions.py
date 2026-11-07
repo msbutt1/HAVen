@@ -101,3 +101,19 @@ def test_the_real_server_can_speak_websocket():
 
     assert any(importlib.util.find_spec(m) for m in ("websockets", "wsproto")), \
         "install uvicorn[standard] (websockets) or /ws/live will 404 on the real server"
+
+
+def test_session_with_no_scored_time_says_so_instead_of_reporting_ok(backend):
+    frames = sim_frames(duration_s=10)
+    gate = threading.Event()
+    rt = backend.add_runtime("wearable", ScriptedAdapter([frames[0], ("gate", gate), *frames[1:]], clock="device"),
+                             processing_config_for("sim"))
+    assert wait_until(lambda: rt.counters["records"] == 1)
+    s = backend.start_session("wearable", "never calibrated")
+    gate.set()
+    assert wait_until(lambda: rt.finished, 15)
+    score = backend.session(s["session_id"])["score"]
+    assert score["status"] == "no_valid_time" and score["session_valid_s"] == 0
+    assert score["reason"] == "no_time_with_both_inputs_valid"
+    assert any(k.startswith("activation_uncalibrated") for k in score["excluded_by_reason"]), score
+    assert "not measured" in score["explanation"]

@@ -37,6 +37,20 @@ curl -s -XPOST localhost:8765/api/sessions -H 'content-type: application/json' -
 curl -s -XPOST localhost:8765/api/runtimes/wearable/calibration -H 'content-type: application/json' -d '{"action":"relaxed"}'
 ```
 
+### See a full calibrated session (one command)
+
+With `vg-backend serve` running, this drives a whole simulated session and prints the result:
+
+```sh
+uv run python scripts/demo_calibrated_session.py
+```
+
+It waits for a fresh 30 s simulated run, starts a session, sends the relaxed capture at
+0.5 s and the squeeze capture at 4.5 s of device time, stops the session, replays it, and
+checks the replay reproduces the score (about 0.0486 au over about 19 s of scored time).
+It exits 0 on success. The simulated run restarts every ~30 s and a calibration cannot
+span a restart, which is why the script follows the stream instead of timing by hand.
+
 ### Device sources
 
 | Command | Device |
@@ -89,7 +103,7 @@ responses captured from a real run are in [`examples/`](examples/).
 | `POST /api/runtimes/{name}/simulate-disconnect` | `{"seconds":3}` | simulated devices only: fake a cable pull |
 | `DELETE /api/runtimes/{name}` | | stop a replay |
 | `POST /api/sessions` | `{"runtime":"wearable","label":"..."}` | 201, session `recording` (409 if busy or disconnected) |
-| `POST /api/sessions/{id}/stop` | | session `completed` with score summary, counters, file hashes |
+| `POST /api/sessions/{id}/stop` | | session `completed` with score summary, counters, file hashes. `score.status` is `ok` only if some time was scored; otherwise `no_valid_time`, with `excluded_by_reason` and a plain-language `explanation` (0 au then means "not measured", not "low"). `unavailable` means the score cannot be attributed to this session (e.g. mixed data sources). |
 | `GET /api/sessions?source=&state=` | | wearable sessions, newest first |
 | `GET /api/sessions/{id}` | | one session |
 | `GET /api/sessions/{id}/files/{name}` | | `telemetry.ndjson`, `derived.ndjson`, `rx_times.csv`, `commands.ndjson`, `manifest.json` |
