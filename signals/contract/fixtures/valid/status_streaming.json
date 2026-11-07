@@ -1,0 +1,26 @@
+{
+  "schema": "vibeguard.device_telemetry",
+  "version": 1,
+  "device_id": "sim-wearable-01",
+  "boot_id": "sim-boot-0001",
+  "type": "status",
+  "seq": 1,
+  "provenance": {
+    "source": "simulated",
+    "detail": {
+      "generator": "hand-authored contract fixture",
+      "note": "values are arbitrary and imply no ADC resolution or sensor range"
+    }
+  },
+  "t_us": 2500,
+  "state": "streaming",
+  "sensors": {
+    "emg": "ok",
+    "imu": "ok"
+  },
+  "counters": {
+    "emg_dropped_samples": 0,
+    "imu_dropped_samples": 0,
+    "overruns": 0
+  }
+}

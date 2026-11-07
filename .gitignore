@@ -1,0 +1,28 @@
+# Python environments and caches
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Build outputs
+build/
+dist/
+*.egg-info/
+firmware/**/.pio/
+firmware/**/build/
+
+# Generated recordings and run outputs (small hand-authored fixtures under
+# signals/contract/fixtures/ stay tracked)
+recordings/
+signals/out/
+*.recording.ndjson
+
+# Editors / OS
+.vscode/
+.idea/
+.DS_Store

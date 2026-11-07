@@ -1,0 +1,47 @@
+{
+  "schema": "vibeguard.device_telemetry",
+  "version": 1,
+  "device_id": "sim-wearable-01",
+  "boot_id": "sim-boot-0001",
+  "type": "hello",
+  "seq": 0,
+  "provenance": {
+    "source": "simulated",
+    "detail": {
+      "generator": "hand-authored contract fixture",
+      "note": "values are arbitrary and imply no ADC resolution or sensor range"
+    }
+  },
+  "t_us": 1200,
+  "firmware": {
+    "name": "vibeguard-sim",
+    "version": "0.1.0"
+  },
+  "streams": {
+    "emg": {
+      "nominal_rate_hz": 1000,
+      "channels": ["emg0"],
+      "units": {
+        "emg0": "adc_counts"
+      },
+      "raw_limits": null,
+      "sensor_model": null
+    },
+    "imu": {
+      "nominal_rate_hz": 400,
+      "channels": ["ax", "ay", "az"],
+      "units": {
+        "ax": "raw_counts",
+        "ay": "raw_counts",
+        "az": "raw_counts"
+      },
+      "raw_limits": null,
+      "sensor_model": null
+    }
+  },
+  "hardware": {
+    "board": null,
+    "emg_frontend": null,
+    "imu_bus": null
+  }
+}

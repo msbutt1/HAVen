@@ -1,0 +1,48 @@
+{
+  "schema": "vibeguard.device_telemetry",
+  "version": 1,
+  "device_id": "sim-wearable-01",
+  "boot_id": "sim-boot-0001",
+  "type": "imu_batch",
+  "seq": 4,
+  "provenance": {
+    "source": "simulated",
+    "detail": {
+      "generator": "hand-authored contract fixture"
+    }
+  },
+  "sample_rate_hz": 400,
+  "first_sample_index": 0,
+  "timing": {
+    "mode": "uniform",
+    "t0_us": 20400,
+    "interval_us": 2500
+  },
+  "channels": ["ax", "ay", "az"],
+  "units": {
+    "ax": "m/s^2",
+    "ay": "m/s^2",
+    "az": "m/s^2"
+  },
+  "samples": [[0.02, -0.01, 9.81], [0.31, 0.12, 1e999], [-0.27, -0.09, 9.97], [0.05, 0.02, 9.79]],
+  "quality": {
+    "flags": []
+  },
+  "conversion": {
+    "ax": {
+      "scale": 1.0,
+      "offset": 0.0,
+      "source": "simulator generates m/s^2 directly; not a sensor calibration"
+    },
+    "ay": {
+      "scale": 1.0,
+      "offset": 0.0,
+      "source": "simulator generates m/s^2 directly; not a sensor calibration"
+    },
+    "az": {
+      "scale": 1.0,
+      "offset": 0.0,
+      "source": "simulator generates m/s^2 directly; not a sensor calibration"
+    }
+  }
+}

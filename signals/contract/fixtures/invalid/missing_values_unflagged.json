@@ -1,0 +1,38 @@
+{
+  "schema": "vibeguard.device_telemetry",
+  "version": 1,
+  "device_id": "sim-wearable-01",
+  "boot_id": "sim-boot-0001",
+  "type": "emg_batch",
+  "seq": 5,
+  "provenance": {
+    "source": "simulated",
+    "detail": {
+      "generator": "hand-authored contract fixture",
+      "note": "values are arbitrary and imply no ADC resolution or sensor range"
+    }
+  },
+  "sample_rate_hz": 1000,
+  "first_sample_index": 14,
+  "timing": {
+    "mode": "uniform",
+    "t0_us": 24000,
+    "interval_us": 1000
+  },
+  "channels": ["emg0"],
+  "units": {
+    "emg0": "adc_counts"
+  },
+  "samples": [
+    [2049],
+    [null],
+    [null],
+    [2053],
+    [2047],
+    [2058]
+  ],
+  "quality": {
+    "flags": ["overrun"],
+    "dropped_samples_before": 4
+  }
+}

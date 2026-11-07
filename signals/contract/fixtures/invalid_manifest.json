@@ -1,0 +1,90 @@
+{
+  "invalid_version.json": {
+    "code": "unsupported_version",
+    "why": "contract version this validator does not support"
+  },
+  "invalid_schema.json": {
+    "code": "wrong_schema",
+    "why": "schema name is not the device telemetry contract"
+  },
+  "missing_seq.json": {
+    "code": "missing_field",
+    "why": "sequence number missing"
+  },
+  "missing_timing.json": {
+    "code": "missing_field",
+    "why": "batch without timing"
+  },
+  "missing_provenance.json": {
+    "code": "missing_field",
+    "why": "record does not say whether it is live/simulated/replay"
+  },
+  "missing_replay_recording_id.json": {
+    "code": "missing_field",
+    "why": "replay without the original recording identity"
+  },
+  "nonfinite_nan.json": {
+    "code": "nonfinite_value",
+    "why": "NaN literal in samples"
+  },
+  "nonfinite_overflow.json": {
+    "code": "nonfinite_value",
+    "why": "number that overflows to infinity"
+  },
+  "malformed_string_sample.json": {
+    "code": "invalid_value",
+    "why": "sample value is a string"
+  },
+  "malformed_fractional_counts.json": {
+    "code": "invalid_value",
+    "why": "ADC counts must be integers"
+  },
+  "malformed_boolean_sample.json": {
+    "code": "invalid_value",
+    "why": "boolean is not a sample value"
+  },
+  "malformed_row_width.json": {
+    "code": "shape_mismatch",
+    "why": "row has 2 values for 3 channels"
+  },
+  "timing_rate_mismatch.json": {
+    "code": "timing_inconsistent",
+    "why": "interval 2000 us contradicts sample_rate_hz 1000"
+  },
+  "timing_explicit_nonmonotonic.json": {
+    "code": "timing_inconsistent",
+    "why": "explicit timestamps not strictly increasing"
+  },
+  "timing_explicit_length.json": {
+    "code": "timing_inconsistent",
+    "why": "3 timestamps for 4 sample rows"
+  },
+  "physical_units_without_conversion.json": {
+    "code": "missing_conversion",
+    "why": "acceleration units claimed without conversion metadata"
+  },
+  "missing_values_unflagged.json": {
+    "code": "quality_inconsistent",
+    "why": "nulls without 'missing_values' flag"
+  },
+  "disconnect_zero_filled.json": {
+    "code": "quality_inconsistent",
+    "why": "disconnected sensor reported as zeros instead of nulls"
+  },
+  "too_many_samples.json": {
+    "code": "limit_exceeded",
+    "why": "257 rows; limit 256"
+  },
+  "unknown_field.json": {
+    "code": "unknown_field",
+    "why": "misspelled/undeclared field"
+  },
+  "duplicate_key.json": {
+    "code": "duplicate_key",
+    "why": "seq appears twice"
+  },
+  "not_an_object.json": {
+    "code": "not_object",
+    "why": "top-level array instead of a record"
+  }
+}
