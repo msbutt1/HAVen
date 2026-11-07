@@ -117,3 +117,14 @@ def test_session_with_no_scored_time_says_so_instead_of_reporting_ok(backend):
     assert score["reason"] == "no_time_with_both_inputs_valid"
     assert any(k.startswith("activation_uncalibrated") for k in score["excluded_by_reason"]), score
     assert "not measured" in score["explanation"]
+
+
+def test_root_serves_a_status_page_instead_of_404(backend):
+    from fastapi.testclient import TestClient
+
+    from vibeguard_backend.app import create_app
+
+    r = TestClient(create_app(backend)).get("/")
+    assert r.status_code == 200 and r.headers["content-type"].startswith("text/html")
+    assert "VibeGuard backend" in r.text and "/api/runtimes/wearable" in r.text
+    assert "SIMULATED" in r.text and "REPLAY" in r.text  # provenance is always labelled

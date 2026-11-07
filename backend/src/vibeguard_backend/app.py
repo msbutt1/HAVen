@@ -36,12 +36,13 @@ from typing import Any, Callable
 from fastapi import Body, FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.concurrency import run_in_threadpool
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse
 
 from . import __version__
 from .hub import CHANNELS, DEFAULT_CHANNELS, utc_now_iso
 from .runtime import RuntimeConflict, RuntimeGone
 from .service import Backend, BadRequest, NotFound
+from .status_page import STATUS_PAGE
 from .store import IdempotencyConflict
 
 
@@ -77,6 +78,10 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None) 
     app.add_middleware(CORSMiddleware, allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
                        allow_methods=["*"], allow_headers=["*"])
     b = backend
+
+    @app.get("/", response_class=HTMLResponse, include_in_schema=False)
+    async def home() -> str:
+        return STATUS_PAGE
 
     @app.get("/api/health")
     async def health() -> dict:
