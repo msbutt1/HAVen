@@ -160,6 +160,16 @@ exactly one per row.
 Other flags: `clipped` (values at known `raw_limits`), `timing_irregular` (device saw
 jitter beyond its own threshold), `warmup` (sensor settling after start).
 
+**Flags are reported conditions, not inferences.** `sensor_disconnected`, `stale`,
+`clipped`, `overrun`, and so on state what the device detected, or what the simulator
+injected in place of that detection. The validator cannot infer these conditions from
+sample values. It checks only internal consistency: nulls ⇔ `missing_values`, and
+disconnected ⇒ all null. For example, a frozen sensor whose batches carry no `stale`
+flag is schema-valid. Detecting unflagged problems such as flat-lines or implausible
+values is a host-processing job, not schema validation. Sensor faults (clipping,
+dropouts, missing samples, reboots) are **valid telemetry**. Only protocol defects make
+a record invalid.
+
 ## Limits
 
 | Limit | Value |

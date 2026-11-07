@@ -12,6 +12,8 @@ dependencies = []
 [project.scripts]
 vg-validate = "vibeguard_signals.validate_cli:main"
 vg-bandwidth = "vibeguard_signals.bandwidth:main"
+vg-sim = "vibeguard_signals.sim_cli:main"
+vg-process = "vibeguard_signals.process_cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12.0"]

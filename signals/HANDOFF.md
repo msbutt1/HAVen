@@ -13,6 +13,11 @@ uv run vg-validate contract/fixtures/valid/*          # exit 0
 uv run vg-validate contract/fixtures/invalid/*.json   # exit 1, one reason per file
 uv run vg-validate - < some_stream.ndjson             # validate a stream from stdin
 uv run vg-bandwidth                        # provisional serial throughput estimate
+uv run vg-sim --list                       # simulator scenarios (see SIMULATOR.md)
+uv run vg-sim --scenario happy_path --seed 1 --duration 10 --fast -o run.ndjson
+uv run vg-sim --scenario fault_mix --seed 1 --duration 10            # wall-paced to stdout
+uv run vg-process contract/fixtures/sim/fault_mix_seed1_5s.ndjson -o /dev/null   # processing smoke test
+uv run vg-sim --scenario fault_mix --duration 10 --fast | uv run vg-process -    # sim -> processing
 ```
 
 ## Decisions
@@ -36,6 +41,32 @@ uv run vg-bandwidth                        # provisional serial throughput estim
 - **D6 Validator choice.** A hand-written stdlib validator rather than JSON Schema:
   cross-field rules (timing vs rate, nulls vs flags, conversion vs units) live in one
   place, with no added dependency. There is no second copy of the schema.
+- **D7 Simulator.** Pure stdlib (seeded `random.Random` per boot/stream/purpose). It
+  emits only contract records, validated before emission. It keeps device time,
+  simulation time, and wall pacing separate (see `SIMULATOR.md`).
+- **D8 Faults vs defects.** Sensor faults (clipping, dropouts, nulls, disconnect, stale,
+  reboot) are schema-valid telemetry from `vg-sim`. Malformed protocol records exist only
+  in `contract/fixtures/invalid/`. Disconnected/stale flags represent injected or
+  detected conditions; the validator cannot infer them from values.
+- **D10 Processing skeleton.** Layers: transport (CLI/caller), orchestration
+  (`processor.py`), bounded storage (`window.py`), pure algorithms (`features.py`),
+  serialization. One `Processor` per device. Conservative invalidation: any sample gap,
+  timing discontinuity, boot change, disconnect/stale, or provenance change resets the
+  window and forces warm-up. Reordered records are dropped, not re-sequenced.
+  Device-reported disconnected/stale is sticky until the device reports `ok`, so firmware
+  must send a status on sensor-state transitions. Details: `PROCESSING.md`.
+- **D11 Staleness clock.** Device clock by default (deterministic; detects one stream
+  going silent). Host clock with `poll()` is needed live, to detect total silence.
+- **D12 Review fixes (post-Prompt 3).**
+  1. Rate mismatch is now an availability condition, checked on every batch against the
+     declared and timestamp-implied rates, and it clears on agreement.
+  2. All rejections happen before any state changes.
+  3. A device `clipped` flag degrades the result even when host limit checks pass.
+  4. `vg-process --clock host` polls on a timer and flushes its output.
+  5. Simulator runs get random identities by default; `--run-id` fixes them for fixtures.
+  6. IMU timestamps are offset by the maximum jitter, so low rates stay valid.
+- **D9 Transport.** No serial transport yet. NDJSON on stdout/file is the host
+  simulation format until the board is confirmed.
 
 ## Progress
 
@@ -43,9 +74,19 @@ uv run vg-bandwidth                        # provisional serial throughput estim
 |---|---|
 | Prompt 0 baseline | Done. Repo had only planning docs; no conflicts. |
 | Prompt 1 contract | Done. Spec, 8 valid + 22 invalid fixtures + 1 NDJSON stream, validator, CLI, 46 passing tests, bandwidth estimate. |
-| Prompts 2–8 | Not started. |
+| Baseline commit | `5637c0e` (planning docs + Prompt 1). The archive `project-plan.zip` is left untracked. |
+| Prompt 2 simulator | Done. `vg-sim` with 11 scenarios, 2 tracked recordings (`contract/fixtures/sim/`), 40 new tests (86 total passing). |
+| Prompt 3 processing skeleton | Done. `vibeguard_signals.processing` + `vg-process`, placeholder `window_stats`, 35 new tests (121 total passing). **Astra review checkpoint now.** |
+| Checkpoint review fixes | Done. 6 correctness findings fixed, each reproduced first and pinned by `tests/test_review_fixes.py` (47 tests; 168 total passing). Fixtures regenerated with fixed run IDs. |
+| Prompts 4–8 | Not started. |
 
 ## For Abduljabbar (ingestion) and Ali (display)
+
+**Getting a stream now (Abduljabbar)**
+- Wall-paced live-like stream: `uv run vg-sim --scenario fault_mix --duration 60 | your_ingest`.
+- Files: `contract/fixtures/sim/happy_path_seed1_3s.ndjson` (clean) and
+  `fault_mix_seed1_5s.ndjson` (loss, overrun, nulls, disconnect, stale, clipping, reboot).
+- The stream contains no wall time; stamp receive time yourself.
 
 **Consuming the examples**
 - Start from `contract/fixtures/valid/stream_simulated_boot.ndjson`, which is one boot in
@@ -62,6 +103,11 @@ uv run vg-bandwidth                        # provisional serial throughput estim
   visibly labelled, and replay keeps `recording_id` + `original_source`.
 - Raw `adc_counts`/`raw_counts` have no physical meaning yet. Don't label them mV or m/s².
 
+**Derived output (Prompt 3, proposed `vibeguard.features` v1):** see `PROCESSING.md`.
+Display by `status` (`ok`/`degraded`/`warming_up`/`unavailable`) and `reasons`; values are
+`null` whenever not usable. `window_stats` is a placeholder in raw units, not something to
+present as activation or vibration.
+
 **Ali specifically:** these records are raw device data, not display values. Normalized
 muscle activation, vibration features, and the experimental score come from later host
 processing steps, which will publish their own example outputs.
@@ -69,7 +115,8 @@ processing steps, which will publish their own example outputs.
 **Decisions needing alignment**
 1. Whether the backend accepts this record shape as-is or wraps it (it should not mutate
    the device fields).
-2. Host freshness/stale limits for the live view (proposed in the Prompt 3 processing step).
+2. Host freshness/stale limit for the live view: 0.25 s proposed (`stale_after_s`). The
+   backend should run the processor in host-clock mode and call `poll()`.
 3. Who stamps wall-clock receive time, and under what field name (backend contract).
 4. Physical wire format and baud/USB CDC, once Collins confirms the board.
 5. Batch duration (≈50 ms proposed), weighing latency against header overhead.
