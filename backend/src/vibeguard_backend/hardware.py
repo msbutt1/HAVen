@@ -287,6 +287,10 @@ def _timing_span(rec: dict) -> tuple[float, float, float]:
 
 def _classify_open_error(msg: str) -> str:
     m = msg.lower()
+    if "no port carries device" in m or "is now vg-" in m or "expected vg-" in m:
+        return ("no matching port carries that device_id: check the id (it is vg-w-<base MAC>, printed in the hello and "
+                "shown by `vg-backend serial-check` on the right port), that the board is powered and sending, and "
+                "that it is the board you meant (two wearables share one USB serial number)")
     if "permission" in m or "errno 13" in m:
         return ("no permission to open the port. Linux: add yourself to the serial group "
                 "(sudo usermod -aG dialout $USER, then log out and in); macOS: nothing else should need rights")
@@ -332,7 +336,7 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
         return SerialCheckResult(port, baud, seconds, rep, {})
     rep.add(PASS, "port opens", f"{adapter.port} at {baud} baud")
     cands = getattr(adapter, "candidates", [])
-    if len(cands) > 1:
+    if len(cands) > 1 and not expect_device_id:
         rep.add(WARN, "port is ambiguous", f"'{port}' matched {len(cands)} ports; using {adapter.port} "
                 f"(others: {', '.join(cands[1:])})", "name the exact port, or unplug the other device")
 
@@ -346,7 +350,10 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
     hello_times: list[float] = []
     provenance: Counter = Counter()
     hello: dict | None = None
-    seq_last: dict[str, int] = {}
+    seq_last: dict = {}
+    counters_first: dict = {}   # boot_id -> first counters seen (the baseline: cumulative since that boot)
+    counters_last: dict = {}    # boot_id -> latest counters
+    junk_before_first = 0       # rejected lines before the first valid frame (a ROM banner after a reset)
     seq_missing = seq_dup = reboots = unannounced = sample_gap_total = dropped_before = 0
     bytes_total = lines = valid = longest = binary_lines = json_lines = 0
     first_valid_at = first_byte_at = last_valid_at = None
@@ -385,6 +392,8 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
                 rec, issues = None, [contract.Issue("malformed_json", "", "undecodable")]
             if rec is None or issues:
                 junk_since_valid += 1
+                if first_valid_at is None:
+                    junk_before_first += 1
                 code = issues[0].code if issues else "invalid"
                 invalid[code] += 1
                 invalid_examples.setdefault(code, line[:70])
@@ -407,7 +416,7 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
                 first_valid_at = at
             provenance[rec["provenance"]["source"]] += 1
             device_ids[rec["device_id"]] += 1
-            key = rec["boot_id"]
+            key = (rec["device_id"], rec["boot_id"])
             if key in seq_last:
                 if rec["seq"] > seq_last[key] + 1:
                     seq_missing += rec["seq"] - seq_last[key] - 1
@@ -422,9 +431,10 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
                         seq_dup += 1
                         continue
             elif seq_last:
-                reboots += 1
+                if any(k[0] == rec["device_id"] for k in seq_last):
+                    reboots += 1  # the same board with a new boot_id: a restart
                 for a in acc.values():
-                    a.new_segment()
+                    a.new_segment()  # another board's samples never join this one's segment
             seq_last[key] = rec["seq"]
             for out_rec in proc.feed(rec, rx_time_s=now):
                 if out_rec["type"] == "stream_event":
@@ -437,7 +447,10 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
                     acc[sname].raw_limits = (rec["streams"].get(sname) or {}).get("raw_limits")
             elif kind == "status":
                 status_states[rec["state"]] += 1
-                last_counters = rec.get("counters") or last_counters
+                if rec.get("counters"):
+                    last_counters = rec["counters"]
+                    counters_first.setdefault(key, dict(rec["counters"]))
+                    counters_last[key] = dict(rec["counters"])
             elif kind in ("emg_batch", "imu_batch"):
                 a = acc["emg" if kind == "emg_batch" else "imu"]
                 sg = a.seg
@@ -457,8 +470,10 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
                 else:
                     sg.samples_after_first += n
                     if idx > sg.last_index_end:
-                        sg.index_gap_samples += idx - sg.last_index_end
-                        sample_gap_total += idx - sg.last_index_end
+                        gap = idx - sg.last_index_end
+                        flagged = int(rec["quality"].get("dropped_samples_before", 0) or 0)  # the device said so itself
+                        sg.index_gap_samples += gap
+                        sample_gap_total += max(gap - flagged, 0)
                 sg.last_index_end = idx + n
                 sg.t_last_end_us = last
                 sg.last_arrival = now
@@ -523,9 +538,21 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
         rep.add(FAIL, "contract frames", f"0 of {lines} lines are valid ({dict(invalid.most_common(3))})",
                 f"{hint}. First rejected line: {first_bad!r}")
         return SerialCheckResult(port, baud, seconds, rep, stats)
+    boot_text = junk_before_first if 0 < junk_before_first <= 8 else 0  # ROM banner / boot log before the first frame
+    if boot_text:
+        lines -= boot_text
+        rejected = max(rejected - boot_text, 0)
+        invalid_note = (f" ({boot_text} boot-text line(s) before the first frame ignored: ROM banner or boot log, "
+                        "normal after a reset)")
+    else:
+        invalid_note = ""
     frac = valid / lines
-    if frac >= 0.995:
-        rep.add(PASS, "contract frames", f"{valid}/{lines} valid, first valid after {first_valid_at:.2f} s")
+    if boot_text and frac >= 0.995:
+        rep.add(WARN, "contract frames", f"{valid}/{lines} valid frames{invalid_note}",
+                f"normal after a reset, not a fault (the console prints before the firmware's first frame). First rejected "
+                f"line: {first_bad!r}")
+    elif frac >= 0.995:
+        rep.add(PASS, "contract frames", f"{valid}/{lines} valid, first valid after {first_valid_at:.2f} s{invalid_note}")
     else:
         if binary_lines > 0.5 * rejected:
             why = "binary bytes: a wrong or marginal baud rate, or NUL padding"
@@ -561,8 +588,8 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
         elif getattr(adapter, "hello_recovered", 0):
             extra = " (a hello glued behind boot text was recovered earlier)"
         rep.add(WARN, "hello received", "no hello record seen" + extra,
-                "send a hello on boot, and again when the host connects or every 1-2 s until the host answers "
-                "(a firmware cannot tell on a UART bridge that a host opened the port)")
+                "send a hello on boot, and keep re-sending it (this firmware re-sends every 5 s, so run the check for at "
+                "least 6 s: --seconds 10). A firmware cannot tell on a UART bridge that a host opened the port")
     else:
         s = hello["streams"]
         unresolved = [f"{k}.{f}" for k, v in s.items() for f in ("nominal_rate_hz", "raw_limits", "sensor_model") if v.get(f) is None]
@@ -577,14 +604,19 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
             "nominal_rate_hz": v.get("nominal_rate_hz"), "channels": v.get("channels"),
             "raw_limits": v.get("raw_limits"), "sensor_model": v.get("sensor_model")} for k, v in s.items()}}
         acq = str(hw.get("acquisition") or "")
-        if "FAKE" in acq.upper() or "SIMULATED" in acq.upper():
+        if re.search(r"\b(fake|simulated)\b", re.sub(r"\b(not|no|non|without)[ -]+(fake|simulated)\b", "", acq.lower())):
             rep.add(WARN, "acquisition is real", f"the firmware says: {acq}",
                     "this build produces synthetic samples, not sensor readings: fine for link testing, not for a person")
         problems = hw.get("config_problems")
-        if problems and str(problems).strip().lower() not in ("none", "null", "[]", "ok", ""):
+        if problems and str(problems).strip().lower() not in ("none", "null", "[]", "ok", "", "0", "no problems", "none detected",
+                                                              "n/a", "no problem", "no problems detected", "{}", "false"):
             rep.add(WARN, "firmware configuration", f"config_problems: {problems}", "the firmware reports a configuration problem")
         if len(hello_times) >= 2:
             stats["hello_interval_s"] = round((hello_times[-1] - hello_times[0]) / (len(hello_times) - 1), 2)
+        elif len(hello_times) == 1 and elapsed - hello_times[0] >= 12 and not interrupted and not reboots:
+            rep.add(WARN, "hello is re-sent", f"one hello in {elapsed:.0f} s (at {hello_times[0]:.1f} s)",
+                    "the firmware should re-send its hello every ~5 s (a host that connects later would never learn the "
+                    "stream parameters)")
         if profile is not None and profile.emg_channels is not None:
             got = len((s.get("emg") or {}).get("channels") or [])
             if got and got != profile.emg_channels:
@@ -679,6 +711,7 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
                     "glob, or the right port")
     elif len(device_ids) > 1:
         rep.add(WARN, "device id", f"records from several devices: {dict(device_ids)}", "two boards on one link?")
+    tx_delta = None
     if last_counters:
         stats["device_counters"] = dict(last_counters)
         meaning = {
@@ -688,16 +721,50 @@ def serial_check(port: str, baud: int = 921600, seconds: float = 20.0, save: str
             "tx_dropped_bytes": "bytes in those dropped records",
             "encode_errors": "records the firmware could not encode",
         }
-        bad = {k: v for k, v in last_counters.items() if k in meaning and isinstance(v, int) and v > 0}
+
+        def _num(v):
+            return v if isinstance(v, (int, float)) and not isinstance(v, bool) else 0
+
+        # cumulative since each boot: the part counted DURING this check is last - first, per boot
+        during: dict = {}
+        total: dict = {}
+        for bk, last in counters_last.items():
+            first = counters_first.get(bk, last)
+            for k, v in last.items():
+                total[k] = total.get(k, 0) + _num(v)
+                during[k] = during.get(k, 0) + max(_num(v) - _num(first.get(k)), 0)
+        stats["device_counters_during_check"] = dict(during)
+        if "tx_dropped_records" in total:
+            tx_delta = during.get("tx_dropped_records", 0)
+        bad = {k: v for k, v in total.items() if v > 0}
         if bad:
-            rep.add(WARN, "device counters", "; ".join(f"{k}={v} ({meaning[k]})" for k, v in bad.items()),
+            parts = []
+            for k, v in bad.items():
+                what = meaning.get(k, "not a counter this tool knows: read it in the firmware source")
+                part = f"{k}={v:g} ({what})"
+                if during.get(k, 0) == 0:
+                    part += "; counted since boot, none of it during this check"
+                elif during[k] < v:
+                    part += f"; {during[k]:g} of it during this check"
+                parts.append(part)
+            rep.add(WARN, "device counters", "; ".join(parts),
                     "tx drops mean the link is too slow for the stream: raise the baud rate or shrink batches; sample drops mean "
-                    "the firmware's serializer is starved")
+                    "the firmware's serializer is starved. Counters are cumulative since boot, so reset the board for a clean baseline")
         else:
-            rep.add(PASS, "device counters", "all drop and error counters are zero")
+            rep.add(PASS, "device counters", "all counters are zero")
     lost_note = []
     if seq_missing:
-        lost_note.append(f"{seq_missing} record(s) missing (seq gaps: the firmware's TX queue dropped them, or the link lost them)")
+        if tx_delta is None:
+            lost_note.append(f"{seq_missing} record(s) missing (seq gaps: the firmware's TX queue dropped them, or the link lost them)")
+        elif tx_delta >= seq_missing:
+            lost_note.append(f"{seq_missing} record(s) missing (seq gaps), explained by the device's own tx_dropped_records "
+                             f"(+{tx_delta:g} during the check): the UART could not keep up")
+        elif tx_delta == 0:
+            lost_note.append(f"{seq_missing} record(s) missing (seq gaps) although tx_dropped_records did not grow: lost on the "
+                             "wire, not in the firmware's queue (cable, baud rate, USB bridge)")
+        else:
+            lost_note.append(f"{seq_missing} record(s) missing (seq gaps); the device's tx_dropped_records grew by {tx_delta:g}, "
+                             "which explains only part of it")
     if dropped_before:
         lost_note.append(f"{dropped_before} sample(s) dropped on the device")
     if sample_gap_total:
@@ -833,10 +900,13 @@ def _check_emg_signal(rep: Report, stats: dict, x: np.ndarray, rate: float, lim:
 def find_baud(port: str, bauds: list[int], probe_s: float = 3.0, probe_max_s: float = 10.0,
               adapter_factory: Callable[[str, int], SerialAdapter] | None = None,
               progress: Callable[[str], None] | None = None, dtr: bool | None = None,
-              rts: bool | None = None) -> list[dict]:
+              rts: bool | None = None, expect_device_id: str | None = None) -> list[dict]:
     """Try each baud rate and score it by the share of valid contract lines. A board that resets on
     open gets up to ``probe_max_s`` to start talking: the window stays open while no byte has arrived."""
     say = progress or (lambda _m: None)
+    if adapter_factory is None and expect_device_id:
+        from .serial_select import DeviceIdSerialAdapter
+        adapter_factory = lambda p, b: DeviceIdSerialAdapter(p, b, expect_device_id, dtr=dtr, rts=rts)  # noqa: E731
     factory = adapter_factory or (lambda p, b: SerialAdapter(p, b, dtr=dtr, rts=rts))
     results = []
     for baud in bauds:

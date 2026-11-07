@@ -322,10 +322,14 @@ class DeviceRuntime:
 
     def request_stop(self) -> None:
         self._stop.set()
+        try:
+            self.adapter.interrupt()  # a blocking open (probing several ports) must not delay shutdown
+        except Exception:  # noqa: BLE001
+            pass
 
     def stop(self, timeout: float = 5.0) -> bool:
         """Ask the thread to stop and wait; True if it has exited."""
-        self._stop.set()
+        self.request_stop()
         if self._thread.is_alive() and threading.current_thread() is not self._thread:
             self._thread.join(timeout)
         return not self._thread.is_alive()
@@ -487,9 +491,11 @@ class DeviceRuntime:
         """Periodic work: staleness polling (host clock), silence detection, bounded-loss flushing.
         An error here (a full disk, say) is counted and reported; it must never end ingestion."""
         try:
-            if self.config.clock == "host" and now - self._last_poll >= POLL_S:
+            watch = self.config.clock == "host" or getattr(self.adapter, "live", False)
+            if watch and now - self._last_poll >= POLL_S:
                 self._last_poll = now
-                self._emit(self.proc.poll(now))
+                if self.config.clock == "host":
+                    self._emit(self.proc.poll(now))
                 ref = max(self.last_valid_mono or 0.0, self.connected_mono or 0.0)
                 if (self.connection == "connected" and ref and not self.silent and now - ref > SILENT_S):
                     self.silent = True  # link up but no VALID data (hung firmware, wrong baud rate, garbage)
@@ -690,6 +696,10 @@ class DeviceRuntime:
         dev, boot, prov = record["device_id"], record["boot_id"], record["provenance"]
         if boot != self.boot_id or record["type"] == "hello":
             self.store.touch_device(dev, boot, prov["source"], record if record["type"] == "hello" else None)
+        if boot != self.boot_id and record["type"] != "hello":
+            # a new boot: the previous boot's hello and status no longer describe the device (a fresh hello
+            # follows within seconds); never present them as current
+            self.hello = self.device_status = None
         self.boot_id = boot
         self.provenance = prov
         if record["type"] == "hello":

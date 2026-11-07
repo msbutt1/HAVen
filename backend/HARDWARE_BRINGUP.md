@@ -17,7 +17,7 @@ the baud rate as provisional until `serial-check` has measured it):
   NDJSON, the same as the simulator: one decoder (`contract.parse_line`) serves both.
 - **Two boards, one USB serial number.** Both wearable boards report the same USB serial number, so the OS cannot
   tell them apart. The firmware's `device_id` (`vg-w-<base MAC>`; board W is `vg-w-2805a5075554`) is in every record.
-  Use it: `serve --device-id vg-w-2805a5075554 --port '/dev/cu.usbserial-*'` (or `device_id` in the profile) opens each
+  Use it: `serve --device serial --baud 921600 --device-id vg-w-2805a5075554 --port '/dev/cu.usbserial-*'` (or `device_id` in the profile) opens each
   matching port, keeps the one whose stream carries that id, and hands over what it already read. `serial-check
   --device-id ...` does the same and fails if the port carries another board.
 - **Opening the port may reset the board.** DTR/RTS are wired to EN/IO0 for auto-reset on these dev boards. Keep both
@@ -46,7 +46,7 @@ the baud rate as provisional until `serial-check` has measured it):
   cd ../backend
   uv run vg-backend serve --device stream --stream ../firmware/fake.ndjson          # as fast as it is read
   uv run vg-backend serve --device stream --stream ../firmware/fake.ndjson --paced   # at the device's own speed
-  build/host/vg-fake-device --seconds 30 | uv run vg-backend serve --device stream --stream -
+  ../firmware/build/host/vg-fake-device --seconds 30 | uv run vg-backend serve --device stream --stream -
   ```
 
   The records keep the provenance the producer gave them (`simulated`); nothing is relabelled. This exercises the

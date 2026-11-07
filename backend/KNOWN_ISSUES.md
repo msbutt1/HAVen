@@ -58,3 +58,10 @@ listed. Everything below was reproduced.
   The backend was built to its README: 921600 baud, CP2102, `device_id` selection, boot banner skipped, hello every 5 s,
   DTR/RTS off. Behaviour that only the real board can show (whether the open still resets it, real throughput and error
   rate at 921600, the exact `hardware`/`counters` keys) is unverified; `serial-check` reports whatever it actually sends.
+
+## Firmware-link review (open item)
+
+- `sample_gap` events get cause `transport_or_unreported` for frames the firmware's TX queue dropped (`tx_dropped_records`):
+  the label comes from `signals/.../processor.py` (Salaar's package), not the backend. Pinned as an xfail in
+  `tests/test_firmware_emulator_review.py::test_firmware_side_drops_are_not_labelled_transport`.
+- This link layer was verified against a pty emulator of the firmware README (`tests/firmware_emulator.py`), never a real board.

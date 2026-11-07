@@ -60,6 +60,9 @@ class DeviceAdapter(ABC):
     def close(self) -> None:
         pass
 
+    def interrupt(self) -> None:
+        """Ask a blocking open()/read_line() to return soon (the runtime is stopping). Default: nothing to do."""
+
     def describe(self) -> dict:
         return {"kind": self.kind, "clock": self.clock}
 
@@ -290,6 +293,7 @@ class SerialAdapter(DeviceAdapter):
         self.hello_recovered = 0    # a hello found glued behind boot text on that first line
         self._check_first = False
         self._first_discard = False
+        self._banner_phase = False  # until the first frame-like line: boot text may carry a glued hello
 
     @staticmethod
     def _natural(name: str):
@@ -354,6 +358,7 @@ class SerialAdapter(DeviceAdapter):
         self._discarding = False
         self._check_first = True
         self._first_discard = False
+        self._banner_phase = True
 
     def _split(self) -> None:
         if self._check_first and self._buf:
@@ -385,6 +390,11 @@ class SerialAdapter(DeviceAdapter):
                         self.hello_recovered += 1
                         self._ready.append(line[k:])
                 continue
+            if line[:1] != b"{":
+                k = line.rfind(b'{"schema"')  # a hello glued behind boot text (a ROM banner at any reset)
+                if k > 0 and re.search(rb'"type"\s*:\s*"hello"', line[k:k + 400]):
+                    self.hello_recovered += 1
+                    line = line[k:]
             # an over-long line is passed on truncated either way; the validator rejects it
             self._ready.append(line if len(line) <= MAX_LINE_BYTES else line[:MAX_LINE_BYTES + 1])
 

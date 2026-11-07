@@ -105,8 +105,8 @@ async function tick(){
     $('calnote').textContent=CAL[rt.calibration.reason]||CAL[rt.calibration.state]||'';
     $('rec').textContent=rt.active_session_id?'session '+String(rt.active_session_id).slice(-6):'not recording';
     const b=$('banner');
-    if(rt.state==='completed'){b.textContent='PLAYBACK FINISHED: this recording has ended and nothing is updating. Play it again with POST /api/runtimes/wearable/restart, or restart the server with --loop.';b.style.display='block'}
-    else if(rt.state==='disconnected'||rt.state==='error'){b.textContent=rt.state==='error'?'The device runtime stopped: '+String(rt.error||'unknown error'):'DEVICE DISCONNECTED: the values below are not current.';b.style.display='block'}
+    if(rt.state==='completed'){const stm=rt.adapter&&rt.adapter.kind==='stream';b.textContent=stm?'STREAM FINISHED: the source ended and nothing is updating. Start the server again on a new capture.':'PLAYBACK FINISHED: this recording has ended and nothing is updating. Play it again with POST /api/runtimes/wearable/restart, or restart the server with --loop.';b.style.display='block'}
+    else if(rt.state==='disconnected'||rt.state==='error'){b.textContent=rt.state==='error'?'The device runtime stopped: '+String(rt.error||'unknown error'):'DEVICE DISCONNECTED: the values below are not current.'+(rt.connection_detail?' '+String(rt.connection_detail):'');b.style.display='block'}
     else if(rt.data_fresh===false){b.textContent='NO NEW DATA: the device is connected but has sent nothing valid recently. Values are not current.';b.style.display='block'}
     else if((rt.warnings||[]).length){b.textContent=(rt.warnings||[]).join(' | ');b.style.display='block'}
     else b.style.display='none';

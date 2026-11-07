@@ -103,7 +103,7 @@ def build_parser() -> argparse.ArgumentParser:
     c = sub.add_parser("serial-check", parents=[common],
                        help="read a real serial link and report what the backend will see")
     c.add_argument("--port", required=True)
-    c.add_argument("--baud", type=int, default=921600)
+    c.add_argument("--baud", type=int, default=None, help="serial baud rate (default: the profile's, else 921600)")
     c.add_argument("--seconds", type=float, default=20.0)
     c.add_argument("--save", type=Path, default=None, help="also save the raw bytes (NDJSON) for vg-process / vg-validate")
     c.add_argument("--mains-hz", type=int, choices=(50, 60), default=None)
@@ -212,8 +212,13 @@ def main(argv: list[str] | None = None) -> int:
             except ProfileError as exc:
                 print(f"vg-backend: hardware profile: {exc}", file=sys.stderr)
                 return 2
-        dtr = False if args.no_dtr else None
-        baud = args.baud
+        dtr = False if args.no_dtr else (profile.dtr if profile else None)
+        rts = False if args.no_dtr else (profile.rts if profile else None)
+        if args.device_id is not None and not args.device_id.strip():
+            print("vg-backend: --device-id must not be empty", file=sys.stderr)
+            return 2
+        baud = args.baud or (profile.baud if profile is not None and profile.baud else None) or 921600
+        expect_id = args.device_id or (profile.device_id if profile else None)
         if args.try_bauds:
             try:
                 bauds = [int(x) for x in args.try_bauds.split(",") if x.strip()]
@@ -222,7 +227,12 @@ def main(argv: list[str] | None = None) -> int:
                 return 2
             print(f"trying {len(bauds)} baud rates on {args.port} ({args.probe_seconds:g} s each, longer while a board "
                   "that resets on open is still starting)...")
-            results = find_baud(args.port, bauds, probe_s=args.probe_seconds, progress=print, dtr=dtr, rts=dtr)
+            bfactory = None
+            if expect_id:
+                from .serial_select import DeviceIdSerialAdapter
+                bfactory = lambda p, b: DeviceIdSerialAdapter(p, b, expect_id, dtr=dtr, rts=rts)  # noqa: E731
+            results = find_baud(args.port, bauds, probe_s=args.probe_seconds, progress=print, dtr=dtr, rts=rts,
+                                adapter_factory=bfactory)
             good = [r for r in results if r.get("valid", 0) > 0]
             if not good:
                 print("no baud rate produced valid frames. Run `vg-backend ports`; check the cable and that the firmware "
@@ -237,11 +247,10 @@ def main(argv: list[str] | None = None) -> int:
             print(f"best: {baud} baud ({best['valid']}/{best['lines']} valid)\n")
         print(f"checking {args.port} at {baud} baud for {args.seconds:g} s ...")
         factory = None
-        expect_id = args.device_id or (profile.device_id if profile else None)
         if expect_id:
             from .serial_select import DeviceIdSerialAdapter
-            factory = lambda p, b: DeviceIdSerialAdapter(p, b, expect_id, dtr=dtr, rts=dtr)  # noqa: E731
-        res = serial_check(args.port, baud, args.seconds, args.save, args.mains_hz, progress=print, dtr=dtr, rts=dtr,
+            factory = lambda p, b: DeviceIdSerialAdapter(p, b, expect_id, dtr=dtr, rts=rts)  # noqa: E731
+        res = serial_check(args.port, baud, args.seconds, args.save, args.mains_hz, progress=print, dtr=dtr, rts=rts,
                            profile=profile, adapter_factory=factory, expect_device_id=expect_id)
         print(res.report.render(not_ready="NOT READY - fix the FAIL lines before connecting this to the backend"))
         if args.json:
@@ -306,6 +315,13 @@ def main(argv: list[str] | None = None) -> int:
     runtime_meta: dict = {}
     try:  # validate everything before the data directory is touched
         adapter = config = None
+        serial_mode = args.device == "serial" or args.profile is not None
+        for flag, given, ok in (("--port", args.port, serial_mode), ("--stream", args.stream, args.device == "stream"),
+                                ("--paced", args.paced, args.device == "stream")):
+            if given and not ok:
+                need = "serial" if flag == "--port" else "stream"
+                raise ValueError(f"{flag} is only used with --device {need}; add --device {need} (it would be ignored "
+                                 f"and the {args.device} device started instead)")
         if args.backup is not None and args.profile is not None:
             raise ValueError("--profile describes a serial device; it cannot be combined with --backup")
         if args.backup is not None:
@@ -319,10 +335,14 @@ def main(argv: list[str] | None = None) -> int:
                                  speed=args.speed, loop=True)
             config = processing_config_for("sim")
         elif args.device == "stream":
+            if args.port:
+                raise ValueError("--port is for --device serial; --device stream reads --stream")
             from .hardware import ProfileError as _SPE, validate_counts_per_g as _vcg
             from .stream import StreamAdapter
             if not args.stream:
                 raise ValueError("--device stream needs --stream FILE (or - for stdin)")
+            if args.stream != "-" and not Path(args.stream).exists():
+                raise ValueError(f"stream file not found: {args.stream}")
             if args.profile is not None:
                 raise ValueError("--profile describes a serial device; it cannot be combined with --device stream")
             cpg = src = None
@@ -377,9 +397,14 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("--device serial needs --port (or a profile with a port)")
             dtr = False if args.no_dtr else (profile.dtr if profile else None)
             rts = False if args.no_dtr else (profile.rts if profile else None)
+            if args.device_id is not None and not args.device_id.strip():
+                raise ValueError("--device-id must not be empty")
             expect_id = args.device_id or (profile.device_id if profile else None)
             if expect_id:
                 from .serial_select import DeviceIdSerialAdapter
+                # probing opens every matching port, the other board's too: never assert DTR/RTS there (auto-reset)
+                dtr = False if dtr is None else dtr
+                rts = False if rts is None else rts
                 adapter = DeviceIdSerialAdapter(port, baud, expect_id, dtr=dtr, rts=rts)
             else:
                 adapter = SerialAdapter(port, baud, dtr=dtr, rts=rts)
