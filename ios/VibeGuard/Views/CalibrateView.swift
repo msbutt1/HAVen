@@ -54,25 +54,25 @@ struct CalibrateView: View {
         let phase = backend.cal.phase
         let running = phase == .relax || phase == .squeeze
         let ready = backend.sleeve.kind == .ready
-        HStack(spacing: 12) {
+        VStack(alignment: .leading, spacing: 12) {
             if phase == .relaxedCaptured {
                 Button("Start squeeze") { Task { await backend.calibrateStep("squeeze") } }
-                    .buttonStyle(PrimaryButtonStyle())
+                    .buttonStyle(PrimaryButtonStyle(big: true))
                     .disabled(!(ready || backend.sleeve.kind == .calibrating))
             } else if !running {
                 Button(phase == .done || backend.calibration != nil ? "Recalibrate"
                        : phase == .failed ? "Start relaxed again" : "Start relaxed") {
                     Task { await backend.calibrateStep("relaxed") }
                 }
-                .buttonStyle(PrimaryButtonStyle())
+                .buttonStyle(PrimaryButtonStyle(big: true))
                 .disabled(!ready)
             }
             if running || phase == .relaxedCaptured {
                 Button("Cancel") { Task { await backend.cancelCalibration() } }
-                    .buttonStyle(OutlineButtonStyle())
+                    .buttonStyle(OutlineButtonStyle(big: true))
             }
             if let hint {
-                Text(hint).font(.footnote).foregroundStyle(Theme.muted)
+                Text(hint).font(.callout).foregroundStyle(Theme.muted)
             }
         }
     }

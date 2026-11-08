@@ -8,7 +8,7 @@ struct StationView: View {
         let ui = backend.stationUI
         VStack(alignment: .leading, spacing: 16) {
             VStack(alignment: .leading, spacing: 6) {
-                Eyebrow(text: "Perception test")
+                Eyebrow(text: "Touch test")
                 Text("Fingertip vibration test").font(.title2.weight(.semibold))
                 Text(Backend.stationDetail).font(.footnote).foregroundStyle(Theme.muted)
             }
@@ -33,26 +33,24 @@ struct StationView: View {
             Text("Motor settings are drive levels sent to the motor, not measured vibration amplitudes.")
                 .font(.footnote).foregroundStyle(Theme.muted)
         }
-        .navigationTitle("Perception test")
+        .navigationTitle("Touch test")
     }
 
     private var idle: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text("Finds the lowest motor setting the person reports feeling at their fingertip.")
+            Text("Checks the softest buzz the person can feel. Rest a fingertip on the motor, then answer each time: felt it, or didn’t.")
                 .font(.body)
-            Picker("Test length", selection: $mode) {
-                ForEach(StationMode.allCases) { Text($0 == .preview ? "Preview (6 trials)" : "Full session").tag($0) }
+            Text("Test length").font(.subheadline.weight(.medium)).foregroundStyle(Theme.muted)
+            ForEach(StationMode.allCases) { m in
+                ModeCard(title: m == .preview ? "Quick test" : "Full test",
+                         detail: m == .preview ? "About 30 seconds (6 trials)" : "A few minutes (until 8 reversals)",
+                         selected: mode == m) { mode = m }
             }
-            .pickerStyle(.segmented)
-            Text(mode.label + (mode == .preview ? ", about 30 s." : ", runs until 8 reversals."))
-                .font(.footnote).foregroundStyle(Theme.muted)
-            HStack(spacing: 12) {
-                Button("Start test") { Task { await backend.startStationTest(mode: mode) } }
-                    .buttonStyle(PrimaryButtonStyle())
-                    .disabled(backend.station.kind != .ready)
-                if backend.station.kind == .disconnected {
-                    Text("Connect to the backend first.").font(.footnote).foregroundStyle(Theme.muted)
-                }
+            Button("Start test") { Task { await backend.startStationTest(mode: mode) } }
+                .buttonStyle(PrimaryButtonStyle(big: true))
+                .disabled(backend.station.kind != .ready)
+            if backend.station.kind == .disconnected {
+                Text("Connect to the laptop first.").font(.callout).foregroundStyle(Theme.muted)
             }
         }
         .panel()
@@ -66,7 +64,7 @@ struct StationView: View {
                 Text(n == 0 ? "Starting" : ui.planned.map { "Trial \(n) of \($0)" } ?? "Trial \(n)")
                     .font(.subheadline.monospaced()).foregroundStyle(Theme.muted)
                 Spacer()
-                Button("Abort test") { Task { await backend.abortStationTest() } }
+                Button("Stop test") { Task { await backend.abortStationTest() } }
                     .buttonStyle(PrimaryButtonStyle(role: .destructive))
             }
             Text(current == nil ? "Keep your fingertip on the motor. Next trial coming."
@@ -79,14 +77,16 @@ struct StationView: View {
             }
             let waiting = current != nil && current?.answered == false
             HStack(spacing: 12) {
-                Button("Felt it") { Task { await backend.respond("felt") } }
-                    .buttonStyle(PrimaryButtonStyle(big: true))
-                Button("Didn’t feel it") { Task { await backend.respond("not_felt") } }
-                    .buttonStyle(OutlineButtonStyle(big: true))
+                AnswerButton(title: "Felt it", systemImage: "checkmark", tint: Theme.success) {
+                    Task { await backend.respond("felt") }
+                }
+                AnswerButton(title: "Didn’t feel it", systemImage: "xmark", tint: Theme.foreground) {
+                    Task { await backend.respond("not_felt") }
+                }
             }
             .disabled(!waiting)
-            Text("No answer within the window is saved as a missing response, not as “didn’t feel it”.")
-                .font(.footnote).foregroundStyle(Theme.muted)
+            Text("No answer in time is saved as “no answer”, not as “didn’t feel it”.")
+                .font(.callout).foregroundStyle(Theme.muted)
         }
         .panel()
     }
@@ -158,5 +158,58 @@ struct TrialLog: View {
         case "not_felt": return "Didn’t feel it"
         default: return "No response"
         }
+    }
+}
+
+/// A test length to choose: a big card with a radio mark.
+struct ModeCard: View {
+    let title: String
+    let detail: String
+    let selected: Bool
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 12) {
+                Image(systemName: selected ? "largecircle.fill.circle" : "circle")
+                    .font(.title2)
+                    .foregroundStyle(selected ? Theme.primary : Theme.muted)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).font(.headline).foregroundStyle(Theme.foreground)
+                    Text(detail).font(.subheadline).foregroundStyle(Theme.muted)
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(14)
+            .frame(minHeight: 64)
+            .background(RoundedRectangle(cornerRadius: 12).fill(selected ? Theme.primary.opacity(0.1) : Theme.background))
+            .overlay(RoundedRectangle(cornerRadius: 12).strokeBorder(selected ? Theme.primary.opacity(0.6) : Theme.border))
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// One of the two answers: very large, an icon over the word.
+struct AnswerButton: View {
+    let title: String
+    let systemImage: String
+    let tint: Color
+    let action: () -> Void
+    @Environment(\.isEnabled) private var enabled
+
+    var body: some View {
+        Button(action: action) {
+            VStack(spacing: 10) {
+                Image(systemName: systemImage).font(.system(size: 36, weight: .bold))
+                Text(title).font(.title3.weight(.semibold)).multilineTextAlignment(.center)
+            }
+            .foregroundStyle(tint)
+            .frame(maxWidth: .infinity, minHeight: 140)
+            .background(RoundedRectangle(cornerRadius: 14).fill(tint.opacity(enabled ? 0.12 : 0.05)))
+            .overlay(RoundedRectangle(cornerRadius: 14).strokeBorder(tint.opacity(enabled ? 0.55 : 0.2), lineWidth: 1.5))
+            .opacity(enabled ? 1 : 0.5)
+        }
+        .buttonStyle(.plain)
     }
 }

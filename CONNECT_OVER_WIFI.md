@@ -18,7 +18,7 @@ All three must be on **the same Wi-Fi network**.
 | What | Talks to | How it finds the other side |
 |---|---|---|
 | Wearable → laptop | TCP port 8765 | broadcasts on UDP 8766; the laptop answers |
-| Phone → laptop | web port 8000 | the app broadcasts on UDP 8767; the laptop answers |
+| Phone → laptop | web port 8000 | Android: the app broadcasts on UDP 8767 and the laptop answers. iPhone: the laptop announces itself with Bonjour and the app looks for it |
 
 You never type an address into the wearable. The phone only needs one if its search finds nothing.
 
@@ -137,7 +137,9 @@ Keep this terminal open while you work. `Ctrl+C` stops VibeGuard.
 5. **Calibrate** (bottom menu): relax, then squeeze, as the screen says. Do this again after every wearable restart;
    the app will tell you.
 
-No Android phone? Any phone's browser works too: open `http://<laptop address>:8000/dashboard/`.
+On an **iPhone** the VibeGuard iOS app works the same way (installed from Xcode for now; see `ios/README.md`):
+allow **Local Network** when iOS asks, then tap **Open**. Any phone's browser works too:
+`http://<laptop address>:8000/dashboard/`.
 
 ---
 

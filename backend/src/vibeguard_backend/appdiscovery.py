@@ -27,7 +27,7 @@ def clean_name(name: str) -> str:
     """A short, plain label for the app's list: letters, digits and dashes, at most 24 characters."""
     name = name.split(".")[0]
     name = re.sub(r"[^A-Za-z0-9-]+", "-", name).strip("-")
-    return (name or "vibeguard")[:24]
+    return (name or "vibeguard")[:24].strip("-") or "vibeguard"
 
 
 def reply_for(data: bytes, sender: str, http_port: int, password: bool, name: str) -> bytes | None:

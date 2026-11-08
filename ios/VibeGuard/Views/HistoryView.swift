@@ -2,6 +2,7 @@ import SwiftUI
 
 struct HistoryView: View {
     @Environment(Backend.self) private var backend
+    @State private var shown = 20
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -14,20 +15,25 @@ struct HistoryView: View {
                 Button {
                     Task { await backend.loadHistory() }
                 } label: {
-                    Image(systemName: "arrow.clockwise")
+                    Image(systemName: "arrow.clockwise").font(.title3)
                 }
                 .accessibilityLabel("Reload history")
                 .disabled(!backend.connected)
             }
 
             if backend.history.isEmpty {
-                Text(backend.connected ? (backend.historyLoaded ? "Nothing saved yet. Record a session on the Live screen or run a perception test." : "Loading…")
-                     : "Connect to the backend to see saved recordings.")
-                    .font(.subheadline).foregroundStyle(Theme.muted)
+                Text(backend.connected ? (backend.historyLoaded ? "Nothing saved yet. Record on the Live tab or run a touch test." : "Loading…")
+                     : "Connect to the laptop to see saved recordings.")
+                    .font(.body).foregroundStyle(Theme.muted)
                     .panel()
             } else {
+                // newest first, a page at a time
                 VStack(spacing: 10) {
-                    ForEach(backend.history) { item in HistoryRow(item: item) }
+                    ForEach(backend.history.prefix(shown)) { item in HistoryRow(item: item) }
+                }
+                if backend.history.count > shown {
+                    Button("Show older (\(backend.history.count - shown) more)") { shown += 20 }
+                        .buttonStyle(OutlineButtonStyle(big: true))
                 }
             }
         }
@@ -36,21 +42,32 @@ struct HistoryView: View {
     }
 }
 
+/// One saved recording or test: what, when, where the data came from, and its facts as label + value.
 struct HistoryRow: View {
     let item: HistoryItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(spacing: 8) {
-                Image(systemName: isTest ? "hand.point.up.left" : "waveform.path.ecg")
-                    .foregroundStyle(Theme.primary)
-                Text(isTest ? "Perception test" : "Wearable recording").font(.headline)
+        VStack(alignment: .leading, spacing: 12) {
+            HStack(alignment: .top, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(isTest ? "Touch test" : "Wearable recording").font(.headline)
+                    Text(Summary.when(item.date)).font(.subheadline).foregroundStyle(Theme.muted)
+                }
                 Spacer()
                 SourceTag(source: source)
             }
-            Text(item.date == .distantPast ? "—" : item.date.formatted(date: .abbreviated, time: .shortened))
-                .font(.caption.monospaced()).foregroundStyle(Theme.muted)
-            Text(summary).font(.subheadline).foregroundStyle(Theme.muted).fixedSize(horizontal: false, vertical: true)
+            LazyVGrid(columns: [GridItem(.flexible(), alignment: .topLeading), GridItem(.flexible(), alignment: .topLeading)],
+                      alignment: .leading, spacing: 10) {
+                ForEach(facts, id: \.0) { label, value in
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(label).font(.caption).foregroundStyle(Theme.muted)
+                        Text(value).font(.body.weight(.semibold)).monospacedDigit()
+                    }
+                }
+            }
+            if let warning {
+                Label(warning, systemImage: "exclamationmark.triangle").font(.subheadline).foregroundStyle(Theme.destructive)
+            }
         }
         .panel(padding: 14)
         .accessibilityElement(children: .combine)
@@ -65,23 +82,27 @@ struct HistoryRow: View {
         }
     }
 
-    private var summary: String {
+    private var facts: [(String, String)] {
         switch item {
         case .session(let s):
-            var bits = [String(format: "%d:%02d long", Int(s.durationS) / 60, Int(s.durationS) % 60)]
-            bits.append(s.scoreTotal != nil ? "score \(formatScore(s.scoreTotal)) au (experimental)"
-                        : s.calibrated ? "no score (the backend could not attribute one to this recording)" : "no score (not calibrated)")
-            if let a = s.meanActivationPct { bits.append("mean activation \(formatNumber(a, 0)) %") }
-            if let v = s.peakVibration { bits.append("peak vibration \(formatNumber(v, 2)) m/s²") }
-            if let tt = s.toolTimeS { bits.append("tool time \(Int(tt.rounded())) s (estimated)") }
-            if s.endedReason != "stopped" { bits.append("ended early: \(s.endedReason)") }
-            return bits.joined(separator: ", ")
+            var f = [("Length", Summary.duration(s.durationS))]
+            if let a = s.meanActivationPct { f.append(("Mean grip effort", "\(formatNumber(a, 0)) %")) }
+            if let v = s.peakVibration { f.append(("Peak vibration", "\(formatNumber(v, 2)) m/s²")) }
+            if let tt = s.toolTimeS { f.append(("Tool time (estimated)", Summary.duration(tt))) }
+            f.append(("Score (experimental)", s.scoreTotal != nil ? "\(formatScore(s.scoreTotal)) au"
+                      : s.calibrated ? "none for this recording" : "none (not calibrated)"))
+            return f
         case .test(let t):
-            var bits = [t.summary.threshold.map { "threshold setting \(formatNumber($0, 0))" } ?? "no threshold reached"]
-            bits.append("\(t.trials.count) trials")
-            if t.summary.missing > 0 { bits.append("\(t.summary.missing) missing") }
-            bits.append(t.mode == .preview ? "short preview" : "full session")
-            return bits.joined(separator: ", ")
+            var f = [("Threshold", t.summary.threshold.map { "setting \(formatNumber($0, 0))" } ?? "not reached"),
+                     ("Trials", "\(t.trials.count)")]
+            if t.summary.missing > 0 { f.append(("No answer", "\(t.summary.missing)")) }
+            f.append(("Type", t.mode == .preview ? "Quick test" : "Full test"))
+            return f
         }
+    }
+
+    private var warning: String? {
+        if case .session(let s) = item, s.endedReason != "stopped" { return "Ended early: \(s.endedReason)" }
+        return nil
     }
 }

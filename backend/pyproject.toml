@@ -9,6 +9,7 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "pyserial>=3.5",
+    "zeroconf>=0.136",
 ]
 
 [project.scripts]

@@ -54,6 +54,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--app-discovery-port", type=int, default=8767,
                    help="when the API listens beyond this computer (--host 0.0.0.0 or a LAN address): UDP port where "
                         "the VibeGuard phone app's 'Find on this Wi-Fi' is answered (default 8767; 0 turns it off)")
+    s.add_argument("--no-bonjour", action="store_true",
+                   help="do not announce this backend on Bonjour (_vibeguard._tcp), which the iPhone app uses to find "
+                        "it; like --app-discovery-port, it only runs with a non-loopback --host")
     s.add_argument("--dashboard", default=None, metavar="DIR|none",
                    help="serve the dashboard from DIR at /dashboard/ (default: ../dashboard next to backend/, or "
                         "$VG_DASHBOARD_DIR; 'none' turns it off)")
@@ -519,8 +522,9 @@ def main(argv: list[str] | None = None) -> int:
     allowed = None if wildcard else tuple({*LOCAL_HOSTS, bracket(args.host.lower()),
                                            *(bracket(h.lower()) for h in args.allow_host)})
     if wildcard:
-        print("vg-backend: WARNING listening on all interfaces; the API has no authentication and the "
-              "Host check is off (cross-site requests are still refused)", file=sys.stderr)
+        print("vg-backend: WARNING listening on all interfaces; the Host check is off (cross-site requests are "
+              "still refused)" + ("" if os.environ.get("VG_BASIC_AUTH") else "; set VG_BASIC_AUTH to require a password"),
+              file=sys.stderr)
     from .app import find_dashboard_dir
     dash = None if args.dashboard == "none" else (Path(args.dashboard) if args.dashboard else find_dashboard_dir())
     if dash is not None and not (dash / "index.html").is_file():
@@ -544,8 +548,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"vg-backend: http://{args.host}:{args.http_port}  data={backend.data_dir}  "
           f"source={'backup replay' if args.backup else (adapter.kind if adapter is not None else 'none')}",
           file=sys.stderr)
+    lan = not args.host.startswith(("127.", "localhost", "::1"))
     discovery = None
-    if args.app_discovery_port and not args.host.startswith(("127.", "localhost", "::1")):
+    if args.app_discovery_port and lan:
         from .appdiscovery import AppDiscovery
         discovery = AppDiscovery(args.http_port, password=basic_auth is not None, port=args.app_discovery_port)
         try:
@@ -556,6 +561,16 @@ def main(argv: list[str] | None = None) -> int:
             print(f"vg-backend: the phone app's discovery is off: UDP {args.app_discovery_port} is in use ({e}); "
                   f"type the address in the app instead", file=sys.stderr)
             discovery = None
+    bonjour = None
+    if lan and not args.no_bonjour:
+        from .bonjour import Announcer
+        bonjour = Announcer(args.http_port, password=basic_auth is not None)
+        if bonjour.start():
+            print(f"vg-backend: announced on Bonjour as {bonjour.name!r} for the iPhone app "
+                  f"({', '.join(bonjour.addresses)}:{args.http_port})", file=sys.stderr)
+        else:
+            print(f"vg-backend: Bonjour announcement off: {bonjour.error}", file=sys.stderr)
+            bonjour = None
     try:
         # A client that never reads must not keep the server (and the open session) alive on Ctrl-C.
         uvicorn.run(app, host=args.host, port=args.http_port, log_level=args.log_level,
@@ -563,6 +578,8 @@ def main(argv: list[str] | None = None) -> int:
     finally:
         if discovery is not None:
             discovery.stop()
+        if bonjour is not None:
+            bonjour.stop()
     return 0
 
 

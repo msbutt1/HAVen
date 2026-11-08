@@ -4,6 +4,7 @@ import socket
 import pytest
 
 from vibeguard_backend.appdiscovery import MAX_REPLY, MIN_QUERY, AppDiscovery, clean_name, reply_for
+from vibeguard_backend.bonjour import Announcer as RealAnnouncer   # bound before conftest swaps in a quiet one
 from vibeguard_backend.cli import build_parser
 
 Q = b"VGFIND 1".ljust(MIN_QUERY, b" ")
@@ -35,6 +36,7 @@ def test_names_are_short_and_plain():
     assert clean_name("lab pc (2)") == "lab-pc-2"
     assert clean_name("...") == "vibeguard"
     assert len(clean_name("x" * 99)) == 24
+    assert clean_name("Abdujabbors-MacBook-Air-2") == "Abdujabbors-MacBook-Air"   # cut at 24, no dangling dash
 
 
 def test_round_trip_over_a_real_socket():
@@ -109,3 +111,61 @@ def test_serve_answers_the_app_only_when_it_listens_beyond_this_computer(monkeyp
     else:
         assert seen["reply"] is None
     assert _ask(port) is None        # stopped with the server
+
+
+# ---------------------------------------------------------------- Bonjour, for the iPhone app
+
+def test_bonjour_announcement_says_port_password_and_path():
+    from vibeguard_backend.bonjour import SERVICE_TYPE, service_fields
+
+    f = service_fields(8000, True, "Abdujabbors-MacBook-Air.local", ["192.168.43.20"])
+    assert SERVICE_TYPE == "_vibeguard._tcp.local."
+    assert f["name"] == "Abdujabbors-MacBook-Air._vibeguard._tcp.local."
+    assert f["server"] == "Abdujabbors-MacBook-Air.local."
+    assert f["port"] == 8000
+    assert f["properties"] == {"v": "1", "password": "1", "path": "/dashboard/"}
+    assert f["addresses"] == [socket.inet_aton("192.168.43.20")]
+
+
+def test_bonjour_only_announces_lan_addresses(monkeypatch):
+    import types
+
+    from vibeguard_backend import bonjour
+
+    fake = [types.SimpleNamespace(ips=[types.SimpleNamespace(ip="127.0.0.1"), types.SimpleNamespace(ip="192.168.1.5"),
+                                       types.SimpleNamespace(ip=("fe80::1", 0, 4)), types.SimpleNamespace(ip="8.8.8.8"),
+                                       types.SimpleNamespace(ip="169.254.10.2")])]
+    monkeypatch.setattr("ifaddr.get_adapters", lambda: fake)
+    assert bonjour.lan_ipv4_addresses() == ["192.168.1.5", "169.254.10.2"]
+    a = RealAnnouncer(8000, False, addresses=[])
+    assert a.start() is False and "no Wi-Fi" in a.error             # nothing to announce: says so, does not crash
+
+
+@pytest.mark.parametrize("host,flags,announced", [("0.0.0.0", [], True), ("127.0.0.1", [], False),
+                                                  ("0.0.0.0", ["--no-bonjour"], False)])
+def test_serve_announces_on_bonjour_only_beyond_this_computer(monkeypatch, tmp_path, host, flags, announced):
+    import uvicorn
+
+    from vibeguard_backend import bonjour
+    from vibeguard_backend.cli import main as cli_main
+
+    seen = []
+
+    class FakeAnnouncer:                        # no multicast in tests
+        def __init__(self, http_port, password, name=None, addresses=None):
+            self.name, self.addresses, self.error = "test", ["192.168.1.5"], None
+            seen.append(("init", http_port, password))
+
+        def start(self):
+            seen.append("start")
+            return True
+
+        def stop(self):
+            seen.append("stop")
+
+    monkeypatch.setattr(bonjour, "Announcer", FakeAnnouncer)
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: None)
+    rc = cli_main(["serve", "--device", "none", "--host", host, "--http-port", "8124", "--app-discovery-port", "0",
+                   *flags, "--data-dir", str(tmp_path / "d")])
+    assert rc == 0
+    assert seen == ([("init", 8124, False), "start", "stop"] if announced else [])

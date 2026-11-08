@@ -684,10 +684,10 @@ def test_session_ended_by_end_of_input_is_completed_and_survives_restart(tmp_pat
 # ----------------------------------------------------------------------------- (5) offline
 
 
-LOCAL_SOCKET_FILES = {"wifi.py", "fake_wifi.py", "bridge.py", "live_cli.py", "web_ui.py", "appdiscovery.py"}
+LOCAL_SOCKET_FILES = {"wifi.py", "fake_wifi.py", "bridge.py", "live_cli.py", "web_ui.py", "appdiscovery.py", "bonjour.py"}
 NETWORK_MODULES = {"requests", "httpx", "urllib.request", "urllib3", "http.client", "aiohttp", "socket",
                    "websockets", "smtplib", "ftplib", "boto3", "botocore", "google.cloud", "firebase_admin",
-                   "supabase", "openai", "anthropic"}
+                   "supabase", "openai", "anthropic", "zeroconf"}
 
 
 def _imports(path: Path) -> set[str]:
@@ -714,7 +714,10 @@ def test_source_has_no_network_client_imports_or_remote_urls(root):
                 r"https?://(?!127\.0\.0\.1|localhost)[a-z0-9]", f.read_text())
             continue
         bad = {m for m in _imports(f) if any(m == n or m.startswith(n + ".") for n in NETWORK_MODULES)}
-        if f.name in LOCAL_SOCKET_FILES and bad <= {"socket"}:
+        # bonjour.py announces this backend by multicast DNS on the local network only (no remote host)
+        allowed = {"socket", "zeroconf", "zeroconf.IPVersion", "zeroconf.ServiceInfo", "zeroconf.Zeroconf"} \
+            if f.name == "bonjour.py" else {"socket"}
+        if f.name in LOCAL_SOCKET_FILES and bad <= allowed:
             # The Wi-Fi wearable's link (firmware/INTEGRATION_FOR_ABDULJABBAR.md): the laptop LISTENS for the wearable
             # and answers its discovery broadcast; appdiscovery.py answers the phone app's. These may use sockets, but
             # only loopback, any-interface or broadcast addresses appear in them: no remote host is ever contacted.

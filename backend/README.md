@@ -118,6 +118,11 @@ only to private, link-local or loopback senders, only to a query padded to 64 by
 bytes (it never amplifies). `--app-discovery-port 0` turns it off; on the default `--host 127.0.0.1` it never runs.
 With `VG_BASIC_AUTH`, an unauthenticated `/ws/live` handshake gets the same `401` challenge as HTTP (not a bare
 close), so a browser or the app's WebView retries it with the password it already holds.
+
+The **iPhone app** cannot send that UDP broadcast (iOS needs an Apple entitlement for it), so `serve` also announces
+itself with **Bonjour** (`bonjour.py`, the `zeroconf` package): service `_vibeguard._tcp`, the web port, and a TXT record
+`v=1`, `password=0|1`, `path=/dashboard/`. Same rule: only with a non-loopback `--host`, on this computer's own
+network; `--no-bonjour` turns it off. Ctrl+C withdraws the announcement.
 - **Silence** is visible: the processor is polled every 50 ms with a 1 s stale limit, so a wearable that stops
   sending shows `stream_stale` within about a second and its values become dashes.
 - Raw telemetry and derived records are stored **during recordings** (as before), each keeping its provenance.

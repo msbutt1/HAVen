@@ -87,6 +87,8 @@ final class Backend {
     var settings: ConnectionSettings
     private(set) var connected = false
     private(set) var connecting = false
+    /// Connected at least once since the app opened (until then the connect screen is shown).
+    private(set) var everConnected = false
     var connectionMessage: String?
     private(set) var sleeve = DeviceState(kind: .disconnected, detail: "")
     private(set) var station = DeviceState(kind: .disconnected, detail: "")
@@ -197,6 +199,7 @@ final class Backend {
                 guard socket === task else { return }
                 if !connected {
                     connected = true
+                    everConnected = true
                     connecting = false
                     retryDelay = 0.5
                     connectionMessage = nil
