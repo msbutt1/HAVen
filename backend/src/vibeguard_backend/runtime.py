@@ -25,6 +25,7 @@ import concurrent.futures as cf
 import dataclasses
 import hashlib
 import json
+import math
 import logging
 import queue
 import threading
@@ -178,6 +179,34 @@ class _ActiveSession:
     counters: Counter = dataclasses.field(default_factory=Counter)
     calibration_ids: list[str] = dataclasses.field(default_factory=list)
     pre_session_calibration: dict | None = None
+    # what the screens showed during the recording, summarised (only values the pipeline marked usable)
+    act_sum: float = 0.0
+    act_n: int = 0
+    act_peak: float | None = None
+    vib_peak: float | None = None
+    vib_n: int = 0
+
+
+def _first_number(d: Any) -> float | None:
+    if isinstance(d, dict) and d:
+        v = next(iter(d.values()))
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+            return float(v)
+    return None
+
+
+def _readings_view(s: "_ActiveSession") -> dict:
+    """Per-recording readings for the history list. Activation is relative to that wearer's calibration
+    (0..100 % of the calibrated squeeze, shown clipped); vibration is the measured, unweighted combined RMS
+    in m/s^2, present only when the IMU could be converted. Neither is a dose."""
+    return {
+        "mean_activation_pct": None if not s.act_n else round(s.act_sum / s.act_n, 1),
+        "peak_activation_pct": None if s.act_peak is None else round(s.act_peak, 1),
+        "activation_windows": s.act_n,
+        "peak_vibration_ms2": None if s.vib_peak is None else round(s.vib_peak, 3),
+        "vibration_windows": s.vib_n,
+        "note": "activation is relative to the wearer's calibration; vibration is measured and unweighted",
+    }
 
 
 def _score_view(score: dict | None) -> dict | None:
@@ -800,6 +829,21 @@ class DeviceRuntime:
                     if (s is not None and cid and (act.get("normalized") or {}).get("status") in ("ok", "degraded")
                             and cid not in s.calibration_ids):
                         s.calibration_ids.append(cid)  # a calibration that normalised data in this session
+                    norm = act.get("normalized") or {}
+                    if s is not None and norm.get("status") == "ok":
+                        v = _first_number(norm.get("display"))
+                        if v is not None:
+                            pct = v * 100.0
+                            s.act_sum += pct
+                            s.act_n += 1
+                            s.act_peak = pct if s.act_peak is None else max(s.act_peak, pct)
+                elif out["stream"] == "imu" and s is not None:
+                    phys = ((out.get("features") or {}).get("vibration") or {}).get("physical") or {}
+                    v = phys.get("combined_rms")
+                    if (phys.get("status") == "ok" and isinstance(v, (int, float)) and not isinstance(v, bool)
+                            and math.isfinite(v)):
+                        s.vib_n += 1
+                        s.vib_peak = float(v) if s.vib_peak is None else max(s.vib_peak, float(v))
             elif kind == "experimental_score":
                 self.latest["score"] = out
                 if s is not None and s.first_score is None:
@@ -910,7 +954,8 @@ class DeviceRuntime:
         counters = {**dict(s.counters), "frames": s.rec.lines, "derived_records": s.rec.derived_count,
                     "events": dict(s.events), "sources_seen": s.sources_seen,
                     "calibration_ids": s.calibration_ids,
-                    "duration_s": round(time.monotonic() - s.started_mono, 3)}
+                    "duration_s": round(time.monotonic() - s.started_mono, 3),
+                    "readings": _readings_view(s)}
         row = self.store.update_wearable_session(
             s.session_id, state=state, end_reason=reason, ended_at=utc_now_iso(),
             device_id=self.device_id, source=s.source, original_source=s.original_source,

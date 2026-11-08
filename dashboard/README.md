@@ -1,6 +1,8 @@
 # VibeGuard dashboard (Ali)
 
 Live view, calibration, perception test, and history screens. No build step, no installs, no internet needed.
+It uses the same design system as the landing page (livops.uz's colour tokens for light and dark, Onest and
+JetBrains Mono self-hosted in `assets/fonts`, rim-lit panels).
 
 ## Run it
 

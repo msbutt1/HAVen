@@ -99,7 +99,7 @@ def _origin_host(origin: str) -> tuple[str, str | None] | None:
 
 
 DASHBOARD_CSP = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
-                 "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+                 "font-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 
 
 def find_dashboard_dir() -> Path | None:
