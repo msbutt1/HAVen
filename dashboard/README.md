@@ -1,6 +1,6 @@
 # VibeGuard dashboard (Ali)
 
-Live view, calibration, perception test, and history screens. No build step, no installs, no internet needed.
+Live view, overview charts, calibration, perception test, and history screens. No build step, no installs, no internet needed.
 It uses the same design system as the landing page (livops.uz's colour tokens for light and dark, Onest and
 JetBrains Mono self-hosted in `assets/fonts`, rim-lit panels).
 
@@ -11,7 +11,7 @@ Double-click `index.html`, or open it in Chrome. It starts on **mock data** (pur
 To use the real backend, let the backend serve the dashboard (same origin, nothing to configure):
 
 ```
-cd backend && uv run vg-backend serve            # then open http://127.0.0.1:8765/dashboard/
+cd backend && uv run vg-backend serve            # then open http://127.0.0.1:8000/dashboard/
 ```
 
 Served over http(s) the dashboard talks to the backend (`js/backend-adapter.js`: live data over `/ws/live`,
@@ -21,9 +21,41 @@ The perception-test screens run on the backend's station API (`js/backend-statio
 simulated (no motor), so every test is stored and shown as simulated, and the test sequence is a stand-in for Fahad's
 engine. The 12-week charts on the History screen are labelled sample data, not your recordings.
 
+With the Wi-Fi wearable (`serve --device wifi`) the Live screen also shows **tool use** (estimated from vibration, with a
+**New shift** button) and an **Events** list in plain words, and Calibrate follows Salaar's two-step flow
+(Start relaxed, then Start squeeze). Grip effort is relative to the wearer's calibration, not grip force.
+
 Publishing it on livops.uz through a tunnel: see `backend/DEPLOY_LIVOPS.md`.
 
-Each screen has its own link, so a refresh stays put: `#live`, `#calibrate`, `#station`, `#history`.
+Each screen has its own link, so a refresh stays put: `#live`, `#overview`, `#calibrate`, `#station`, `#history`.
+
+## On a phone
+
+Below 640 px wide (a phone, or the Android app) the dashboard switches to a layout for people who may be new to phones:
+
+- a bottom menu with an icon over a word: Live, Summary, Calibrate, Touch test, History;
+- everything about 12 % larger (the root font size), buttons at least about 52 px tall, the touch test's answers as two
+  very large buttons;
+- the main action first: **Start recording** at the top of Live, **Calibrate now** on the grip card when it is needed;
+- plain labels (`.for-phone` spans next to the `.for-desktop` wording), and no **Disconnect** button to tap by mistake;
+- History as cards with dates, 20 at a time; the demo's practice controls folded behind one button.
+
+The technical details (tool bouts and frequency, raw calibration signal, trial log, notes on what each number is and
+is not) stay on the phone too, lower down. The desktop layout is unchanged.
+
+## Overview
+
+KPI tiles (with the change against the previous period) and nine charts over the saved recordings and perception
+tests: recordings per day, grip effort per recording, the highest exposure scores, the share of recorded time with a
+tool, perception test answers, grip effort against peak vibration, peak vibration per recording, the perception
+threshold per test, and where the data came from. Period (7 days, 30 days, all time) and source filters scope every
+tile and chart. Each chart has a **Numbers** table under it, so no value is reachable only by hovering.
+
+It is computed in the browser from the same items as the History screen. On the mock feed the history is a labelled
+sample (about 60 days, made up in the browser by `VG.sampleHistory`); with the backend it is your saved recordings
+(`vg-backend seed-history --days 21` adds labelled simulated ones to try it). Changes are shown in neutral ink and no
+chart draws a safe or unsafe line: there are no validated limits behind these numbers. The chart colours are the
+`--ov-*` tokens in `css/style.css`, checked for colour-blind separation and contrast in light and dark.
 
 ## Mock controls (bar at the bottom, mock mode only)
 
@@ -43,7 +75,9 @@ In the perception test, press **F** for "felt it" and **N** for "didn't feel it"
 | `js/contract.js` | Team | **Placeholder message format.** Replace with the agreed contract v1. Example payloads to share. |
 | `js/mock-adapter.js` | Ali | Fake sleeve + station. The staircase and score formula are stand-ins for Fahad's and Salaar's real logic. |
 | `js/ws-adapter.js` | Ali | Real backend connection. Untested until the backend exists. |
-| `js/charts.js` | Ali | Canvas charts, no libraries. |
+| `js/charts.js` | Ali | Live canvas charts, no libraries. |
+| `js/overview.js` | Team | The Overview screen (KPI tiles and charts). |
+| `vendor/chartjs/` | Chart.js 4.4.1 (MIT) | Used by the Overview only. Vendored, so no CDN and the page's `script-src 'self'` still holds. |
 | `js/app.js` | Ali | All screens. Only talks to the adapter, never to a specific backend. |
 
 ## What to send teammates

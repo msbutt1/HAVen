@@ -31,12 +31,13 @@ struct Series: Equatable {
     mutating func clear() { points.removeAll() }
 }
 
-enum CalPhase: Equatable { case idle, relax, squeeze, done, failed }
+enum CalPhase: Equatable { case idle, relax, relaxedCaptured, squeeze, done, failed }
 
 struct CalProgress: Equatable {
+    static let captureS = 3.5   // 3 s capture + 0.5 s discarded at the start (CalibrationConfig defaults)
     var phase: CalPhase = .idle
     var remaining: Double = 0
-    var total: Double = 3
+    var total: Double = CalProgress.captureS
     var message: String?
 }
 
@@ -86,6 +87,8 @@ final class Backend {
     var settings: ConnectionSettings
     private(set) var connected = false
     private(set) var connecting = false
+    /// Connected at least once since the app opened (until then the connect screen is shown).
+    private(set) var everConnected = false
     var connectionMessage: String?
     private(set) var sleeve = DeviceState(kind: .disconnected, detail: "")
     private(set) var station = DeviceState(kind: .disconnected, detail: "")
@@ -105,6 +108,9 @@ final class Backend {
     private(set) var historyLoaded = false
     var stationUI = StationUI()
     var toast: String?
+    private(set) var tool: ToolUse?
+    private(set) var events: [DeviceEvent] = []
+    private(set) var needsRecalibration = false
 
     @ObservationIgnored private let urlSession: URLSession
     @ObservationIgnored private var socket: URLSessionWebSocketTask?
@@ -119,6 +125,8 @@ final class Backend {
     @ObservationIgnored private var lastEmgAt: Date?
     @ObservationIgnored private var ridCounter = 0
     @ObservationIgnored private var calibrating = false
+    @ObservationIgnored private var calCancelled = false
+    @ObservationIgnored private var eventCounter = 0
     @ObservationIgnored private var stationTask: Task<Void, Never>?
     @ObservationIgnored private var stationSID: String?
     @ObservationIgnored private var staircase: Staircase?
@@ -191,6 +199,7 @@ final class Backend {
                 guard socket === task else { return }
                 if !connected {
                     connected = true
+                    everConnected = true
                     connecting = false
                     retryDelay = 0.5
                     connectionMessage = nil
@@ -251,7 +260,7 @@ final class Backend {
             scoreRate.push(now, nil, window: 30); rawSignal.push(now, nil, window: 15)
         }
         if stationTask != nil { stopStationLocally(reason: message ?? "Disconnected") }
-        if cal.phase == .relax || cal.phase == .squeeze {
+        if cal.phase == .relax || cal.phase == .squeeze || cal.phase == .relaxedCaptured {
             cal = CalProgress(phase: .failed, message: "\(message ?? "Disconnected"). Calibration was not saved.")
         }
         if let message, wasConnected { connectionMessage = message; toast = message }
@@ -267,6 +276,12 @@ final class Backend {
                 let latest = rt["latest"]
                 if !latest["imu"]["features"].isNull { imu = (latest["imu"], Date()) }
                 if !latest["score"]["rate"].isNull { score = latest["score"] }
+                if latest["tool_use"]["type"].string == "tool_use" {
+                    tool = Translate.toolUse(latest["tool_use"])
+                } else if !rt["tool_use_saved"]["record"].isNull {
+                    tool = Translate.toolUse(rt["tool_use_saved"]["record"], saved: true,
+                                             savedAt: Translate.date(rt["tool_use_saved"]["saved_at"].string))
+                }
                 applyStatus(rt)
             } else {
                 sleeve = DeviceState(kind: .disconnected, detail: "The backend has no runtime called \"\(settings.runtime)\".")
@@ -279,6 +294,8 @@ final class Backend {
         case "derived":
             switch (p["type"].string, p["stream"].string) {
             case ("experimental_score", _): score = p
+            case ("tool_use", _): tool = Translate.toolUse(p)
+            case ("stream_event", _): addEvent(p)
             case ("stream_features", "imu"): imu = (p, Date())
             case ("stream_features", "emg"): telemetry(p)
             default: break
@@ -417,36 +434,44 @@ final class Backend {
 
     // MARK: - calibration
 
-    func calibrate() async {
-        guard !calibrating else { return }
+    /// One step of the guide's calibration flow: relaxed, then squeeze. Sends the command, counts down while the
+    /// backend captures, then reports the processor's state (relaxed_captured / calibrated, or failed with a reason).
+    func calibrateStep(_ action: String) async {
+        guard !calibrating, action == "relaxed" || action == "squeeze" else { return }
         calibrating = true
+        calCancelled = false
         defer { calibrating = false; Task { await self.refresh() } }
-        rawSignal.clear()
-        let steps: [(CalPhase, String, String)] = [(.relax, "relaxed", "relaxed_captured"), (.squeeze, "squeeze", "calibrated")]
-        for (phase, action, want) in steps {
-            let r = await http("POST", "\(runtimePath)/calibration", ["action": action, "request_id": rid("cal")])
-            guard r.ok else { cal = CalProgress(phase: .failed, message: r.error); return }
-            let start = Date()
-            while true {   // the countdown for the wearer; the backend does the real capture
-                let left = max(0, 3 - Date().timeIntervalSince(start))
-                cal = CalProgress(phase: phase, remaining: left)
-                if left <= 0 { break }
-                try? await Task.sleep(for: .milliseconds(100))
+        if action == "relaxed" { rawSignal.clear() }
+        let phase: CalPhase = action == "relaxed" ? .relax : .squeeze
+        let want = action == "relaxed" ? "relaxed_captured" : "calibrated"
+        let r = await http("POST", "\(runtimePath)/calibration", ["action": action, "request_id": rid("cal")])
+        guard r.ok else { cal = CalProgress(phase: .failed, message: r.error); return }
+        let start = Date()
+        while true {   // the countdown for the wearer; the backend does the real capture (3 s + 0.5 s discarded)
+            if calCancelled { return }
+            let left = max(0, CalProgress.captureS - Date().timeIntervalSince(start))
+            cal = CalProgress(phase: phase, remaining: left)
+            if left <= 0 { break }
+            try? await Task.sleep(for: .milliseconds(100))
+        }
+        var state: JSON = .null
+        for _ in 0..<30 {   // wait for the processor to finish the capture and say how it went
+            if calCancelled { return }
+            let s = await http("GET", runtimePath)
+            if s.ok {
+                applyStatus(s.json)
+                state = s.json["calibration"]
+                if !(state["state"].string ?? "").hasPrefix("capturing") { break }
             }
-            var state: JSON = .null
-            for _ in 0..<30 {   // wait for the backend to finish and report the outcome
-                let s = await http("GET", runtimePath)
-                if s.ok {
-                    applyStatus(s.json)
-                    state = s.json["calibration"]
-                    if !(state["state"].string ?? "").hasPrefix("capturing") { break }
-                }
-                try? await Task.sleep(for: .milliseconds(150))
-            }
-            guard state["state"].string == want else {
-                cal = CalProgress(phase: .failed, message: Translate.calibrationFailure(state["reason"].string))
-                return
-            }
+            try? await Task.sleep(for: .milliseconds(150))
+        }
+        guard state["state"].string == want else {
+            cal = CalProgress(phase: .failed, message: Translate.calibrationFailure(state["reason"].string))
+            return
+        }
+        if action == "relaxed" {
+            cal = CalProgress(phase: .relaxedCaptured)
+            return
         }
         let device = status["device_id"].string ?? ""
         let c = await http("GET", "/api/calibrations?device_id=\(device.queryEscaped)")
@@ -455,7 +480,37 @@ final class Backend {
         calibration = CalibrationInfo(rest: ref?["relaxed"].firstNumber, max: ref?["squeeze"].firstNumber,
                                       at: Translate.date(rec?["created_at"].string) ?? Date())
         cal = CalProgress(phase: .done)
+        needsRecalibration = false
         toast = "Calibration saved"
+    }
+
+    func cancelCalibration() async {
+        calCancelled = true
+        _ = await http("POST", "\(runtimePath)/calibration", ["action": "cancel", "request_id": rid("cal")])
+        cal = CalProgress()
+        await refresh()
+    }
+
+    // MARK: - tool use
+
+    func newShift() async {
+        let r = await http("POST", "\(runtimePath)/tool-use/new-shift", ["request_id": rid("shift")])
+        toast = r.ok ? "New shift started: tool time reset" : r.error
+    }
+
+    private func addEvent(_ p: JSON) {
+        guard let event = p["event"].string else { return }
+        let detail = p["detail"]
+        if event == "boot_change", !detail["previous_boot_id"].isNull {
+            needsRecalibration = true    // calibration is not kept across a wearable reboot
+            calibration = nil
+            if cal.phase != .relax && cal.phase != .squeeze { cal = CalProgress() }
+        }
+        eventCounter += 1
+        let warn = ["boot_change", "stream_stale", "seq_gap", "invalid_record"].contains(event)
+        events.insert(DeviceEvent(id: eventCounter, event: event, text: Translate.eventText(event, detail: detail),
+                                  at: Date(), isWarning: warn), at: 0)
+        if events.count > 30 { events.removeLast(events.count - 30) }
     }
 
     // MARK: - history

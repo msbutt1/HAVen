@@ -1,2 +1,10 @@
-# Kept minimal on purpose. The chip target is passed explicitly by tools/build.sh.
+# The chip target is passed explicitly by tools/build.sh.
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+# UART0 (CP2102) carries ONLY the station command/event protocol: no console, no logs.
+CONFIG_ESP_CONSOLE_NONE=y
+CONFIG_LOG_DEFAULT_LEVEL_NONE=y
+CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
+# 1 kHz scheduler tick: stimulus timing and abort handled at ~1 ms resolution.
+CONFIG_FREERTOS_HZ=1000
+# app_main stack: headroom for startup checks (default 3584 overflowed on board S, Prompt 3)
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192

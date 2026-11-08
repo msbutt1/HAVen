@@ -1,0 +1,47 @@
+{
+  "expo": {
+    "name": "VibeGuard",
+    "slug": "vibeguard",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "dev.vibeguard.mobile",
+      "infoPlist": {
+        "NSLocalNetworkUsageDescription": "VibeGuard connects to the laptop running VibeGuard on your Wi-Fi. The laptop reads the sleeve.",
+        "NSAppTransportSecurity": {
+          "NSAllowsLocalNetworking": true,
+          "NSAllowsArbitraryLoads": true
+        }
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#E6F4FE",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "dev.vibeguard.mobile",
+      "usesCleartextTraffic": true
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "VibeGuard uses the camera only to read the QR code on the laptop.",
+          "recordAudioAndroid": false
+        }
+      ]
+    ],
+    "scheme": "vibeguard"
+  }
+}

@@ -83,7 +83,7 @@ def _sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def run_preflight(base: str = "http://127.0.0.1:8765", runtime: str = "wearable", expect: str = "any",
+def run_preflight(base: str = "http://127.0.0.1:8000", runtime: str = "wearable", expect: str = "any",
                   backup: str | Path | None = None, min_free_gb: float = 1.0) -> Report:
     rep = Report()
     base = base.rstrip("/")

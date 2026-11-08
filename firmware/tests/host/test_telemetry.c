@@ -10,6 +10,7 @@
 #include "vg/sample_ring.h"
 #include "vg/telemetry.h"
 #include "vg/time_ext.h"
+#include "vg/clock_est.h"
 #include "vg_test.h"
 
 static FILE *emit_file;
@@ -221,6 +222,39 @@ static void test_time_extension_wrap(void)
     CHECK(vg_time_extend32(&e, 0x00000000u) == 0x200000000ull);
 }
 
+static void test_clock_estimator(void)
+{
+    /* IMU at 500 Hz whose clock is 1 % slow, polled with up to +1 ms read delay
+     * (deterministic pseudo-jitter): reconstructed steps stay near the true
+     * period and the timestamps track the true sample times. */
+    vg_clock_est_t c;
+    vg_clock_est_init(&c, 2000.0);
+    uint32_t r = 12345;
+    double true_period = 2020.0, worst_step_dev = 0, worst_err = 0;
+    int64_t prev = 0;
+    for (int k = 0; k < 5000; k++) {
+        double t_true = 100000.0 + k * true_period;
+        r = r * 1664525u + 1013904223u;
+        int64_t read = (int64_t)(t_true + (double)(r % 1000u));       /* 0..999 us late */
+        int64_t ts = vg_clock_est_update(&c, read);
+        if (k > 1000) {
+            double step = (double)(ts - prev);
+            double dev = step > true_period ? step - true_period : true_period - step;
+            if (dev > worst_step_dev) worst_step_dev = dev;
+            double err = (double)ts - (t_true + 500.0);               /* mean read delay 500 us */
+            if (err < 0) err = -err;
+            if (err > worst_err) worst_err = err;
+        }
+        prev = ts;
+    }
+    CHECK(worst_step_dev < 100.0);       /* raw read steps vary by up to 1000 us */
+    CHECK(worst_err < 400.0);
+    CHECK(c.resyncs == 0);
+    /* a real gap (missed samples) re-locks instead of smearing */
+    int64_t ts = vg_clock_est_update(&c, prev + 10 * 2020);
+    CHECK(c.resyncs == 1 && ts == prev + 10 * 2020);
+}
+
 /* ---- batcher ---- */
 static vg_sample_t slots[512];
 static vg_sample_ring_t ring;
@@ -356,6 +390,7 @@ int main(int argc, char **argv)
     RUN(test_encoder_quality_rules);
     RUN(test_limits_and_restart);
     RUN(test_time_extension_wrap);
+    RUN(test_clock_estimator);
     RUN(test_batcher_gap_and_states);
     RUN(test_batcher_timing);
     RUN(test_link_provenance_guard);

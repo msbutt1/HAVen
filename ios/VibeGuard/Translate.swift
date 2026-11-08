@@ -5,6 +5,7 @@ import Foundation
 enum Translate {
     static let endReasonText: [String: String] = [
         "stopped_by_user": "stopped",
+        "simulated_history": "stopped",   // vg-backend seed-history: a whole simulated recording
         "end_of_input": "the replayed recording reached its end",
         "device_changed": "a different sleeve connected",
         "runtime_stopped": "the backend stopped",
@@ -12,13 +13,53 @@ enum Translate {
         "backend_restart": "the backend restarted during it",
     ]
 
+    // plain words for each calibration failure reason (firmware/INTEGRATION_FOR_ABDULJABBAR.md, section 3)
+    private static let mismatch = "This calibration belongs to a different device or session. Recalibrate."
     static let calibrationReasonText: [String: String] = [
-        "insufficient_separation": "The squeeze was not clearly stronger than the relaxed reading. Squeeze harder and try again.",
-        "insufficient_data": "Not enough clean signal was captured. Check the electrodes and try again.",
-        "clipping": "The signal was clipping (too strong for the sensor). Reduce the gain or electrode pressure and try again.",
-        "device_disconnected": "The sleeve disconnected during calibration.",
-        "boot_change": "The sleeve restarted during calibration.",
+        "insufficient_separation": "The squeeze wasn’t clearly stronger than rest. Squeeze harder, or check the pads, and try again.",
+        "insufficient_data": "Not enough signal during the capture. Check the pads and try again.",
+        "interrupted_boot_change": "The wearable restarted during calibration. Start again.",
+        "interrupted_processing_change": "The processing settings changed during calibration. Start again.",
+        "channel_mismatch": mismatch, "device_mismatch": mismatch, "boot_mismatch": mismatch, "provenance_mismatch": mismatch,
+        "processing_config_mismatch": "The calibration was made with different settings. Recalibrate.",
+        "calibration_unverified": "The saved calibration is waiting for new data to confirm it is the same wearable.",
+        "clipping": "The signal was clipping (too strong for the sensor). Check the pads and try again.",
+        "device_disconnected": "The wearable disconnected during calibration. Start again.",
+        "boot_change": "The wearable restarted. Calibrate again.",
     ]
+
+    static let eventTextMap: [String: String] = [
+        "boot_change": "The wearable restarted. Calibrate again.",
+        "seq_gap": "Some records were lost on the way.",
+        "sample_gap": "A gap in the samples.",
+        "stream_stale": "No data from the wearable: values are hidden.",
+        "stream_recovered": "Data resumed.",
+        "invalid_record": "A record failed the checks and was rejected.",
+        "tool_session_reset": "New shift: tool time reset.",
+        "rate_mismatch": "The sample rate differs from what the wearable announced.",
+    ]
+
+    static let warningText: [String: String] = [
+        "continuous_tool_use_long": "Long continuous tool use. Consider a break.",
+        "session_tool_time_high": "Tool time this session is high.",
+        "session_tool_time_approaching": "Tool time this session is getting high.",
+    ]
+
+    static func eventText(_ event: String, detail: JSON) -> String {
+        if event == "calibration_state" {
+            let state = detail["state"].string ?? ""
+            if state == "failed" { return "Calibration failed: \((detail["reason"].string ?? "").replacingOccurrences(of: "_", with: " "))." }
+            return "Calibration: \(state.replacingOccurrences(of: "_", with: " "))."
+        }
+        return eventTextMap[event] ?? event.replacingOccurrences(of: "_", with: " ")
+    }
+
+    static func toolUse(_ p: JSON, saved: Bool = false, savedAt: Date? = nil) -> ToolUse {
+        ToolUse(state: p["state"].string ?? "unknown", status: p["status"].string ?? "unavailable",
+                sessionToolS: p["session_tool_s"].double, bouts: p["bouts"].double.map { Int($0) },
+                longestBoutS: p["longest_bout_s"].double, dominantHz: p["dominant_hz"].double,
+                warnings: (p["warnings"].array ?? []).compactMap(\.string), saved: saved, savedAt: savedAt)
+    }
 
     static func calibrationFailure(_ reason: String?) -> String {
         guard let reason else { return "Calibration did not complete. Try again." }
@@ -31,10 +72,12 @@ enum Translate {
         let act = p["features"]["emg_activation"]
         let norm = act["normalized"]
         let calState = act["calibration"]["state"].string ?? status["calibration"]["state"].string
-        var activation: Double? = nil
-        if norm["status"].string == "ok", let d = norm["display"].firstNumber {
-            activation = (d * 1000).rounded() / 10            // 0...1 -> percent, one decimal
-        }
+        // grip effort: `value` is unbounded (may go above 100 %), `display` is clamped for bars; only while the
+        // status is ok or degraded (clipped samples), and never a missing value as 0
+        let usable = norm["status"].string == "ok" || norm["status"].string == "degraded"
+        let activation = usable ? norm["value"].firstNumber.map { ($0 * 1000).rounded() / 10 } : nil
+        let activationBar = usable ? norm["display"].firstNumber.map { ($0 * 1000).rounded() / 10 } : nil
+        func flag(_ key: String) -> Bool { usable && (norm[key].object?.values.first?.bool ?? false) }
         var vibration: Double? = nil
         if let imu {
             let phys = imu["features"]["vibration"]["physical"]
@@ -53,6 +96,10 @@ enum Translate {
             recordingID: source == .replay ? prov["recording_id"].string : nil,
             emgEnvelope: act["envelope"]["value"].firstNumber,
             activationPct: activation,
+            activationBarPct: activationBar,
+            aboveMax: flag("above_reference"),
+            belowRest: flag("below_relaxed"),
+            degraded: norm["status"].string == "degraded",
             vibration: vibration,
             scoreRate: rate,
             scoreTotal: total,
@@ -86,8 +133,13 @@ enum Translate {
         let atStart = row["score"]["at_start"]["cumulative_au"].double
         let atEnd = row["score"]["at_end"]["cumulative_au"].double
         let calibrated = row["calibration_id"].string != nil
+        // the backend's own figure (score.session_au: counted from zero when nothing was scored before, null
+        // with a reason when it can't be attributed); rows saved before it existed fall back to end minus start
         var total: Double? = nil
-        if calibrated, let a = atStart, let e = atEnd { total = max(0, e - a) }
+        if calibrated {
+            if row["score"].object?["session_au"] != nil { total = row["score"]["session_au"].double.map { max(0, $0) } }
+            else if let a = atStart, let e = atEnd { total = max(0, e - a) }
+        }
         let readings = row["counters"]["readings"]
         let reason = row["end_reason"].string ?? "stopped"
         return SessionRecord(
@@ -98,7 +150,8 @@ enum Translate {
             calibrated: calibrated, scoreTotal: total,
             meanActivationPct: readings["mean_activation_pct"].double,
             peakActivationPct: readings["peak_activation_pct"].double,
-            peakVibration: readings["peak_vibration_ms2"].double)
+            peakVibration: readings["peak_vibration_ms2"].double,
+            toolTimeS: readings["tool_time_s"].double)
     }
 
     static func stationRecord(_ row: JSON) -> StationResult? {

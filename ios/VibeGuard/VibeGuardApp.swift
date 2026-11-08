@@ -9,7 +9,8 @@ struct VibeGuardApp: App {
             RootView()
                 .environment(backend)
                 .tint(Theme.primary)
-                .onAppear { backend.connect() }
+                // reconnect to the laptop chosen before; a fresh install starts on the connect screen instead
+                .onAppear { if UserDefaults.standard.string(forKey: "vg.baseURL") != nil { backend.connect() } }
         }
     }
 }

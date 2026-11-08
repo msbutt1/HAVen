@@ -17,6 +17,25 @@ from vibeguard_backend.service import Backend, processing_config_for
 FIXTURES = Path(__file__).resolve().parents[2] / "signals" / "contract" / "fixtures"
 
 
+@pytest.fixture(autouse=True)
+def _no_bonjour_on_the_network(monkeypatch):
+    """`serve` with a LAN --host announces itself by multicast DNS (bonjour.py). Tests never do: the announcer is
+    replaced by one that does nothing (test_app_discovery.py checks the wiring with its own stand-in)."""
+    from vibeguard_backend import bonjour
+
+    class QuietAnnouncer:
+        def __init__(self, http_port, password, name=None, addresses=None):
+            self.name, self.addresses, self.error = "test", [], "disabled in tests"
+
+        def start(self):
+            return False
+
+        def stop(self):
+            pass
+
+    monkeypatch.setattr(bonjour, "Announcer", QuietAnnouncer)
+
+
 def wait_until(pred: Callable[[], bool], timeout: float = 10.0, every: float = 0.01) -> bool:
     end = time.monotonic() + timeout
     while time.monotonic() < end:

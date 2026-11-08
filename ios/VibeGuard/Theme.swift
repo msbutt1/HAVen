@@ -23,11 +23,22 @@ enum Theme {
     static let successForeground = dynamic(0xfbfdfc, 0x041107)
     static let warning = dynamic(0xe4960e, 0xeda839)
     static let destructive = dynamic(0xe30008, 0xff6468)
-    static let sim = dynamic(0x7a4aba, 0x8962c5)
-    static let sim2 = dynamic(0x673ba2, 0x714ca6)
+    static let sim = dynamic(0xa041b5, 0xae55c1)          // the dashboard's --sim (hue 320)
+    static let sim2 = dynamic(0x8b329e, 0x9043a1)
     static let activation = primary
     static let vibration = dynamic(0xcc6600, 0xf59740)
     static let score = dynamic(0x008774, 0x39c3ae)
+
+    // Summary charts: the dashboard's --ov-* slots (checked for colour-blind separation and contrast, light and dark).
+    // A source keeps its colour everywhere: live green, replay blue, simulated violet.
+    static let ovBlue = dynamic(0x006ae6, 0x3082f6)
+    static let ovBlue2 = dynamic(0x82b0f3, 0x2c5a9d)
+    static let ovOrange = dynamic(0xcc6600, 0xd4771a)
+    static let ovTeal = dynamic(0x008774, 0x00a38f)
+    static let ovGreen = dynamic(0x008140, 0x2ea55c)
+    static let ovViolet = dynamic(0xa041b5, 0xae55c1)
+    static let ovNeutral = dynamic(0xa1a5ac, 0x60636a)
+    static let ovTrack = dynamic(0xe5e8ed, 0x2a2e35)
 
     static let radius: CGFloat = 15
 }

@@ -106,6 +106,11 @@ void vg_link_step(vg_link_t *l, int64_t now_us)
         send_hello(l, now_us);
         send_status(l, now_us);
     }
+    if (l->resend_hello) {           /* host just (re)connected: declare streams now */
+        l->resend_hello = false;
+        send_hello(l, now_us);
+        send_status(l, now_us);
+    }
     drain(l, now_us, false);
     if (now_us >= l->next_status_us) {
         send_status(l, now_us);

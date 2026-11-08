@@ -10,6 +10,11 @@
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>VibeGuard connects to the VibeGuard backend running on a computer on your network, which reads the sleeve.</string>
+	<string>VibeGuard finds and connects to the laptop running VibeGuard on your Wi-Fi. The laptop reads the sleeve.</string>
+	<!-- the laptop announces itself as _vibeguard._tcp (backend/src/vibeguard_backend/bonjour.py) -->
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_vibeguard._tcp</string>
+	</array>
 </dict>
 </plist>

@@ -40,8 +40,16 @@ bool vg_uart_tx_start(vg_frame_queue_t *fq, int baud)
         .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
         .source_clk = UART_SCLK_DEFAULT,
     };
-    if (uart_driver_install(TX_PORT, 256, 8192, 0, NULL, 0) != ESP_OK ||
-        uart_param_config(TX_PORT, &cfg) != ESP_OK) {
+    /* Measured on board S (2026-11-07, ESP-IDF v6.1, CP2102):
+     *  - with a driver TX ring buffer on UART0 the host received the same
+     *    chunks repeated far beyond the wire rate (1.29 MB in 11 s at 115200);
+     *    without a TX ring the stream was clean. So: no TX ring. Writes block
+     *    only this task (uart_write_bytes returns once bytes are in the FIFO).
+     *  - with the console disabled, GPIO1/3 were not routed to UART0 unless
+     *    uart_set_pin() was called: the app was silent. */
+    if (uart_driver_install(TX_PORT, 1024, 0, 0, NULL, 0) != ESP_OK ||
+        uart_param_config(TX_PORT, &cfg) != ESP_OK ||
+        uart_set_pin(TX_PORT, 1, 3, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE) != ESP_OK) {
         return false;
     }
     s_fq = fq;

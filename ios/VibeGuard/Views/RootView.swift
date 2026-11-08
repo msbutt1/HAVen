@@ -1,28 +1,45 @@
 import SwiftUI
 
+/// Which tab is showing; screens use it to send the user to another tab ("Calibrate now").
+@MainActor
+@Observable
+final class AppNav {
+    enum Screen: Hashable { case live, summary, calibrate, test, history }
+    var tab: Screen = .live
+}
+
 struct RootView: View {
     @Environment(Backend.self) private var backend
+    @State private var nav = AppNav()
     @State private var showSettings = false
-    @State private var tab: Screen = .live
-
-    enum Screen: Hashable { case live, calibrate, test, history }
+    @State private var showConnect = false
 
     var body: some View {
-        TabView(selection: $tab) {
+        @Bindable var nav = nav
+        TabView(selection: $nav.tab) {
             screen { LiveView() }
                 .tabItem { Label("Live", systemImage: "waveform.path.ecg") }
-                .tag(Screen.live)
+                .tag(AppNav.Screen.live)
+            screen { SummaryView() }
+                .tabItem { Label("Summary", systemImage: "chart.bar.xaxis") }
+                .tag(AppNav.Screen.summary)
             screen { CalibrateView() }
-                .tabItem { Label("Calibrate", systemImage: "hand.raised") }
-                .tag(Screen.calibrate)
+                .tabItem { Label("Calibrate", systemImage: "gauge.with.dots.needle.33percent") }
+                .tag(AppNav.Screen.calibrate)
             screen { StationView() }
-                .tabItem { Label("Test", systemImage: "hand.point.up.left") }
-                .tag(Screen.test)
+                .tabItem { Label("Touch test", systemImage: "iphone.radiowaves.left.and.right") }
+                .tag(AppNav.Screen.test)
             screen { HistoryView() }
                 .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
-                .tag(Screen.history)
+                .tag(AppNav.Screen.history)
         }
+        .environment(nav)
         .sheet(isPresented: $showSettings) { SettingsView() }
+        // Until the first connection the connect screen covers everything; later, the Laptop button opens it.
+        .fullScreenCover(isPresented: Binding(get: { !backend.everConnected || showConnect },
+                                              set: { if !$0 { showConnect = false } })) {
+            ConnectView(canClose: backend.everConnected)
+        }
         .overlay(alignment: .bottom) { ToastView() }
     }
 
@@ -40,10 +57,10 @@ struct RootView: View {
             }
             .background(Theme.background)
             .toolbar {
+                // no Disconnect button to tap by mistake: this opens the connect screen instead
                 ToolbarItem(placement: .topBarLeading) {
-                    Button(backend.connected || backend.connecting ? "Disconnect" : "Connect") {
-                        backend.connected || backend.connecting ? backend.disconnect() : backend.connect()
-                    }
+                    Button { showConnect = true } label: { Label("Laptop", systemImage: "laptopcomputer").labelStyle(.titleAndIcon) }
+                        .accessibilityLabel("Change laptop")
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
@@ -107,7 +124,7 @@ struct SourceBanner: View {
             source = nil
             text = backend.connected ? "Connected. Waiting for the first reading."
                 : backend.connecting ? "Connecting to \(backend.settings.baseURL)…"
-                : "Not connected. Press Connect to start the data feed."
+                : "Not connected. Tap Laptop (top left) to connect."
         }
         return Text(text)
             .font(.subheadline.weight(.medium))

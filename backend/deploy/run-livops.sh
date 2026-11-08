@@ -13,7 +13,7 @@ cd "$(dirname "$0")/.."
 : "${VG_HOSTNAME:?set VG_HOSTNAME, e.g. vibeguard.livops.uz}"
 : "${VG_BASIC_AUTH:?set VG_BASIC_AUTH=user:password (the public page is password protected)}"
 TUNNEL="${VG_TUNNEL:-vibeguard}"
-PORT="${VG_PORT:-8765}"
+PORT="${VG_PORT:-8000}"
 DATA="${VG_DATA_DIR:-$HOME/.vibeguard/livops-data}"
 mkdir -p "$DATA"
 

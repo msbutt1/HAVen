@@ -1,0 +1,112 @@
+<!doctype html>
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Electrode Placement Guide</title>
+<style>
+/* Layout: one horizontal forearm (inner side up), elbow left, wrist right. */
+:root{
+  --bg:#f6f4ef; --fg:#1d1d1b; --muted:#4a4843; --arm:#e9c3a6; --arm-line:#c99a7b;
+  --pad:#2b6cb0; --ref:#6b6b6b; --accent:#c2410c; --card:#ffffff; --rule:#d9d5cc;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#16171a; --fg:#ecebe6; --muted:#a3a19a; --arm:#7d5a48; --arm-line:#5a3f30;
+    --pad:#6fa8e8; --ref:#9a9a9a; --accent:#fb923c; --card:#1f2024; --rule:#34363c; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16171a; --fg:#ecebe6; --muted:#a3a19a; --arm:#7d5a48; --arm-line:#5a3f30;
+  --pad:#6fa8e8; --ref:#9a9a9a; --accent:#fb923c; --card:#1f2024; --rule:#34363c; color-scheme:dark;
+}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif}
+main{padding-block:24px;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));max-width:760px;margin:0 auto}
+h1{font-size:1.5rem;margin:0 0 4px;text-wrap:balance}
+.lede{color:var(--muted);margin:0 0 16px}
+.card{background:var(--card);border:1px solid var(--rule);border-radius:10px;padding:14px;margin:14px 0}
+svg{display:block;width:100%;height:auto;max-width:100%}
+.legend{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:10px;margin-top:12px}
+.item{display:flex;gap:10px;align-items:flex-start}
+.dot{flex:0 0 14px;height:14px;border-radius:50%;margin-top:4px}
+.item b{display:block}
+.steps{padding-left:20px;margin:6px 0}
+.steps li{margin:6px 0}
+.warn{border-color:var(--accent)}
+.scale{font-variant-numeric:tabular-nums;color:var(--muted);font-size:13px}
+</style>
+
+<main>
+<h1>Electrode placement</h1>
+<p class="lede">Forearm seen from the inner (palm-up) side, elbow on the left, wrist on the right.</p>
+
+<div class="card">
+<svg viewBox="0 0 640 260" role="img" aria-label="Forearm diagram with three electrode pads">
+  <defs>
+    <linearGradient id="armShade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".35"/>
+      <stop offset=".45" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".8" stop-color="#000" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".28"/>
+    </linearGradient>
+    <filter id="armDrop" x="-10%" y="-20%" width="120%" height="150%">
+      <feDropShadow dx="0" dy="6" stdDeviation="5" flood-color="#000" flood-opacity=".25"/>
+    </filter>
+  </defs>
+  <!-- forearm: body colour, then a light-to-dark band for roundness, with a cast shadow -->
+  <path d="M40 120 C 40 96, 70 92, 110 92 L 520 100 C 575 102, 600 112, 600 130 C 600 148, 575 158, 520 160 L 110 168 C 70 168, 40 146, 40 120 Z"
+        fill="var(--arm)" stroke="var(--arm-line)" stroke-width="2" filter="url(#armDrop)"/>
+  <path d="M40 120 C 40 96, 70 92, 110 92 L 520 100 C 575 102, 600 112, 600 130 C 600 148, 575 158, 520 160 L 110 168 C 70 168, 40 146, 40 120 Z"
+        fill="url(#armShade)"/>
+  <!-- grip muscle area (finger flexors, inner forearm) -->
+  <ellipse cx="290" cy="130" rx="150" ry="22" fill="none" stroke="var(--arm-line)" stroke-dasharray="5 5" stroke-width="1.5"/>
+  <text x="290" y="82" text-anchor="middle" fill="var(--fg)" font-size="12">grip muscles (flexors)</text>
+
+  <!-- elbow bone (REF) -->
+  <circle cx="66" cy="130" r="14" fill="var(--ref)" stroke="#000" stroke-opacity=".3" stroke-width="2"/>
+  <text x="66" y="200" text-anchor="middle" fill="var(--fg)" font-size="13" font-weight="700">REF</text>
+  <text x="66" y="216" text-anchor="middle" fill="var(--fg)" font-size="11">elbow bone</text>
+
+  <!-- IN+ : one third from elbow towards wrist -->
+  <circle cx="230" cy="130" r="11" fill="var(--pad)" stroke="#000" stroke-opacity=".3" stroke-width="2"/>
+  <text x="230" y="60" text-anchor="middle" fill="var(--fg)" font-size="13" font-weight="700">IN+</text>
+  <line x1="230" y1="68" x2="230" y2="117" stroke="var(--muted)" stroke-width="1"/>
+
+  <!-- IN- : 2-3 cm further towards wrist, same line -->
+  <circle cx="330" cy="130" r="11" fill="var(--pad)" stroke="#000" stroke-opacity=".3" stroke-width="2"/>
+  <text x="330" y="60" text-anchor="middle" fill="var(--fg)" font-size="13" font-weight="700">IN−</text>
+  <line x1="330" y1="68" x2="330" y2="117" stroke="var(--muted)" stroke-width="1"/>
+
+  <!-- spacing -->
+  <line x1="230" y1="228" x2="330" y2="228" stroke="var(--muted)" stroke-width="1"/>
+  <line x1="230" y1="222" x2="230" y2="234" stroke="var(--muted)"/>
+  <line x1="330" y1="222" x2="330" y2="234" stroke="var(--muted)"/>
+  <text x="280" y="246" text-anchor="middle" fill="var(--fg)" font-size="12">2–3 cm apart</text>
+
+  <text x="600" y="186" text-anchor="end" fill="var(--fg)" font-size="12">wrist →</text>
+</svg>
+
+<div class="legend">
+  <div class="item"><span class="dot" style="background:var(--pad)"></span>
+    <div><b>IN+ and IN−</b>Both on the muscle that bulges when you make a fist, in a line along the arm, 2–3 cm apart. IN+ about one third of the way from elbow to wrist.</div></div>
+  <div class="item"><span class="dot" style="background:var(--ref)"></span>
+    <div><b>REF</b>Bony point at the back of the elbow. Little muscle under it, so it stays quiet when you grip.</div></div>
+</div>
+</div>
+
+<div class="card">
+<b>Steps</b>
+<ol class="steps">
+  <li>Make a tight fist once to find the muscle. Mark the spot, then relax.</li>
+  <li>Clean the three spots with alcohol or soap and water. Let them dry.</li>
+  <li>Press each pad on firmly for a few seconds. Keep the cable from pulling.</li>
+  <li>Rest the arm flat, relaxed, before starting any calibration.</li>
+</ol>
+</div>
+
+<div class="card warn">
+<b>Avoid</b>
+<ul class="steps">
+  <li>REF on muscle or on a tendon at the wrist (it adds noise).</li>
+  <li>IN+ and IN− across the arm instead of along it.</li>
+  <li>Pads resting on hair, or on skin that is still wet from cleaning.</li>
+</ul>
+</div>
+</main>

@@ -59,8 +59,7 @@ off, an injected EMG disconnect, a transport loss, then recovery. The final scor
 
 The real system will be: **wearable → serial link → backend → dashboard / station**.
 Everything Salaar owns sits on the **wearable → derived numbers** part. Until the
-hardware exists, a simulator stands in for the wearable, and everything downstream
-behaves exactly as it will with real data.
+hardware exists, a simulator stands in for the wearable, so downstream integration can proceed against the proposed contract. Real hardware behavior and configuration still require validation.
 
 ```
  [vg-sim simulator]  ──or──  [real firmware, later]
@@ -75,12 +74,11 @@ behaves exactly as it will with real data.
 ```
 
 ### 2.1 Device telemetry contract v1 (proposed)
-**What:** the agreed format for everything the wearable sends. Each line is one JSON
+**What:** the proposed format for everything the wearable sends. Each line is one JSON
 record: `hello` (device description), `status` (device and sensor state), `emg_batch` or
 `imu_batch` (samples).
 
-**Why it matters:** the simulator and the future firmware emit the *same* records. Any
-code written against the contract today works with the hardware later. Every record
+**Why it matters:** the simulator and the future firmware emit the *same* records. Hardware integration requires firmware or an adapter implementing this contract, plus verified acquisition settings. Every record
 carries:
 - a `seq` number, so lost records are detectable;
 - a `boot_id`, so reboots are detectable;
@@ -574,3 +572,11 @@ All of these are config values, not code changes.
 - **Score accounting.** Time counts only when both inputs cover it. Excluded time names
   every blocking input.
 - **Replay.** It changes only provenance, and pacing never changes content.
+
+## Ready-to-use team mock
+
+See [MOCK_INTEGRATION.md](MOCK_INTEGRATION.md) for generated JSON endpoints, browser playback, backend integration and provisional sensor assumptions.
+
+## Confirmed inventory update (2026-11-07)
+
+See [HARDWARE_INVENTORY.md](HARDWARE_INVENTORY.md). BioAmp EXG Pill ×1, ESP32 V2 ×2 and two IMUs marked MPU-9250/6500 are confirmed. Use one ESP32/IMU pair per wearable and station. Arduino hardware is optional. Motor driver boards remain missing. Exact ESP32 variant, populated IMU chip identity and configured acquisition settings still need confirmation; mock scaling remains provisional.

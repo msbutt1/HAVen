@@ -70,6 +70,11 @@ class Phase:
     vib_hz: float = 60.0
     coupling_counts_per_g: float = 0.0  # synthetic vibration leaking into EMG
     gravity: tuple[float, float, float] = (0.0, 0.0, 1.0)
+    # Synthetic NORMAL ARM USE (not tool vibration), added to the accelerometer:
+    arm_g: float = 0.0       # low-frequency arm swing amplitude, g (x axis; y at half amplitude)
+    arm_hz: float = 1.5      # swing frequency (y axis carries the 2nd harmonic)
+    knock_g: float = 0.0     # brief knocks/taps: 50 ms decaying 80 Hz bursts on z
+    knock_every_s: float = 2.0
 
 
 @dataclass(frozen=True)
@@ -126,6 +131,15 @@ _DEMO = Scenario(
 
 SCENARIOS: dict[str, Scenario] = {s.name: s for s in (
     _DEMO,
+    Scenario("tool_vs_arm",
+             "Normal arm use (1.5 Hz swinging, brief knocks) versus two synthetic power-tool "
+             "periods (120 Hz 1 g with arm motion; 90 Hz 0.6 g), for tool-use detection.",
+             (Phase(0.0, 0.1),
+              Phase(0.1, 0.3, arm_g=0.8, knock_g=2.0),
+              Phase(0.3, 0.6, activation=0.6, vib_g=1.0, vib_hz=120.0, arm_g=0.3),
+              Phase(0.6, 0.75, arm_g=0.8, knock_g=2.0),
+              Phase(0.75, 0.9, activation=0.6, vib_g=0.6, vib_hz=90.0),
+              Phase(0.9, 1.0))),
     Scenario("happy_path", "Clean run: relaxed, stronger activation, vibration, both, relaxed. No faults.",
              _HAPPY),
     Scenario("relaxed", "Relaxed synthetic EMG, stationary IMU.", (Phase(0.0, 1.0),)),
@@ -317,6 +331,21 @@ class Simulation:
     def _rng(self, boot: int, stream: str, purpose: str) -> random.Random:
         return random.Random(f"{self.config.seed}|{boot}|{stream}|{purpose}")
 
+    @staticmethod
+    def _arm(ph: Phase, g_us: float) -> tuple[float, float, float]:
+        """Synthetic arm movement and knocks (g), deterministic in time."""
+        if not (ph.arm_g or ph.knock_g):
+            return (0.0, 0.0, 0.0)
+        t = g_us / 1e6
+        ax = ph.arm_g * math.sin(2 * math.pi * ph.arm_hz * t)
+        ay = 0.5 * ph.arm_g * math.sin(2 * math.pi * 2 * ph.arm_hz * t + 1.0)
+        az = 0.0
+        if ph.knock_g:
+            tk = t % ph.knock_every_s
+            if tk < 0.05:
+                az = ph.knock_g * math.sin(2 * math.pi * 80.0 * tk) * math.exp(-tk / 0.015)
+        return (ax, ay, az)
+
     def _vib(self, ph: Phase, g_us: float) -> float:
         hz = self.config.vibration_hz or ph.vib_hz
         return ph.vib_g * math.sin(2 * math.pi * hz * g_us / 1e6) if ph.vib_g else 0.0
@@ -354,7 +383,8 @@ class Simulation:
                 raw = [SIM_EMG_OFFSET + values_rng.gauss(0.0, sigma) + ph.coupling_counts_per_g * vib]
             else:
                 grav = _unit(ph.gravity)
-                raw = [(grav[k] + vib * self._vib_axis[k]) * SIM_COUNTS_PER_G
+                arm = self._arm(ph, g)
+                raw = [(grav[k] + vib * self._vib_axis[k] + arm[k]) * SIM_COUNTS_PER_G
                        + values_rng.gauss(0.0, IMU_NOISE_SIGMA) for k in range(3)]
             values = [min(hi, max(lo, round(v))) for v in raw]
             null_draw = null_rng.random()

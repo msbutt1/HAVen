@@ -1,8 +1,14 @@
 # The chip target is passed explicitly by tools/build.sh.
 CONFIG_COMPILER_OPTIMIZATION_SIZE=y
-# UART0 (CP2102 USB bridge) carries ONLY telemetry: no console, no logs.
-# The ESP32 boot ROM still prints a short banner at reset (it cannot be
-# disabled by Kconfig on ESP32); the host skips undecodable lines.
-CONFIG_ESP_CONSOLE_NONE=y
-CONFIG_LOG_DEFAULT_LEVEL_NONE=y
-CONFIG_BOOTLOADER_LOG_LEVEL_NONE=y
+# Telemetry goes over Wi-Fi; UART0 (USB) carries human-readable diagnostics.
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+CONFIG_LOG_DEFAULT_LEVEL_INFO=y
+# 1 kHz scheduler tick: the acquisition task samples on every tick.
+CONFIG_FREERTOS_HZ=1000
+# app_main stack: headroom for startup checks (default 3584 overflowed on board S, Prompt 3)
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192
+# Wi-Fi: no modem power save is set at runtime (esp_wifi_set_ps).
+# TCP send buffer/window: larger bursts after Wi-Fi stalls (hotspot pauses measured).
+CONFIG_LWIP_TCP_SND_BUF_DEFAULT=16384
+CONFIG_LWIP_TCP_WND_DEFAULT=16384
