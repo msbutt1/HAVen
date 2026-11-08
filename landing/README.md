@@ -1,8 +1,9 @@
 # VibeGuard landing page
 
-A static page in the style of livops.uz: `index.html`, `style.css`, two screenshots and self-hosted fonts (Onest and
-JetBrains Mono, SIL OFL, licences in `assets/fonts/`). No build step, no scripts, and no third-party requests (no font
-CDN, no analytics). Open `index.html` in a browser, or serve the folder:
+A static page built on livops.uz's design system (its colour tokens for light and dark, rim-lit panels, the hero
+grid with a moving light, section layout and footer): `index.html`, `style.css`, two screenshots and self-hosted fonts (Onest and
+JetBrains Mono, SIL OFL, licences in `assets/fonts/`). No build step, no scripts (the header and reveal effects
+use CSS scroll timelines where the browser has them), and no third-party requests (no font CDN, no analytics). Open `index.html` in a browser, or serve the folder:
 
 ```bash
 cd landing && python3 -m http.server 8800
