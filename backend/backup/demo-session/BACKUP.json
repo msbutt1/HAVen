@@ -1,0 +1,32 @@
+{
+  "schema": "vibeguard.backup",
+  "version": 1,
+  "exported_at": "2026-11-07T19:19:16.000Z",
+  "from_session_id": "ws-ccc7309ca2c5",
+  "label": "calibrated demo",
+  "source": "simulated",
+  "original_source": "simulated",
+  "recording_id": "sim-f53cd8a50951",
+  "frames": 1196,
+  "boot_ids": [
+    "sim-f53cd8a50951-b0"
+  ],
+  "calibration_id": "cal-651b5ff7b5e3",
+  "score": "ok",
+  "label_for_dashboard": "SIMULATED recording",
+  "note": "SIMULATED calibrated demo session (relaxed 0.5 s, squeeze 4.5 s); the fallback until a real-hardware recording is exported",
+  "files": {
+    "telemetry.ndjson": {
+      "bytes": 967406,
+      "sha256": "4c8ae3e267e32611740dc50512700c34ab3d9494ac161c085ca67244689340b4"
+    },
+    "commands.ndjson": {
+      "bytes": 249,
+      "sha256": "6a6dd48e4093381f8399cce62ff99f10ca0fa37eff73abf10a2f7207d1dde282"
+    },
+    "manifest.json": {
+      "bytes": 6832,
+      "sha256": "1e893b285231b7f6bf307275faa6e93e33bc203c4308809027f77e32f2209ae3"
+    }
+  }
+}

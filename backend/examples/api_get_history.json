@@ -1,0 +1,199 @@
+{
+  "items": [
+    {
+      "kind": "station",
+      "station_session_id": "ss-000000000000",
+      "state": "completed",
+      "label": "example engine session",
+      "source": "live",
+      "simulated_history": false,
+      "wearable_session_id": null,
+      "protocol": null,
+      "started_at": "2026-11-07T18:00:00.000Z",
+      "ended_at": "2026-11-07T18:00:00.000Z",
+      "end_reason": null,
+      "summary": {
+        "trials": 1,
+        "stimulus_trials": {
+          "felt": 1,
+          "not_felt": 0,
+          "missing": 0
+        },
+        "catch_trials": {
+          "felt": 0,
+          "not_felt": 0,
+          "missing": 0
+        },
+        "note": "prototype perception workflow; motor settings are settings, not measured amplitudes; not a diagnostic result"
+      },
+      "trial_count": 1
+    },
+    {
+      "kind": "station",
+      "station_session_id": "ss-000000000001",
+      "state": "aborted",
+      "label": "example perception test",
+      "source": "live",
+      "simulated_history": false,
+      "wearable_session_id": null,
+      "protocol": {
+        "kind": "preview"
+      },
+      "started_at": "2026-11-07T18:00:00.000Z",
+      "ended_at": "2026-11-07T18:00:00.000Z",
+      "end_reason": "operator_abort",
+      "summary": {
+        "trials": 2,
+        "stimulus_trials": {
+          "felt": 1,
+          "not_felt": 0,
+          "missing": 1
+        },
+        "catch_trials": {
+          "felt": 0,
+          "not_felt": 0,
+          "missing": 0
+        },
+        "note": "prototype perception workflow; motor settings are settings, not measured amplitudes; not a diagnostic result"
+      },
+      "trial_count": 2
+    },
+    {
+      "kind": "wearable",
+      "session_id": "ws-000000000002",
+      "runtime": "wearable",
+      "device_id": "sim-wearable-01",
+      "state": "completed",
+      "end_reason": "end_of_input",
+      "label": "example session",
+      "source": "simulated",
+      "original_source": null,
+      "recording_id": "sim-examples",
+      "simulated_history": false,
+      "started_at": "2026-11-07T18:00:00.000Z",
+      "ended_at": "2026-11-07T18:00:00.000Z",
+      "boot_ids": [
+        "sim-examples-b0"
+      ],
+      "calibration_id": "cal-000000000003",
+      "score": {
+        "label": "experimental score, arbitrary units (not a dose, not A(8))",
+        "at_start": {
+          "accumulation": 1,
+          "cumulative_au": 0.0,
+          "valid_duration_s": 0.0,
+          "excluded_duration_s": 0.649997,
+          "boot_segments": 1,
+          "excluded_by_reason": {
+            "activation_no_data & vibration_warming_up": 0.001488,
+            "activation_uncalibrated & vibration_warming_up": 0.648509
+          },
+          "status": "paused",
+          "t_us": 754000
+        },
+        "at_end": {
+          "accumulation": 1,
+          "cumulative_au": 0.048678,
+          "valid_duration_s": 18.795008,
+          "excluded_duration_s": 11.15148,
+          "boot_segments": 1,
+          "excluded_by_reason": {
+            "activation_capturing_relaxed": 3.0,
+            "activation_capturing_squeeze": 3.0,
+            "activation_device_reports_disconnected": 0.995,
+            "activation_no_data & vibration_warming_up": 0.001488,
+            "activation_relaxed_captured": 1.1,
+            "activation_sensor_disconnected": 0.05,
+            "activation_stale": 0.003523,
+            "activation_stale & vibration_stale": 0.196477,
+            "activation_uncalibrated": 0.101476,
+            "activation_uncalibrated & vibration_warming_up": 1.148524,
+            "activation_warming_up+gap & vibration_stale": 0.003524,
+            "activation_warming_up+gap & vibration_warming_up+gap": 0.346476,
+            "activation_warming_up+sensor_disconnected": 0.15,
+            "vibration_end_of_input": 0.001479,
+            "vibration_warming_up+gap": 1.053513
+          },
+          "status": "accumulating",
+          "t_us": 29999000
+        },
+        "session_au": 0.048678,
+        "session_valid_s": 18.795,
+        "status": "ok",
+        "reason": null,
+        "started_mid_stream": true,
+        "excluded_by_reason": {
+          "activation_capturing_relaxed": 3.0,
+          "activation_capturing_squeeze": 3.0,
+          "activation_relaxed_captured": 1.1,
+          "vibration_warming_up+gap": 1.054,
+          "activation_device_reports_disconnected": 0.995,
+          "activation_uncalibrated & vibration_warming_up": 0.5,
+          "activation_warming_up+gap & vibration_warming_up+gap": 0.346,
+          "activation_stale & vibration_stale": 0.196,
+          "activation_warming_up+sensor_disconnected": 0.15,
+          "activation_uncalibrated": 0.101,
+          "activation_sensor_disconnected": 0.05,
+          "activation_stale": 0.004,
+          "activation_warming_up+gap & vibration_stale": 0.004,
+          "vibration_end_of_input": 0.001
+        },
+        "explanation": "18.795 s of this session had both a fresh vibration and a calibrated activation reading and were scored: 0.048678 au."
+      },
+      "counters": {
+        "frames": 1185,
+        "derived_records": 2327,
+        "events": {
+          "device_sensor_state": 2,
+          "seq_gap": 17,
+          "sample_gap": 2
+        },
+        "sources_seen": [
+          "simulated"
+        ],
+        "calibration_ids": [
+          "cal-000000000003"
+        ],
+        "duration_s": 5.861
+      },
+      "dir": "<data_dir>/sessions/ws-000000000002"
+    },
+    {
+      "kind": "station",
+      "station_session_id": "ss-000000000004",
+      "state": "completed",
+      "label": "SIMULATED perception test day -1",
+      "source": "simulated",
+      "simulated_history": true,
+      "wearable_session_id": "ws-000000000005",
+      "protocol": {
+        "kind": "simulated_staircase_preview",
+        "note": "synthetic responses"
+      },
+      "started_at": "2026-11-07T18:00:00.000Z",
+      "ended_at": "2026-11-07T18:00:00.000Z",
+      "end_reason": "simulated_history",
+      "summary": {
+        "trials": 10,
+        "stimulus_trials": {
+          "felt": 5,
+          "not_felt": 3,
+          "missing": 0
+        },
+        "catch_trials": {
+          "felt": 0,
+          "not_felt": 2,
+          "missing": 0
+        },
+        "note": "prototype perception workflow; motor settings are settings, not measured amplitudes; not a diagnostic result"
+      },
+      "trial_count": 10
+    }
+  ],
+  "generated_at": "2026-11-07T18:00:00.000Z",
+  "labels": {
+    "simulated": "SIMULATED data, not a measurement",
+    "replay": "REPLAY of an earlier recording, not live",
+    "live": "live device data"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "v": 1,
+  "hub_seq": 2372,
+  "channel": "derived",
+  "runtime": "wearable",
+  "rx_wall": "2026-11-07T18:00:00.000Z",
+  "payload": {
+    "schema": "vibeguard.features",
+    "version": 1,
+    "type": "stream_event",
+    "device_id": "sim-wearable-01",
+    "boot_id": "sim-examples-b0",
+    "provenance": {
+      "source": "simulated",
+      "recording_id": "sim-examples"
+    },
+    "timebase": "device_monotonic_us",
+    "event": "device_sensor_state",
+    "stream": "emg",
+    "t_us": 19500000,
+    "source_seq": 799,
+    "detail": {
+      "state": "disconnected"
+    }
+  }
+}

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- The backend runs on a laptop on the same network (or localhost in the Simulator), usually over plain http.
+	     Local networking is allowed; anything on the internet still needs https. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>VibeGuard connects to the VibeGuard backend running on a computer on your network, which reads the sleeve.</string>
+</dict>
+</plist>

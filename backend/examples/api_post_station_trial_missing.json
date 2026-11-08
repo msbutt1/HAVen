@@ -1,0 +1,17 @@
+{
+  "trial_id": "tr-000000000000",
+  "station_session_id": "ss-000000000001",
+  "trial_index": 1,
+  "stimulus": {
+    "motor_setting": 120,
+    "units": "pwm_duty_0_255"
+  },
+  "measured_amplitude": null,
+  "is_catch": false,
+  "response": "missing",
+  "presented_at": "2026-11-07T18:00:00.000Z",
+  "responded_at": null,
+  "response_latency_ms": null,
+  "recorded_at": "2026-11-07T18:00:00.000Z",
+  "note": "no response within 3 s"
+}
