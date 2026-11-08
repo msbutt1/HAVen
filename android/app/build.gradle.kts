@@ -40,4 +40,6 @@ android {
 
 dependencies {
     testImplementation("junit:junit:4.13.2")
+    // the engine tests run on the JVM, where android.jar's org.json is only a stub
+    testImplementation("org.json:json:20240303")
 }

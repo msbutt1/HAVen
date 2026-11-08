@@ -1,5 +1,33 @@
 # VibeGuard for Android
 
+**Standalone (default):** the sleeve connects to this phone and the phone does every calculation: grip effort
+from the EMG, vibration, tool use vs normal arm use, tool time, and the experimental exposure score. Two pages,
+Dashboard (exposure bar for the shift, tool use, grip, vibration, calibration) and Overview (what the exposure
+score is, how it is calculated, what it means). Calibrate opens the grip (relax, squeeze) and tool (still,
+normal movement, tool on) calibrations.
+
+```
+wearable --Wi-Fi (this phone's hotspot)--> phone (this app: TCP 8765, all processing)
+```
+
+1. Turn on this phone's hotspot with the name and password flashed into the sleeve
+   (`firmware/wearable/main/wifi_secrets.h`).
+2. Open the app and keep it open (the screen stays on while it runs).
+3. Power the sleeve. It joins the hotspot and, when no laptop bridge answers its discovery broadcast, connects to
+   the hotspot gateway (this phone). Data appears within a few seconds. Do not run `vg-bridge` or
+   `vg-backend --device wifi` on the same hotspot, or the sleeve connects to the laptop instead.
+
+The engine (`app/src/main/java/com/vibeguard/app/engine`) is a Java port of the Swift engine (`ios/VibeGuard/Engine`),
+itself a port of the Python processor. `app/src/test/.../engine/RecordingTest.java` runs it on real board W
+recordings (`ios/EngineTests/Fixtures`) and compares with the Python processor: every compared value matches,
+including the grip calibration and the massage-gun tool calibration thresholds. Verified live on a Galaxy S25
+Ultra (Android 16) as the hotspot, with board W streaming about 40 records per second.
+
+Settings has a simulated sleeve (labelled simulated) and **Use a laptop instead**, which opens the laptop mode
+below.
+
+## Laptop mode
+
 An Android app that opens the VibeGuard dashboard from the laptop running the backend, over Wi-Fi. The phone shows
 the same screens as the web dashboard (Live, Overview, Calibrate, Perception test, History); the laptop still talks
 to the wearable and stores everything.
