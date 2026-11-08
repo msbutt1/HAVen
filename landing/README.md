@@ -9,8 +9,14 @@ use CSS scroll timelines where the browser has them), and no third-party request
 cd landing && python3 -m http.server 8800
 ```
 
-**The "Open the demo" buttons point at `dashboard/`** (relative). Host this folder at the root of the same site that
-serves the dashboard (for example the backend's `/dashboard/`), or change those two links to the demo's address.
+**The "Open the demo" buttons open `dashboard/?source=mock`**: the dashboard's simulated feed, which runs entirely in
+the browser (no server) and is labelled "Simulated data" the whole time. To publish the page with its demo, assemble
+the static site and upload the `site/` folder to any static host (livops.uz static hosting, GitHub Pages, Cloudflare Pages):
+
+```bash
+landing/build-site.sh        # writes site/: the landing page at /, the dashboard at /dashboard/
+```
+
 The source link points at the GitHub repository; change it if the repository is private.
 
 The screenshots are real captures of the dashboard replaying `backend/backup/demo-session` (the banner in them says

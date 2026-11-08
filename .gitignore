@@ -29,3 +29,6 @@ signals/out/
 
 # Backend local data (SQLite + recorded sessions)
 backend/data/
+
+# Assembled static site (landing/build-site.sh)
+site/
