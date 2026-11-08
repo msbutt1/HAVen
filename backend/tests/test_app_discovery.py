@@ -169,3 +169,42 @@ def test_serve_announces_on_bonjour_only_beyond_this_computer(monkeypatch, tmp_p
                    *flags, "--data-dir", str(tmp_path / "d")])
     assert rc == 0
     assert seen == ([("init", 8124, False), "start", "stop"] if announced else [])
+
+
+# ---------------------------------------------------------------- QR code for phones
+
+def test_phone_url_prefers_a_normal_lan_address():
+    from vibeguard_backend.phoneqr import phone_url
+
+    assert phone_url(["169.254.3.4", "192.168.43.20"], 8000) == "http://192.168.43.20:8000/dashboard/"
+    assert phone_url(["169.254.3.4"], 8010) == "http://169.254.3.4:8010/dashboard/"
+    assert phone_url([], 8000) is None
+
+
+def test_qr_is_drawn_in_explicit_black_and_white():
+    from vibeguard_backend.phoneqr import qr_lines
+
+    lines = qr_lines("http://192.168.43.20:8000/dashboard/")
+    assert 15 <= len(lines) <= 30                                   # two modules per line
+    assert all(line.endswith("\x1b[0m") for line in lines)
+    assert all("\x1b[7m" not in line for line in lines)            # no reverse video: same in light and dark terminals
+    assert "38;5;16m" in lines[len(lines) // 2] and "48;5;231m" in lines[0]
+    assert "password" not in "".join(lines)
+
+
+@pytest.mark.parametrize("host,shown", [("0.0.0.0", True), ("192.168.1.5", True), ("127.0.0.1", False)])
+def test_serve_says_the_phone_address_only_beyond_this_computer(monkeypatch, tmp_path, capsys, host, shown):
+    import uvicorn
+
+    from vibeguard_backend import bonjour
+    from vibeguard_backend.cli import main as cli_main
+
+    monkeypatch.setattr(bonjour, "lan_ipv4_addresses", lambda: ["192.168.43.20"])
+    monkeypatch.setattr(uvicorn, "run", lambda app, **kw: None)
+    rc = cli_main(["serve", "--device", "none", "--host", host, "--http-port", "8125", "--app-discovery-port", "0",
+                   "--data-dir", str(tmp_path / "d")])
+    err = capsys.readouterr().err
+    assert rc == 0
+    want = "http://192.168.1.5:8125/dashboard/" if host == "192.168.1.5" else "http://192.168.43.20:8125/dashboard/"
+    assert (want in err) is shown
+    assert "\x1b[" not in err                                         # not a terminal: the address only, no QR

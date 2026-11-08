@@ -16,6 +16,9 @@ def test_backend_adapter_translation():
     o = json.loads(r.stdout.strip().splitlines()[-1])
     assert o["wsUrl"] == "ws://h:1/ws/live"
     assert o["state"] == ["sleeve:ready", "station:ready"]
+    assert o["browserWs"] == [1, True]                                      # a browser: just the URL, as before
+    assert o["authWs"] == ["ws://h:2/ws/live", "Basic dGVhbTpwdw=="]
+    assert o["authFetch"] == "Basic dGVhbTpwdw=="
     assert o["history"] == [["s1", "replay", 30, 2.5, "stopped"],           # wearable sessions only, none still recording
                             ["s3", "simulated", 30, 0.059868, "stopped"],        # the backend's session_au (start was null)
                             ["s4", "live", 30, None, "stopped"]]            # session_au null: the backend could not attribute it

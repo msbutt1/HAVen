@@ -3,12 +3,12 @@
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const dash = path.join(__dirname, '..', '..', 'dashboard', 'js');
 const sockets = [];
-class FakeWS { constructor(u) { this.url = u; this.readyState = 1; sockets.push(this); setTimeout(() => this.onopen && this.onopen(), 0); } close() { this.onclose && this.onclose(); } }
+class FakeWS { constructor(u, protocols, opts) { this.url = u; this.opts = opts; this.argc = arguments.length; this.readyState = 1; sockets.push(this); setTimeout(() => this.onopen && this.onopen(), 0); } close() { this.onclose && this.onclose(); } }
 const routes = {};
 const fetchLog = [];
 const ctx = { window: {}, WebSocket: FakeWS, location: { protocol: 'http:', host: 'h:1' }, performance: { now: () => Date.now() },
   setTimeout, clearTimeout, setInterval, clearInterval, console,
-  fetch: async (url, o = {}) => { fetchLog.push([o.method || 'GET', url, o.body]); const r = routes[(o.method || 'GET') + ' ' + url.split('?')[0]];
+  fetch: async (url, o = {}) => { fetchLog.push([o.method || 'GET', url, o.body, o.headers]); const r = routes[(o.method || 'GET') + ' ' + url.split('?')[0]];
     const v = typeof r === 'function' ? r(o) : r; if (!v) return { ok: false, status: 404, json: async () => ({ detail: 'nope' }) };
     return { ok: v.ok !== false, status: v.status || 200, json: async () => v.body }; } };
 ctx.window = ctx; vm.createContext(ctx);
@@ -132,5 +132,15 @@ const status = (o = {}) => ({ runtime: 'wearable', device_id: 'd1', state: 'read
   const shift = await a.send('new_shift');
   out.shift = [shift.status, shift.event, shift.request_id];
   a.disconnect();
+
+  // a password (the Expo app, not a browser): on every request and on the WebSocket handshake
+  out.browserWs = [sockets[0].argc, sockets[0].opts === undefined];
+  const authed = new VG.BackendAdapter({ base: 'http://h:2', authorization: 'Basic dGVhbTpwdw==' });
+  authed.connect(); await new Promise((r) => setTimeout(r, 100));
+  const authedWs = sockets.at(-1);
+  out.authWs = [authedWs.url, authedWs.opts && authedWs.opts.headers.Authorization];
+  const f = fetchLog.find((x) => x[1].startsWith('http://h:2/'));
+  out.authFetch = f && f[3] && f[3].Authorization;
+  authed.disconnect();
   console.log(JSON.stringify(out));
 })().catch((e) => { console.error(e); process.exit(1); });

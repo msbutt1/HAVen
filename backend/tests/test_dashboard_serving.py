@@ -75,6 +75,9 @@ def test_basic_auth_protects_everything_including_the_websocket(be):
         assert c.post("/api/sessions", json={}).status_code == 401           # no control without credentials
         assert c.delete("/api/runtimes/wearable").status_code == 401
         assert c.get("/api/runtimes", headers=_auth()).status_code == 200
+        # an app that handles the password itself gets a plain 401, without the challenge iOS would hold
+        r = c.get("/api/health", headers={"x-vibeguard-client": "expo"})
+        assert r.status_code == 401 and "www-authenticate" not in r.headers
         assert "VibeGuard dashboard" in c.get("/dashboard/", headers=_auth()).text
         from starlette.testclient import WebSocketDenialResponse
         for bad in ({}, _auth("demo", "wrong")):

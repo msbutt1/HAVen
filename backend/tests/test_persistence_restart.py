@@ -726,6 +726,11 @@ def test_source_has_no_network_client_imports_or_remote_urls(root):
             assert hosts <= {"127.0.0.1", "0.0.0.0", "255.255.255.255"}, f"{f} names hosts {sorted(hosts)}"
             continue
         assert not bad, f"{f} imports network clients: {sorted(bad)}"
+        if f.name == "phoneqr.py":
+            # builds this computer's own address (http://<its LAN address>:<port>/dashboard/) for a QR code that
+            # phones read; it imports no network module and contacts nothing
+            assert re.findall(r"https?://[^\s\"'<>)]+", f.read_text()) == ["http://{ranked[0]}:{int(port"]   # the regex stops at ")"
+            continue
         for url in re.findall(r"https?://[^\s\"'<>)]+", f.read_text()):
             host = re.sub(r"^https?://", "", url).split("/")[0].split(":")[0]
             assert host in ("localhost", "127.0.0.1", "{args.host}"), f"{f} references remote URL {url}"

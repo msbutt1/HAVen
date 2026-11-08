@@ -212,15 +212,19 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
 
         app.mount("/dashboard", StaticFiles(directory=str(dashboard_dir), html=True), name="dashboard")
 
-    def challenge() -> JSONResponse:
+    def challenge(headers) -> JSONResponse:
+        """401. Browsers get the Basic challenge (they then ask for, or resend, the password). An app that handles the
+        password itself says so with X-VibeGuard-Client and gets a plain 401: on iOS a challenge makes the system
+        hold the request, waiting for a password prompt the app never shows."""
+        app_client = headers.get("x-vibeguard-client") is not None
         return JSONResponse({"detail": "authentication required"}, status_code=401,
-                            headers={"WWW-Authenticate": 'Basic realm="VibeGuard", charset="UTF-8"'})
+                            headers={} if app_client else {"WWW-Authenticate": 'Basic realm="VibeGuard", charset="UTF-8"'})
 
     if want_auth is not None:
         @app.middleware("http")  # added last = runs first: nothing is served, not even a 403, without credentials
         async def require_auth(request, call_next):
             if not authorized(request.headers.get("authorization")):
-                return challenge()
+                return challenge(request.headers)
             return await call_next(request)
 
     @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
@@ -400,7 +404,7 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
             # close: a browser (the Android app's WebView included) does not send the password it holds on a
             # WebSocket handshake until it is challenged, and then retries with it.
             try:
-                await ws.send_denial_response(challenge())
+                await ws.send_denial_response(challenge(ws.headers))
             except RuntimeError:            # a server without the denial-response extension
                 await ws.close(code=1008)
             return

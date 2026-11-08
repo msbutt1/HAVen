@@ -54,6 +54,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--app-discovery-port", type=int, default=8767,
                    help="when the API listens beyond this computer (--host 0.0.0.0 or a LAN address): UDP port where "
                         "the VibeGuard phone app's 'Find on this Wi-Fi' is answered (default 8767; 0 turns it off)")
+    s.add_argument("--no-qr", action="store_true",
+                   help="do not print the QR code phones scan to connect (printed when --host is not loopback and the "
+                        "output is a terminal)")
     s.add_argument("--no-bonjour", action="store_true",
                    help="do not announce this backend on Bonjour (_vibeguard._tcp), which the iPhone app uses to find "
                         "it; like --app-discovery-port, it only runs with a non-loopback --host")
@@ -571,6 +574,16 @@ def main(argv: list[str] | None = None) -> int:
         else:
             print(f"vg-backend: Bonjour announcement off: {bonjour.error}", file=sys.stderr)
             bonjour = None
+    if lan:
+        # the address phones open; a QR code for it (the VibeGuard app scans it, a phone camera opens the dashboard)
+        from .bonjour import lan_ipv4_addresses
+        from .phoneqr import phone_url, qr_lines
+        url = phone_url([args.host] if not wildcard else lan_ipv4_addresses(), args.http_port)
+        if url:
+            print(f"vg-backend: phones: scan this with the VibeGuard app, or open {url}", file=sys.stderr)
+            if sys.stderr.isatty() and not args.no_qr:
+                for line in qr_lines(url):
+                    print("  " + line, file=sys.stderr)
     try:
         # A client that never reads must not keep the server (and the open session) alive on Ctrl-C.
         uvicorn.run(app, host=args.host, port=args.http_port, log_level=args.log_level,

@@ -62,6 +62,12 @@
       this.stationGapMs = opts.stationGapMs || null;
       this.runtime = opts.runtime || 'wearable';
       this.base = (opts.base || '').replace(/\/+$/, '');
+      // "Basic …" for a backend started with VG_BASIC_AUTH, when the caller is not a browser that handles the
+      // password itself (the Expo phone app). Sent on every request and on the WebSocket handshake.
+      this.authorization = opts.authorization || null;
+      // set by an app (not a browser): sent as X-VibeGuard-Client, so a missing password gets a plain 401 instead of
+      // a challenge (iOS would otherwise hold the request, waiting for a password prompt)
+      this.client = opts.client || null;
       this.wsUrl = opts.wsUrl || this._defaultWsUrl();
       this.ws = null;
       this.wantOpen = false;
@@ -109,7 +115,10 @@
     _open() {
       let ws;
       try {
-        ws = new WebSocket(this.wsUrl);
+        // React Native's WebSocket takes headers as a third argument; a browser never gets one (no authorization)
+        const wsHeaders = Object.assign({}, this.authorization ? { Authorization: this.authorization } : {},
+          this.client ? { 'X-VibeGuard-Client': this.client } : {});
+        ws = Object.keys(wsHeaders).length ? new WebSocket(this.wsUrl, [], { headers: wsHeaders }) : new WebSocket(this.wsUrl);
       } catch (e) {
         this._retry();
         return;
@@ -400,7 +409,9 @@
       try {
         res = await fetch(this.base + path, {
           method,
-          headers: body ? { 'content-type': 'application/json' } : undefined,
+          headers: Object.assign(body ? { 'content-type': 'application/json' } : {},
+            this.authorization ? { Authorization: this.authorization } : {},
+            this.client ? { 'X-VibeGuard-Client': this.client } : {}),
           body: body ? JSON.stringify(body) : undefined,
         });
       } catch (e) {
