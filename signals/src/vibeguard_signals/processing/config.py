@@ -188,6 +188,13 @@ class ToolUseConfig:
     on_threshold_ms2: float = 1.0      # tool-band RMS to start counting as "tool"
     off_threshold_ms2: float = 0.6     # tool-band RMS below which use has paused
     tool_to_motion_min: float = 0.5    # tool-band RMS must be >= this x motion-band RMS
+    concentration_min: float = 0.0     # tool-band spectral concentration (0..1); 0 = not used.
+                                       # Tools are periodic (power in a few lines); knocks and
+                                       # handshakes are broadband. Set by the tool calibration.
+    steady_min: float = 0.6            # share of the on-hold windows whose dominant frequency
+                                       # stays within steady_tol of the median (a tool is a
+                                       # constant vibration; handshakes/waves wander). 0 = off
+    steady_tol_hz: float = 5.0         # tolerance: max(steady_tol_hz, 10 % of the median)
     on_hold_s: float = 2.0             # sustained this long before "tool" (rejects knocks)
     off_hold_s: float = 3.0            # quiet this long before "no_tool" (bridges short pauses)
     max_step_s: float = 0.5            # longer update gaps count as unobserved time
@@ -196,6 +203,13 @@ class ToolUseConfig:
     session_warn_s: float = 2 * 3600       # total tool time this session
     session_notice_fraction: float = 0.8   # early notice at this fraction of session_warn_s
     grip_activation_min: float = 0.10      # normalised activation counted as "gripping"
+    # Per-wearer tool calibration (still -> normal movements -> tool on), see tool_use.py:
+    cal_still_s: float = 5.0
+    cal_movement_s: float = 12.0
+    cal_tool_s: float = 10.0
+    cal_discard_s: float = 1.0             # start of each capture ignored (reaction, filters)
+    cal_tool_pass_min: float = 0.8         # share of tool windows the new rule must accept
+    cal_movement_pass_max: float = 0.10    # share of movement windows it may accept
 
     def check(self, rate_hz: float) -> str | None:
         nyq = rate_hz / 2
@@ -216,6 +230,10 @@ class ToolUseConfig:
         if not (self.continuous_warn_s > 0 and self.session_warn_s > 0
                 and 0 < self.session_notice_fraction < 1):
             raise ValueError("tool_use: warning limits must be > 0, notice fraction in (0, 1)")
+        if not (0 <= self.steady_min <= 1 and self.steady_tol_hz > 0):
+            raise ValueError("tool_use: steady_min in 0..1 and steady_tol_hz > 0 required")
+        if not 0 <= self.concentration_min <= 1:
+            raise ValueError("tool_use: concentration_min must be in 0..1")
         if self.motion_band_hz[1] >= self.tool_band_low_hz:
             raise ValueError("tool_use: motion band must lie below the tool band")
 

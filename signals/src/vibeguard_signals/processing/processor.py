@@ -258,6 +258,30 @@ class Processor:
         self.tool_use.reset_session()
         return self._event([], "tool_session_reset", "imu", None, self._seq_last, before)
 
+    # -- tool calibration (still -> movement -> tool; see tool_use.py) ---------
+
+    def tool_calibration_start(self, phase: str) -> list[dict]:
+        """Begin a 'still', 'movement' or 'tool' capture (device time)."""
+        self.tool_use.calibration_start(phase)
+        return self._drain([])
+
+    def tool_calibration_cancel(self) -> list[dict]:
+        self.tool_use.calibration_cancel()
+        return self._drain([])
+
+    def tool_calibration_reset(self) -> list[dict]:
+        """Back to the default (provisional) tool thresholds."""
+        self.tool_use.calibration_reset()
+        return self._drain([])
+
+    def tool_calibration_record(self) -> dict | None:
+        """The active tool calibration (for persistence by the backend), or None."""
+        return self.tool_use.calibration_record()
+
+    def load_tool_calibration(self, record: dict) -> list[dict]:
+        self.tool_use.load_calibration(record)
+        return self._drain([])
+
     # -- calibration commands (backend calibration API calls these) ------------
 
     def calibration_start(self, phase: str) -> list[dict]:
@@ -293,6 +317,9 @@ class Processor:
         events, self.calibration.events = self.calibration.events, []
         for kind, detail, _ in events:
             self._event(out, kind, "emg", self._streams["emg"].last_t, self._seq_last, detail)
+        tool_events, self.tool_use.events = self.tool_use.events, []
+        for kind, detail in tool_events:
+            self._event(out, kind, "imu", self._streams["imu"].last_t, self._seq_last, detail)
         out.extend(self._pending)
         self._pending = []
         return out

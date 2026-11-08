@@ -188,3 +188,103 @@ def test_vigorous_shaking_after_tool_ends_bout_and_is_not_tool_time():
     assert min(r["tool_band_rms_ms2"] for r in leaked) > 0.6          # above off threshold
     assert recs[-1]["state"] == "no_tool"
     assert recs[-1]["session_tool_s"] < tool_time + 3.5                 # at most the off-hold tail
+
+
+# -- steadiness and per-wearer tool calibration (simulated signals) ------------
+
+def handshake(seed=1):
+    """Simulated handshake/waving: 2-3 Hz pumping with irregular jolts (broadband)."""
+    rng = np.random.default_rng(seed)
+    jolts = np.cumsum(rng.uniform(0.15, 0.6, 200))        # irregular jolt times
+    amps = rng.uniform(1.0, 3.0, 200)
+
+    def f(t):
+        x = 0.8 * G * math.sin(2 * math.pi * 2.5 * t) + 0.4 * G * math.sin(2 * math.pi * 0.9 * t)
+        k = np.searchsorted(jolts, t)
+        if k > 0 and t - jolts[k - 1] < 0.02:              # 20 ms knock, decaying
+            dt = t - jolts[k - 1]
+            x += amps[k - 1] * G * math.exp(-dt / 0.005) * math.sin(2 * math.pi * 70 * dt)
+        return (x, 0.5 * x, 0.2 * G * math.sin(2 * math.pi * 1.7 * t))
+    return f
+
+
+def massage_gun(hz=40.0, amp_g=1.5):
+    """Simulated percussive massage gun held by the handle: pulse train (harmonics)
+    at a constant rate, with slow arm movement on top."""
+    def f(t):
+        ph = (t * hz) % 1.0
+        pulse = amp_g * G * (math.exp(-ph / 0.08) - 0.12)
+        arm = 0.3 * G * math.sin(2 * math.pi * 0.7 * t)
+        return (pulse + arm, 0.4 * pulse, 0.1 * pulse)
+    return f
+
+
+def wandering(t):
+    """Vibration whose frequency jumps every 0.25 s (irregular, not a tool)."""
+    hz = [30, 75, 140, 55, 110, 40, 180, 90][int(t / 0.25) % 8]
+    return (1.0 * G * math.sin(2 * math.pi * hz * t), 0.0, 0.0)
+
+
+def calibrate(d, movement=handshake(), tool=massage_gun()):
+    t = 0.0
+    for phase, sig in (("still", quiet), ("movement", movement), ("tool", tool)):
+        d.calibration_start(phase)
+        for _ in range(100):                               # until this capture ends
+            run(d, sig, 0.5, t0=t)
+            t += 0.5
+            if not d.cal_state.startswith("capturing"):
+                break
+    return t
+
+
+def test_wandering_frequency_is_not_a_tool():
+    d = detector()
+    recs = run(d, wandering, 10.0)
+    assert all(r["state"] != "tool" for r in recs)
+    assert any(r["candidate"] for r in recs)          # loud enough, but not steady
+
+
+def test_steady_tool_is_steady():
+    d = detector()
+    recs = run(d, tone(100.0, 1.0), 6.0)
+    first = next(r for r in recs if r["state"] == "tool")
+    assert first["steadiness"] == 1.0
+
+
+def test_tool_calibration_separates_handshake_from_massage_gun():
+    d = detector()
+    t = calibrate(d)
+    ev = [e for e in d.events if e[0] == "tool_calibration_state"]
+    assert ev[-1][1]["state"] == "calibrated", ev[-1]
+    assert d.cfg.on_threshold_ms2 != ToolUseConfig().on_threshold_ms2
+    d.reset_session()
+    recs = run(d, handshake(seed=7), 20.0, t0=t)          # a NEW handshake: never a tool
+    assert all(r["state"] != "tool" for r in recs)
+    recs = run(d, massage_gun(hz=45.0), 8.0, t0=t + 20)   # the gun: detected
+    assert recs[-1]["state"] == "tool"
+    assert recs[-1]["thresholds"]["source"] == "calibrated"
+
+
+def test_tool_calibration_fails_when_movement_looks_like_tool():
+    d = detector()
+    calibrate(d, movement=massage_gun(), tool=massage_gun())
+    last = [e for e in d.events if e[0] == "tool_calibration_state"][-1][1]
+    assert last["state"] == "failed"
+    assert last["reason"] in ("movement_looks_like_tool", "tool_not_reliably_detected")
+    assert d.cfg == ToolUseConfig()                        # defaults kept
+
+
+def test_tool_capture_requires_movement_first_and_reset_restores_defaults():
+    d = detector()
+    d.calibration_start("tool")
+    assert d.events[-1][0] == "tool_calibration_rejected"
+    calibrate(d)
+    d.calibration_reset()
+    assert d.cfg == ToolUseConfig() and d.cal_state == "uncalibrated"
+
+
+def test_processor_emits_tool_calibration_events():
+    p = Processor(demo_processing_config())
+    outs = p.tool_calibration_start("still")
+    assert outs[0]["event"] == "tool_calibration_state"
+    assert outs[0]["detail"]["state"] == "capturing_still"
