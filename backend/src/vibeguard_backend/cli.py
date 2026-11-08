@@ -50,11 +50,21 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--host", default="127.0.0.1")
     s.add_argument("--allow-host", action="append", default=[],
                    help="extra Host header value to accept (when listening beyond localhost)")
-    s.add_argument("--http-port", type=int, default=8765)
+    s.add_argument("--http-port", type=int, default=8000)
     s.add_argument("--dashboard", default=None, metavar="DIR|none",
                    help="serve the dashboard from DIR at /dashboard/ (default: ../dashboard next to backend/, or "
                         "$VG_DASHBOARD_DIR; 'none' turns it off)")
-    s.add_argument("--device", choices=("sim", "serial", "stream", "none"), default="sim")
+    s.add_argument("--device", choices=("sim", "serial", "stream", "wifi", "none"), default="sim",
+                   help="wifi: the wearable over Wi-Fi (it finds this laptop by UDP broadcast and streams to TCP --wifi-port)")
+    s.add_argument("--wifi-port", type=int, default=8765, help="with --device wifi: TCP port the wearable streams to (default 8765)")
+    s.add_argument("--discovery-port", type=int, default=8766,
+                   help="with --device wifi: UDP port answering the wearable's discovery broadcast (default 8766)")
+    s.add_argument("--wifi-host", default="0.0.0.0",
+                   help="with --device wifi: address to listen on for the wearable (default all interfaces; the web API "
+                        "stays on --host)")
+    s.add_argument("--accel-lsb-per-g", type=float, default=4096.0,
+                   help="with --device wifi: accelerometer sensitivity (default 4096 LSB/g: MPU-6500 at +-8 g, the "
+                        "firmware's setting, per TDK PS-MPU-9250A-01)")
     s.add_argument("--stream", default=None, metavar="FILE|-",
                    help="with --device stream: read device telemetry from a file or stdin (-), e.g. the output of "
                         "the firmware's vg-fake-device; records keep the provenance the producer gave them")
@@ -90,7 +100,7 @@ def build_parser() -> argparse.ArgumentParser:
     h.add_argument("--seed", type=int, default=7)
 
     f = sub.add_parser("preflight", parents=[common], help="demo-day readiness checklist for a running backend")
-    f.add_argument("--url", default="http://127.0.0.1:8765")
+    f.add_argument("--url", default="http://127.0.0.1:8000")
     f.add_argument("--runtime", default="wearable")
     f.add_argument("--expect", choices=("any", "live", "simulated", "replay"), default="any",
                    help="fail unless the data source is this (default: just report it)")
@@ -122,6 +132,17 @@ def build_parser() -> argparse.ArgumentParser:
     c.add_argument("--profile", type=Path, default=None,
                    help="hardware profile: takes mains_hz and dtr/rts from it and compares channels with the hello")
     c.add_argument("--json", action="store_true", help="print the measurements as JSON too")
+
+    w = sub.add_parser("fake-wifi", parents=[common],
+                       help="a SIMULATED Wi-Fi wearable: discovers the backend and streams simulator data (labelled simulated)")
+    w.add_argument("--scenario", default="tool_vs_arm", help="simulator scenario (default tool_vs_arm: tool vs arm use)")
+    w.add_argument("--duration", type=float, default=60.0, help="seconds per pass; each pass is a new boot")
+    w.add_argument("--seed", type=int, default=1)
+    w.add_argument("--speed", type=float, default=1.0)
+    w.add_argument("--discovery-host", default="127.0.0.1",
+                   help="where to send the discovery packet (default this machine; 255.255.255.255 broadcasts like the board)")
+    w.add_argument("--discovery-port", type=int, default=8766)
+    w.add_argument("--stop-after", type=float, default=None, help="stop sending after N s (like pulling the power)")
 
     d = sub.add_parser("fake-device", parents=[common],
                        help="a pseudo-serial port that behaves like the firmware (rehearse without hardware)")
@@ -164,6 +185,34 @@ def main(argv: list[str] | None = None) -> int:
         from .hardware import list_ports, render_ports
 
         print(render_ports(list_ports()))
+        return 0
+
+    if args.cmd == "fake-wifi":
+        import signal
+
+        from .fake_wifi import FakeWifiWearable
+
+        try:
+            dev = FakeWifiWearable(args.scenario, args.seed, args.duration, args.speed, args.discovery_host,
+                                   args.discovery_port, args.stop_after).start()
+        except (OSError, ValueError) as exc:
+            print(f"vg-backend: {exc}", file=sys.stderr)
+            return 2
+        signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
+        print(f"fake Wi-Fi wearable (SIMULATED, scenario {args.scenario}): discovering the backend on UDP "
+              f"{args.discovery_host}:{args.discovery_port}. Start the backend with --device wifi. Ctrl-C to stop.", flush=True)
+        last = None
+        try:
+            while dev.alive:
+                if dev.state != last:
+                    print(f"  {dev.state}" + (f" to {dev.connected_to[0]}:{dev.connected_to[1]}" if dev.state == "streaming" and dev.connected_to else ""), flush=True)
+                    last = dev.state
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            dev.stop()
+        print(f"fake Wi-Fi wearable stopped after {dev.sent} records", file=sys.stderr)
         return 0
 
     if args.cmd == "fake-device":
@@ -337,6 +386,19 @@ def main(argv: list[str] | None = None) -> int:
             adapter = SimAdapter(scenario=args.scenario, seed=args.seed, duration_s=args.duration,
                                  speed=args.speed, loop=True)
             config = processing_config_for("sim")
+        elif args.device == "wifi":
+            if args.port:
+                raise ValueError("--port is for --device serial; the Wi-Fi wearable connects to --wifi-port")
+            if args.profile is not None:
+                raise ValueError("--profile describes a serial device; it cannot be combined with --device wifi")
+            if args.wifi_port == args.http_port and args.wifi_host in ("0.0.0.0", args.host):
+                raise ValueError(f"--wifi-port {args.wifi_port} is also the web port; move one (--http-port)")
+            from .wifi import WifiAdapter
+            adapter = WifiAdapter(args.wifi_host, args.wifi_port, args.discovery_port)
+            src = args.imu_conversion_source if args.imu_conversion_source else None
+            config = processing_config_for("wifi", args.accel_lsb_per_g, src)
+            runtime_meta = {"wifi": {"tcp_port": args.wifi_port, "discovery_port": args.discovery_port,
+                                     "accel_lsb_per_g": args.accel_lsb_per_g}}
         elif args.device == "stream":
             if args.port:
                 raise ValueError("--port is for --device serial; --device stream reads --stream")

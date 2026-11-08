@@ -37,6 +37,9 @@
     session: null,
     busy: false,
     saved: [],
+    tool: null,
+    events: [],
+    recalibrate: false,
     st: { view: 'idle', mode: 'preview', planned: null, trials: [], current: null, result: null, msg: '' },
   };
 
@@ -188,11 +191,13 @@
     const v = f === 'fresh' ? S.latest.values : null;
     document.querySelectorAll('.readout').forEach((el) => el.classList.toggle('is-stale', f !== 'fresh'));
 
-    $('act-num').textContent = fmtNum(v && v.activation_pct, 0);
+    // unbounded above (may exceed 100 %); below the relaxed baseline it reads 0 and the note says so
+    $('act-num').textContent = fmtNum(v && v.activation_pct != null ? Math.max(0, v.activation_pct) : null, 0);
     $('vib-num').textContent = fmtNum(v && v.vib_ahv_est, 2);
     $('score-rate').textContent = fmtNum(v && v.score_rate, 2);
     $('score-total').textContent = fmtScore(v && v.score_total);
-    $('act-fill').style.width = v && v.activation_pct != null ? `${v.activation_pct}%` : '0%';
+    const bar = v && (v.activation_bar_pct != null ? v.activation_bar_pct : v.activation_pct);
+    $('act-fill').style.width = bar != null ? `${Math.max(0, Math.min(100, bar))}%` : '0%';
 
     const fr = $('freshness');
     fr.dataset.fresh = f;
@@ -201,9 +206,15 @@
     else fr.textContent = `Updating ${S.latest.sample_rate_hz} times a second.`;
 
     const calibrated = S.calibration || (S.latest && S.latest.quality && S.latest.quality.calibrated);
+    const ql = (v && S.latest.quality) || {};
+    const flags = [];
+    if (ql.above_max) flags.push('Above your calibrated maximum.');
+    if (ql.below_rest) flags.push('Below your relaxed baseline.');
+    if (ql.degraded) flags.push('Some samples clipped: treat with caution.');
     $('act-note').textContent = !calibrated
-      ? 'Not calibrated. Run calibration to see activation.'
-      : S.calibration ? `Calibrated at ${fmtTime(S.calibration.at)}.` : 'Calibrated before this page opened.';
+      ? (S.recalibrate ? 'The wearable restarted, so the calibration was dropped. Calibrate again.' : 'Not calibrated. Run calibration to see grip effort.')
+      : [S.calibration ? `Calibrated at ${fmtTime(S.calibration.at)}.` : 'Calibrated before this page opened.', ...flags].join(' ')
+        + ' Muscle activity, not grip force.';
 
     const q = $('quality');
     const artifact = v && S.latest.quality && S.latest.quality.emg_vibration_artifact;
@@ -260,67 +271,174 @@
     renderRecording();
   });
 
-  // ---------- calibrate ----------
-  $('btn-calibrate').addEventListener('click', async () => {
+  // ---------- calibrate (two steps, as the processor's state machine: relaxed, then squeeze) ----------
+  async function calStep(command) {
     S.cal.msg = '';
-    charts.raw.clear();
-    const r = await adapter.send('calibrate');
+    if (command === 'calibrate_relaxed') charts.raw.clear();
+    const r = await adapter.send(command);
     if (r.status === 'error') {
       S.cal.phase = 'failed';
       S.cal.msg = r.error;
       renderCal();
     }
-  });
+  }
+  $('btn-cal-relaxed').addEventListener('click', () => calStep('calibrate_relaxed'));
+  $('btn-cal-squeeze').addEventListener('click', () => calStep('calibrate_squeeze'));
+  $('btn-cal-cancel').addEventListener('click', () => calStep('calibrate_cancel'));
 
   adapter.on('calibration', (m) => {
     if (m.phase === 'done') {
       S.calibration = { rest: m.result.rest_env, max: m.result.max_env, at: m.result.calibrated_at };
       S.cal.phase = 'done';
+      S.recalibrate = false;
       toast('Calibration saved');
     } else if (m.phase === 'failed') {
       S.cal.phase = 'failed';
       S.cal.msg = m.reason;
+    } else if (m.phase === 'cancelled') {
+      S.cal.phase = null;
+      S.cal.msg = '';
     } else {
-      S.cal.phase = m.phase;
-      S.cal.remaining = m.remaining_ms;
-      S.cal.phaseMs = m.phase_ms;
+      S.cal.phase = m.phase;   // relax | relaxed_captured | squeeze
+      S.cal.remaining = m.remaining_ms || 0;
+      S.cal.phaseMs = m.phase_ms || 3500;
     }
     renderCal();
   });
 
   function renderCal() {
     const p = S.cal.phase;
-    const order = ['relax', 'squeeze', 'done'];
-    const idx = order.indexOf(p);
+    const step = p === 'relax' ? 0 : (p === 'relaxed_captured' || p === 'squeeze') ? 1 : p === 'done' ? 2 : -1;
     document.querySelectorAll('#cal-steps li').forEach((li, i) => {
-      li.classList.toggle('is-active', i === idx && p !== 'done');
-      li.classList.toggle('is-done', idx > i || (p === 'done' && i === 2));
+      li.classList.toggle('is-active', i === step && p !== 'done');
+      li.classList.toggle('is-done', step > i || (p === 'done' && i === 2));
     });
     const prompts = {
-      relax: 'Relax your forearm completely.',
+      relax: 'Relax your forearm completely, resting on a table. Hold still.',
+      relaxed_captured: 'Relaxed level captured. Now squeeze as hard as you can and hold, then press Start squeeze.',
       squeeze: 'Squeeze as hard as you can and hold it.',
-      done: 'Calibrated. Activation now shows as a percentage of that squeeze.',
-      failed: S.cal.msg || 'Calibration failed. Try again.',
+      done: 'Calibrated. Grip effort now shows as a percentage of that squeeze.',
+      failed: S.cal.msg || 'Calibration failed. Start again with the relaxed step.',
     };
-    $('cal-prompt').textContent = prompts[p] || 'Put the sleeve on, rest your arm on the table, then start.';
+    $('cal-prompt').textContent = prompts[p]
+      || (S.recalibrate ? 'The wearable restarted, so the calibration was dropped. Rest your arm on the table, then start again.'
+        : 'Put the sleeve on, rest your arm on the table, then press Start relaxed.');
     const running = p === 'relax' || p === 'squeeze';
     $('cal-count').textContent = running ? Math.ceil(S.cal.remaining / 1000) : '';
     $('cal-bar').style.width = running ? `${(1 - S.cal.remaining / S.cal.phaseMs) * 100}%` : p === 'done' ? '100%' : '0%';
 
     const st = S.devices.sleeve.state;
-    const btn = $('btn-calibrate');
-    btn.disabled = st !== 'ready';
-    btn.textContent = S.calibration ? 'Recalibrate' : 'Start calibration';
+    const ready = st === 'ready';
+    const relaxedBtn = $('btn-cal-relaxed');
+    const squeezeBtn = $('btn-cal-squeeze');
+    relaxedBtn.hidden = p === 'relaxed_captured' || running;
+    relaxedBtn.textContent = p === 'done' || S.calibration ? 'Recalibrate' : p === 'failed' ? 'Start relaxed again' : 'Start relaxed';
+    relaxedBtn.disabled = !ready;
+    squeezeBtn.hidden = p !== 'relaxed_captured';
+    squeezeBtn.disabled = !(ready || st === 'calibrating');
+    $('btn-cal-cancel').hidden = !(running || p === 'relaxed_captured');
     let hint = '';
     if (st === 'disconnected') hint = 'Connect the sleeve first.';
     else if (st === 'recording') hint = 'Stop recording before calibrating.';
     else if (st === 'error') hint = 'Clear the sleeve error first.';
-    else if (SOURCE === 'mock' && st === 'ready') hint = 'Mock feed squeezes automatically during step 2.';
+    else if (SOURCE === 'mock' && p === 'relaxed_captured') hint = 'The mock feed squeezes by itself during this step.';
     $('cal-hint').textContent = hint;
 
     $('cal-rest').textContent = S.calibration ? fmtNum(S.calibration.rest, 0) : '—';
     $('cal-max').textContent = S.calibration ? fmtNum(S.calibration.max, 0) : '—';
     $('cal-at').textContent = S.calibration ? fmtTime(S.calibration.at) : 'Not yet';
+  }
+
+  // ---------- tool use (estimated from vibration) and events ----------
+  const TOOL_STATE = { tool: 'Tool in use', no_tool: 'No tool', unknown: '—' };
+  const WARNING_TEXT = {
+    continuous_tool_use_long: 'Long continuous tool use. Consider a break.',
+    session_tool_time_high: 'Tool time this session is high.',
+    session_tool_time_approaching: 'Tool time this session is getting high.',
+  };
+  const fmtSecs = (s) => (s == null ? '—' : s < 60 ? `${Math.round(s)} s` : `${Math.floor(s / 60)} min ${String(Math.round(s % 60)).padStart(2, '0')} s`);
+
+  adapter.on('tool', (m) => {
+    S.tool = m;
+    renderTool();
+  });
+
+  function renderTool() {
+    const t = S.tool;
+    const live = t && !t.saved && S.connected;
+    $('tool-state').textContent = live && t.status === 'ok' ? (TOOL_STATE[t.state] || '—') : '—';
+    $('tool-time').textContent = t ? fmtSecs(t.session_tool_s) + (t.saved ? ' (last known)' : '') : '—';
+    $('tool-bouts').textContent = t && t.bouts != null ? String(t.bouts) : '—';
+    $('tool-longest').textContent = t ? fmtSecs(t.longest_bout_s) : '—';
+    $('tool-hz').textContent = live && t.dominant_hz != null ? `${Math.round(t.dominant_hz)} Hz` : '—';
+    const w = $('tool-warnings');
+    w.textContent = '';
+    for (const k of (live && t.warnings) || []) {
+      const li = document.createElement('li');
+      li.textContent = WARNING_TEXT[k] || k.replace(/_/g, ' ');
+      w.appendChild(li);
+    }
+    w.hidden = !w.children.length;
+    $('tool-hint').textContent = t && t.saved
+      ? `Last known before the backend restarted (saved ${fmtTime(t.saved_at)}).`
+      : live && t.status !== 'ok' ? 'Waiting for enough vibration data.' : '';
+    $('btn-new-shift').disabled = !S.connected || SOURCE === 'ws';
+  }
+
+  $('btn-new-shift').addEventListener('click', async () => {
+    if (!confirm('Start a new shift? Tool time and bouts go back to zero.')) return;
+    const r = await adapter.send('new_shift');
+    toast(r.status === 'error' ? r.error : 'New shift started: tool time reset');
+  });
+
+  const EVENT_TEXT = {
+    boot_change: 'The wearable restarted. Calibrate again.',
+    seq_gap: 'Some records were lost on the way.',
+    sample_gap: 'A gap in the samples.',
+    stream_stale: 'No data from the wearable: values are hidden.',
+    stream_recovered: 'Data resumed.',
+    invalid_record: 'A record failed the checks and was rejected.',
+    tool_session_reset: 'New shift: tool time reset.',
+    rate_mismatch: 'The sample rate differs from what the wearable announced.',
+  };
+  function eventText(e) {
+    if (e.event === 'calibration_state') {
+      const st = (e.detail && e.detail.state) || '';
+      return st === 'failed' ? `Calibration failed: ${(e.detail.reason || '').replace(/_/g, ' ')}.`
+        : `Calibration: ${st.replace(/_/g, ' ')}.`;
+    }
+    return EVENT_TEXT[e.event] || e.event.replace(/_/g, ' ');
+  }
+  adapter.on('event', (e) => {
+    if (e.event === 'boot_change' && !(e.detail && e.detail.previous_boot_id == null)) {
+      S.recalibrate = true;
+      S.calibration = null;
+    }
+    S.events.unshift({ ...e, text: eventText(e), at: e.at || new Date().toISOString() });
+    S.events.length = Math.min(S.events.length, 30);
+    renderEvents();
+    renderCal();
+  });
+  function renderEvents() {
+    const ol = $('events');
+    ol.textContent = '';
+    if (!S.events.length) {
+      const li = document.createElement('li');
+      li.className = 'empty';
+      li.textContent = 'Nothing yet.';
+      ol.appendChild(li);
+      return;
+    }
+    for (const e of S.events.slice(0, 12)) {
+      const li = document.createElement('li');
+      const time = document.createElement('time');
+      time.textContent = fmtTime(e.at);
+      const span = document.createElement('span');
+      span.textContent = e.text;
+      if (['boot_change', 'stream_stale', 'seq_gap', 'invalid_record'].includes(e.event)) span.className = 'warn';
+      li.append(time, span);
+      ol.appendChild(li);
+    }
   }
 
   // ---------- station ----------
@@ -561,6 +679,8 @@
     renderRecording();
     renderCal();
     renderStation();
+    renderTool();
+    renderEvents();
   }
 
   function frame() {

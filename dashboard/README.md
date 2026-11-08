@@ -11,7 +11,7 @@ Double-click `index.html`, or open it in Chrome. It starts on **mock data** (pur
 To use the real backend, let the backend serve the dashboard (same origin, nothing to configure):
 
 ```
-cd backend && uv run vg-backend serve            # then open http://127.0.0.1:8765/dashboard/
+cd backend && uv run vg-backend serve            # then open http://127.0.0.1:8000/dashboard/
 ```
 
 Served over http(s) the dashboard talks to the backend (`js/backend-adapter.js`: live data over `/ws/live`,
@@ -20,6 +20,10 @@ commands and history over `/api/...`); opened as a file it uses the mock feed. `
 The perception-test screens run on the backend's station API (`js/backend-station.js`): the backend's controller is
 simulated (no motor), so every test is stored and shown as simulated, and the test sequence is a stand-in for Fahad's
 engine. The 12-week charts on the History screen are labelled sample data, not your recordings.
+
+With the Wi-Fi wearable (`serve --device wifi`) the Live screen also shows **tool use** (estimated from vibration, with a
+**New shift** button) and an **Events** list in plain words, and Calibrate follows Salaar's two-step flow
+(Start relaxed, then Start squeeze). Grip effort is relative to the wearer's calibration, not grip force.
 
 Publishing it on livops.uz through a tunnel: see `backend/DEPLOY_LIVOPS.md`.
 

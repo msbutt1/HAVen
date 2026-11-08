@@ -9,7 +9,7 @@ final class TranslateTests: XCTestCase {
     {"type":"stream_features","stream":"emg","device_id":"d1","source_seq":7,"t_us":5000000,
      "provenance":{"source":"replay","recording_id":"rec-1"},"quality":{"clipped_samples":0},
      "features":{"emg_activation":{"envelope":{"value":{"emg0":183.1}},
-                                   "normalized":{"status":"ok","display":{"emg0":0.5}},
+                                   "normalized":{"status":"ok","value":{"emg0":0.5},"display":{"emg0":0.5}},
                                    "calibration":{"state":"calibrated"}}}}
     """
 
@@ -40,6 +40,32 @@ final class TranslateTests: XCTestCase {
         XCTAssertFalse(t.calibrated)
         XCTAssertEqual(t.provenance, .simulated)
         XCTAssertNil(t.recordingID)                           // only a replay names its recording
+    }
+
+    func testGripEffortIsTheUnboundedValueWithAClampedBarAndFlags() {
+        let emg = json(#"{"provenance":{"source":"live"},"features":{"emg_activation":{"normalized":{"status":"degraded","value":{"emg0":1.25},"display":{"emg0":1.0},"above_reference":{"emg0":true},"below_relaxed":{"emg0":false}},"calibration":{"state":"calibrated"}}}}"#)
+        let t = Translate.telemetry(emg: emg, imu: nil, score: .null, status: .null, sessionActive: false, scoreBase: nil)
+        XCTAssertEqual(t.activationPct, 125)                  // may go above 100 %
+        XCTAssertEqual(t.activationBarPct, 100)
+        XCTAssertTrue(t.aboveMax)
+        XCTAssertFalse(t.belowRest)
+        XCTAssertTrue(t.degraded)
+        let warming = json(#"{"features":{"emg_activation":{"normalized":{"status":"warming_up","value":{"emg0":0.4}}}}}"#)
+        XCTAssertNil(Translate.telemetry(emg: warming, imu: nil, score: .null, status: .null, sessionActive: false, scoreBase: nil).activationPct)
+    }
+
+    func testToolUseAndEventsInPlainWords() {
+        let tool = Translate.toolUse(json(#"{"type":"tool_use","state":"tool","status":"ok","session_tool_s":125.5,"bouts":3,"longest_bout_s":40,"dominant_hz":120.0,"warnings":["continuous_tool_use_long"]}"#))
+        XCTAssertEqual(tool.stateText, "Tool in use")
+        XCTAssertEqual(tool.bouts, 3)
+        XCTAssertEqual(tool.warnings, ["continuous_tool_use_long"])
+        XCTAssertEqual(Translate.toolUse(json(#"{"state":"tool","status":"ok"}"#), saved: true).stateText, "—")   // last known is not live
+        XCTAssertEqual(Translate.toolUse(json(#"{"state":"unknown","status":"unavailable"}"#)).stateText, "—")
+        XCTAssertEqual(Translate.eventText("boot_change", detail: .null), "The wearable restarted. Calibrate again.")
+        XCTAssertEqual(Translate.eventText("calibration_state", detail: json(#"{"state":"relaxed_captured"}"#)), "Calibration: relaxed captured.")
+        XCTAssertEqual(Translate.eventText("calibration_state", detail: json(#"{"state":"failed","reason":"insufficient_data"}"#)), "Calibration failed: insufficient data.")
+        XCTAssertEqual(Translate.calibrationFailure("device_mismatch"), "This calibration belongs to a different device or session. Recalibrate.")
+        XCTAssertEqual(Translate.calibrationFailure("interrupted_boot_change"), "The wearable restarted during calibration. Start again.")
     }
 
     func testAStaleIMUGivesNoVibration() {
@@ -96,7 +122,7 @@ final class TranslateTests: XCTestCase {
     }
 
     func testCalibrationFailureText() {
-        XCTAssertTrue(Translate.calibrationFailure("insufficient_separation").hasPrefix("The squeeze was not clearly stronger"))
+        XCTAssertTrue(Translate.calibrationFailure("insufficient_separation").hasPrefix("The squeeze wasn’t clearly stronger than rest"))
         XCTAssertEqual(Translate.calibrationFailure("interrupted_device_reports_disconnected"), "interrupted device reports disconnected")
     }
 
@@ -111,9 +137,9 @@ final class TranslateTests: XCTestCase {
     }
 
     func testSettingsURLs() {
-        var s = ConnectionSettings(baseURL: "localhost:8765/", runtime: "wearable", username: "", password: "")
-        XCTAssertEqual(s.url(path: "/api/runtimes")?.absoluteString, "http://localhost:8765/api/runtimes")
-        XCTAssertEqual(s.webSocketURL?.absoluteString, "ws://localhost:8765/ws/live")
+        var s = ConnectionSettings(baseURL: "localhost:8000/", runtime: "wearable", username: "", password: "")
+        XCTAssertEqual(s.url(path: "/api/runtimes")?.absoluteString, "http://localhost:8000/api/runtimes")
+        XCTAssertEqual(s.webSocketURL?.absoluteString, "ws://localhost:8000/ws/live")
         XCTAssertNil(s.authorization)
         s.baseURL = "https://vibeguard.example.uz"
         s.username = "demo"; s.password = "pw"

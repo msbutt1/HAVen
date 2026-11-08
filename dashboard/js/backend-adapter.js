@@ -20,15 +20,23 @@
   'use strict';
   const VG = (window.VG = window.VG || {});
 
-  const CAPTURE_MS = 3000; // backend calibration config: 3 s relaxed, then 3 s squeeze
+  const CAPTURE_MS = 3500; // each capture: 3 s plus 0.5 s discarded at the start (CalibrationConfig defaults)
   const POLL_MS = 2000; // backstop for runtime status, in case a push is missed
+  // plain words for each calibration failure reason (firmware/INTEGRATION_FOR_ABDULJABBAR.md, section 3)
+  const MISMATCH = 'This calibration belongs to a different device or session. Recalibrate.';
   const REASON_TEXT = {
-    insufficient_separation: 'The squeeze was not clearly stronger than the relaxed reading. Squeeze harder and try again.',
-    insufficient_data: 'Not enough clean signal was captured. Check the electrodes and try again.',
-    clipping: 'The signal was clipping (too strong for the sensor). Reduce the gain or electrode pressure and try again.',
-    device_disconnected: 'The sleeve disconnected during calibration.',
-    boot_change: 'The sleeve restarted during calibration.',
+    insufficient_separation: 'The squeeze wasn’t clearly stronger than rest. Squeeze harder, or check the pads, and try again.',
+    insufficient_data: 'Not enough signal during the capture. Check the pads and try again.',
+    interrupted_boot_change: 'The wearable restarted during calibration. Start again.',
+    interrupted_processing_change: 'The processing settings changed during calibration. Start again.',
+    channel_mismatch: MISMATCH, device_mismatch: MISMATCH, boot_mismatch: MISMATCH, provenance_mismatch: MISMATCH,
+    processing_config_mismatch: 'The calibration was made with different settings. Recalibrate.',
+    calibration_unverified: 'The saved calibration is waiting for new data to confirm it is the same wearable.',
+    clipping: 'The signal was clipping (too strong for the sensor). Check the pads and try again.',
+    device_disconnected: 'The wearable disconnected during calibration. Start again.',
+    boot_change: 'The wearable restarted. Calibrate again.',
   };
+  const reasonText = (r) => REASON_TEXT[r] || (r ? String(r).replace(/_/g, ' ') : 'Calibration did not complete. Try again.');
   const END_TEXT = {
     stopped_by_user: 'stopped',
     end_of_input: 'the replayed recording reached its end',
@@ -152,6 +160,10 @@
           const lat = rt.latest || {};
           if (lat.imu && lat.imu.features) this.imu = { rec: lat.imu, at: performance.now() };
           if (lat.score) this.score = lat.score;
+          if (lat.tool_use && lat.tool_use.type === 'tool_use') this.emit('tool', { ...lat.tool_use, saved: false });
+          else if (rt.tool_use_saved && rt.tool_use_saved.record) {
+            this.emit('tool', { ...rt.tool_use_saved.record, saved: true, saved_at: rt.tool_use_saved.saved_at });
+          }
           this._applyStatus(rt);
         } else {
           this._emitState('disconnected', `The backend has no runtime called "${this.runtime}".`);
@@ -175,7 +187,11 @@
     }
 
     _derived(p) {
-      if (p.type === 'experimental_score') {
+      if (p.type === 'tool_use') {
+        this.emit('tool', { ...p, saved: false });
+      } else if (p.type === 'stream_event') {
+        this.emit('event', { event: p.event, stream: p.stream, detail: p.detail || {}, at: new Date().toISOString() });
+      } else if (p.type === 'experimental_score') {
         this.score = p;
       } else if (p.type === 'stream_features' && p.stream === 'imu') {
         this.imu = { rec: p, at: performance.now() };
@@ -196,8 +212,13 @@
       const norm = act.normalized || {};
       const env = act.envelope || {};
       const calState = (act.calibration && act.calibration.state) || (this.status && this.status.calibration && this.status.calibration.state);
-      const disp = norm.status === 'ok' ? first(norm.display) : null;
-      const activation = disp == null ? null : Math.round(disp * 1000) / 10; // 0..1 -> percent
+      // grip effort: `value` is unbounded (may go above 100 %), `display` is clamped for bars; a value is shown
+      // only while the status is ok or degraded (clipped samples), never a missing value as 0
+      const usable = norm.status === 'ok' || norm.status === 'degraded';
+      const val = usable ? first(norm.value) : null;
+      const disp = usable ? first(norm.display) : null;
+      const activation = val == null ? null : Math.round(val * 1000) / 10;
+      const activationBar = disp == null ? null : Math.round(disp * 1000) / 10;
 
       // Vibration only when the backend could convert to m/s²; and only while the IMU window is recent.
       let vib = null;
@@ -230,12 +251,18 @@
         values: {
           emg_env: num(first(env.value)),
           activation_pct: activation,
+          activation_bar_pct: activationBar,
           vib_ahv_est: vib,
           score_rate: rate,
           score_total: total,
         },
         units: { emg_env: 'counts rms', activation_pct: '%', vib_ahv_est: 'm/s²', score_rate: 'au/h', score_total: 'au' },
-        quality: { emg_vibration_artifact: false, imu_saturated: clipped > 0, calibrated: calState === 'calibrated' },
+        quality: {
+          emg_vibration_artifact: false, imu_saturated: clipped > 0, calibrated: calState === 'calibrated',
+          above_max: usable && !!Object.values(norm.above_reference || {})[0],
+          below_rest: usable && !!Object.values(norm.below_relaxed || {})[0],
+          degraded: norm.status === 'degraded',
+        },
       });
     }
 
@@ -412,10 +439,22 @@
         this._refresh();
         return done({ session_id: sid });
       }
-      if (name === 'calibrate') {
-        if (this.calibrating) return fail('Calibration is already running.');
-        this._calibrate();
+      if (name === 'calibrate_relaxed' || name === 'calibrate_squeeze') {
+        if (this.calibrating) return fail('A calibration step is already running.');
+        this._calibrateStep(name === 'calibrate_relaxed' ? 'relaxed' : 'squeeze');
         return done();
+      }
+      if (name === 'calibrate_cancel') {
+        this.calCancelled = true;
+        const r = await this._http('POST', `/api/runtimes/${encodeURIComponent(this.runtime)}/calibration`,
+          { action: 'cancel', request_id: this._id('cal') });
+        this.emit('calibration', { type: 'calibration', device_id: this._dev(), phase: 'cancelled' });
+        return r.ok ? done() : fail(r.error);
+      }
+      if (name === 'new_shift') {
+        const r = await this._http('POST', `/api/runtimes/${encodeURIComponent(this.runtime)}/tool-use/new-shift`,
+          { request_id: this._id('shift') });
+        return r.ok ? done(r.data) : fail(r.error);
       }
       if (name === 'start_station_test') {
         const r = await this.station.start(args.mode);
@@ -432,35 +471,41 @@
       return fail(`Unknown command: ${name}`);
     }
 
-    async _calibrate() {
+    /** One calibration step (the guide's phone flow): send the command, count down while the backend captures,
+     *  then report the processor's state: relaxed_captured / calibrated, or failed with the reason in plain words. */
+    async _calibrateStep(action) {
       this.calibrating = true;
+      this.calCancelled = false;
+      const phase = action === 'relaxed' ? 'relax' : 'squeeze';
+      const want = action === 'relaxed' ? 'relaxed_captured' : 'calibrated';
       const fail = (reason) => this.emit('calibration', { type: 'calibration', device_id: this._dev(), phase: 'failed', reason });
       try {
-        for (const [phase, action, want] of [['relax', 'relaxed', 'relaxed_captured'], ['squeeze', 'squeeze', 'calibrated']]) {
-          const r = await this._http('POST', `/api/runtimes/${encodeURIComponent(this.runtime)}/calibration`,
-            { action, request_id: this._id('cal') });
-          if (!r.ok) { fail(r.error); return; }
-          const t0 = performance.now();
-          for (;;) { // countdown for the wearer; the backend does the real capture
-            const left = Math.max(0, CAPTURE_MS - (performance.now() - t0));
-            this.emit('calibration', { type: 'calibration', device_id: this._dev(), phase, phase_ms: CAPTURE_MS, remaining_ms: left });
-            if (left <= 0) break;
-            await sleep(100);
+        const r = await this._http('POST', `/api/runtimes/${encodeURIComponent(this.runtime)}/calibration`,
+          { action, request_id: this._id('cal') });
+        if (!r.ok) { fail(r.error); return; }
+        const t0 = performance.now();
+        for (;;) { // the countdown for the wearer; the backend does the real capture
+          if (this.calCancelled) return;
+          const left = Math.max(0, CAPTURE_MS - (performance.now() - t0));
+          this.emit('calibration', { type: 'calibration', device_id: this._dev(), phase, phase_ms: CAPTURE_MS, remaining_ms: left });
+          if (left <= 0) break;
+          await sleep(100);
+        }
+        let state = null;
+        for (let i = 0; i < 30; i++) { // wait for the processor to finish the capture and say how it went
+          if (this.calCancelled) return;
+          const s = await this._http('GET', `/api/runtimes/${encodeURIComponent(this.runtime)}`);
+          if (s.ok && s.data) {
+            this._applyStatus(s.data);
+            state = s.data.calibration || {};
+            if (!String(state.state).startsWith('capturing')) break;
           }
-          let state = null;
-          for (let i = 0; i < 30; i++) { // wait for the backend to finish and report the outcome
-            const s = await this._http('GET', `/api/runtimes/${encodeURIComponent(this.runtime)}`);
-            if (s.ok && s.data) {
-              this._applyStatus(s.data);
-              state = s.data.calibration || {};
-              if (!String(state.state).startsWith('capturing')) break;
-            }
-            await sleep(150);
-          }
-          if (!state || state.state !== want) {
-            fail(REASON_TEXT[state && state.reason] || (state && state.reason) || 'Calibration did not complete. Try again.');
-            return;
-          }
+          await sleep(150);
+        }
+        if (!state || state.state !== want) { fail(reasonText(state && state.reason)); return; }
+        if (action === 'relaxed') {
+          this.emit('calibration', { type: 'calibration', device_id: this._dev(), phase: 'relaxed_captured' });
+          return;
         }
         const c = await this._http('GET', `/api/calibrations?device_id=${encodeURIComponent(this._dev() || '')}`);
         const rec = c.ok && Array.isArray(c.data) && c.data.length ? c.data[0] : null;

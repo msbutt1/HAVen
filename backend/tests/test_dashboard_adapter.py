@@ -31,3 +31,8 @@ def test_backend_adapter_translation():
     assert o["stStates"] == ["testing", "completed"] and o["stAbortIdle"] == "error"
     assert o["disc"] == "disconnected:unplugged" and o["err"] == "error:boom"
     assert o["cal"] == ["failed:recording in progress"]
+    assert o["calRelaxed"][0] == "relax" and o["calRelaxed"][-1] == "relaxed_captured"   # step 1 ends waiting for step 2
+    assert o["calFailed"] == ["The squeeze wasn’t clearly stronger than rest. Squeeze harder, or check the pads, and try again."]
+    assert o["grip"] == [125, 100, True, False, True]          # unbounded value, clamped bar, flags
+    assert o["tool"] == [["tool", 12.5, False]] and o["event"] == ["boot_change"]
+    assert o["shift"] == ["accepted", "tool_session_reset", "yes"]

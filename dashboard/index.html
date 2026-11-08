@@ -37,8 +37,8 @@
       <p class="freshness" id="freshness" data-fresh="none">No data. Connect the sleeve.</p>
       <div class="readouts">
         <article class="readout" id="ro-activation">
-          <h2>Muscle activation</h2>
-          <p class="value"><span class="num" id="act-num">—</span><span class="unit">% of max squeeze</span></p>
+          <h2>Grip effort</h2>
+          <p class="value"><span class="num" id="act-num">—</span><span class="unit">% of your calibrated maximum squeeze</span></p>
           <div class="meter" aria-hidden="true"><div class="meter-fill" id="act-fill"></div></div>
           <p class="note" id="act-note">Not calibrated. Run calibration to see activation.</p>
         </article>
@@ -56,8 +56,28 @@
       </div>
       <p class="quality" id="quality" hidden></p>
 
+      <div class="tool-row">
+        <article class="readout" id="ro-tool">
+          <h2>Tool use <span class="sub-label">estimated from vibration</span></h2>
+          <p class="value"><span class="num num-word" id="tool-state">—</span></p>
+          <dl class="tool-facts">
+            <div><dt>Tool time this session</dt><dd id="tool-time">—</dd></div>
+            <div><dt>Bouts</dt><dd id="tool-bouts">—</dd></div>
+            <div><dt>Longest bout</dt><dd id="tool-longest">—</dd></div>
+            <div><dt>Dominant frequency</dt><dd id="tool-hz">—</dd></div>
+          </dl>
+          <ul class="tool-warnings" id="tool-warnings" hidden></ul>
+          <p class="note" id="tool-note">Thresholds are provisional team choices, tuned on a phone motor, not regulatory limits.</p>
+          <div class="row"><button id="btn-new-shift" class="btn btn-small">New shift</button><span class="hint" id="tool-hint"></span></div>
+        </article>
+        <article class="readout" id="ro-events">
+          <h2>Events</h2>
+          <ol class="events" id="events"><li class="empty">Nothing yet.</li></ol>
+        </article>
+      </div>
+
       <div class="charts">
-        <figure class="chart"><figcaption><span class="swatch sw-act"></span>Muscle activation, last 30 s</figcaption><canvas id="chart-act"></canvas></figure>
+        <figure class="chart"><figcaption><span class="swatch sw-act"></span>Grip effort, last 30 s</figcaption><canvas id="chart-act"></canvas></figure>
         <figure class="chart"><figcaption><span class="swatch sw-vib"></span>Wrist vibration, last 30 s</figcaption><canvas id="chart-vib"></canvas></figure>
         <figure class="chart"><figcaption><span class="swatch sw-score"></span>Exposure score rate (experimental), last 30 s</figcaption><canvas id="chart-score"></canvas></figure>
       </div>
@@ -73,9 +93,9 @@
       <div class="cal-layout">
         <div>
           <ol class="cal-steps" id="cal-steps">
-            <li data-step="relax">Relax your forearm <span>3 s</span></li>
-            <li data-step="squeeze">Squeeze as hard as you can <span>3 s</span></li>
-            <li data-step="done">Saved</li>
+            <li data-step="relax">Relaxed <span>about 3.5 s</span></li>
+            <li data-step="squeeze">Maximum squeeze <span>about 3.5 s</span></li>
+            <li data-step="done">Calibrated</li>
           </ol>
           <div class="cal-stage">
             <p class="cal-prompt" id="cal-prompt">Put the sleeve on, rest your arm on the table, then start.</p>
@@ -83,7 +103,9 @@
             <div class="bar"><div class="bar-fill" id="cal-bar"></div></div>
           </div>
           <div class="row">
-            <button id="btn-calibrate" class="btn btn-primary">Start calibration</button>
+            <button id="btn-cal-relaxed" class="btn btn-primary">Start relaxed</button>
+            <button id="btn-cal-squeeze" class="btn btn-primary" hidden>Start squeeze</button>
+            <button id="btn-cal-cancel" class="btn" hidden>Cancel</button>
             <span class="hint" id="cal-hint"></span>
           </div>
         </div>

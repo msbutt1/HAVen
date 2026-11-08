@@ -72,6 +72,7 @@ struct HistoryRow: View {
             bits.append(s.scoreTotal == nil ? "no score (not calibrated)" : "score \(formatScore(s.scoreTotal)) au (experimental)")
             if let a = s.meanActivationPct { bits.append("mean activation \(formatNumber(a, 0)) %") }
             if let v = s.peakVibration { bits.append("peak vibration \(formatNumber(v, 2)) m/s²") }
+            if let tt = s.toolTimeS { bits.append("tool time \(Int(tt.rounded())) s (estimated)") }
             if s.endedReason != "stopped" { bits.append("ended early: \(s.endedReason)") }
             return bits.joined(separator: ", ")
         case .test(let t):

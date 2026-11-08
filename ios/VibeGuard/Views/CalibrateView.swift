@@ -1,5 +1,7 @@
 import SwiftUI
 
+/// The guide's two-step calibration (firmware/INTEGRATION_FOR_ABDULJABBAR.md, section 3): relaxed, then squeeze,
+/// each with its own button and countdown; a failure says why in plain words and goes back to step 1.
 struct CalibrateView: View {
     @Environment(Backend.self) private var backend
 
@@ -9,8 +11,16 @@ struct CalibrateView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Eyebrow(text: "Calibration")
                     Text("Relax, then squeeze").font(.title2.weight(.semibold))
-                    Text("Activation is shown against this person’s own relaxed reading and hard squeeze, for this electrode placement.")
+                    Text("Grip effort is shown against this person’s own relaxed level and maximum squeeze, for this electrode placement. It is muscle activity, not grip force.")
                         .font(.subheadline).foregroundStyle(Theme.muted)
+                }
+
+                if backend.needsRecalibration && backend.cal.phase == .idle {
+                    Label("The wearable restarted, so the calibration was dropped. Calibrate again.", systemImage: "arrow.clockwise")
+                        .font(.subheadline.weight(.medium))
+                        .padding(12)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.warning.opacity(0.14)))
                 }
 
                 StepsRow(phase: backend.cal.phase)
@@ -25,23 +35,14 @@ struct CalibrateView: View {
                 }
                 .panel()
 
-                HStack(spacing: 12) {
-                    Button(backend.calibration == nil ? "Start calibration" : "Recalibrate") {
-                        Task { await backend.calibrate() }
-                    }
-                    .buttonStyle(PrimaryButtonStyle())
-                    .disabled(backend.sleeve.kind != .ready)
-                    if let hint {
-                        Text(hint).font(.footnote).foregroundStyle(Theme.muted)
-                    }
-                }
+                buttons
 
                 ChartCard(title: "Raw muscle signal (envelope), last 15 s", series: backend.rawSignal, color: Theme.activation,
                           now: context.date, window: 15, floorMax: 50)
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10) {
-                    ResultTile(title: "Rest level", value: formatNumber(backend.calibration?.rest, 0))
-                    ResultTile(title: "Max squeeze level", value: formatNumber(backend.calibration?.max, 0))
+                    ResultTile(title: "Relaxed level", value: formatNumber(backend.calibration?.rest, 0))
+                    ResultTile(title: "Maximum squeeze level", value: formatNumber(backend.calibration?.max, 0))
                     ResultTile(title: "Calibrated", value: backend.calibration?.at.map { $0.formatted(date: .omitted, time: .shortened) } ?? "Not yet")
                 }
             }
@@ -49,13 +50,41 @@ struct CalibrateView: View {
         .navigationTitle("Calibrate")
     }
 
+    @ViewBuilder private var buttons: some View {
+        let phase = backend.cal.phase
+        let running = phase == .relax || phase == .squeeze
+        let ready = backend.sleeve.kind == .ready
+        HStack(spacing: 12) {
+            if phase == .relaxedCaptured {
+                Button("Start squeeze") { Task { await backend.calibrateStep("squeeze") } }
+                    .buttonStyle(PrimaryButtonStyle())
+                    .disabled(!(ready || backend.sleeve.kind == .calibrating))
+            } else if !running {
+                Button(phase == .done || backend.calibration != nil ? "Recalibrate"
+                       : phase == .failed ? "Start relaxed again" : "Start relaxed") {
+                    Task { await backend.calibrateStep("relaxed") }
+                }
+                .buttonStyle(PrimaryButtonStyle())
+                .disabled(!ready)
+            }
+            if running || phase == .relaxedCaptured {
+                Button("Cancel") { Task { await backend.cancelCalibration() } }
+                    .buttonStyle(OutlineButtonStyle())
+            }
+            if let hint {
+                Text(hint).font(.footnote).foregroundStyle(Theme.muted)
+            }
+        }
+    }
+
     private var prompt: String {
         switch backend.cal.phase {
-        case .relax: return "Relax your forearm completely."
+        case .relax: return "Relax your forearm completely, resting on a table. Hold still."
+        case .relaxedCaptured: return "Relaxed level captured. Now squeeze as hard as you can and hold, then press Start squeeze."
         case .squeeze: return "Squeeze as hard as you can and hold it."
-        case .done: return "Calibrated. Activation now shows as a percentage of that squeeze."
-        case .failed: return backend.cal.message ?? "Calibration failed. Try again."
-        case .idle: return "Put the sleeve on, rest your arm on the table, then start."
+        case .done: return "Calibrated. Grip effort now shows as a percentage of that squeeze."
+        case .failed: return backend.cal.message ?? "Calibration failed. Start again with the relaxed step."
+        case .idle: return "Put the sleeve on, rest your arm on the table, then press Start relaxed."
         }
     }
 
@@ -83,9 +112,9 @@ struct StepsRow: View {
 
     var body: some View {
         HStack(spacing: 8) {
-            step(1, "Relax", "3 s", active: phase == .relax, done: phase == .squeeze || phase == .done)
-            step(2, "Squeeze", "3 s", active: phase == .squeeze, done: phase == .done)
-            step(3, "Saved", nil, active: false, done: phase == .done)
+            step(1, "Relaxed", "~3.5 s", active: phase == .relax, done: [.relaxedCaptured, .squeeze, .done].contains(phase))
+            step(2, "Squeeze", "~3.5 s", active: phase == .squeeze || phase == .relaxedCaptured, done: phase == .done)
+            step(3, "Calibrated", nil, active: false, done: phase == .done)
         }
     }
 

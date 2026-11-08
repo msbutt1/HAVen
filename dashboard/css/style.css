@@ -196,6 +196,23 @@ main { max-width: 80rem; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 2rem);
 .recording-bar { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; padding: 0.9rem 1rem; border-radius: 0.95rem; }
 .rec-status { font-size: 0.9375rem; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
 
+/* ---------- tool use + events ---------- */
+.tool-row { display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 1rem; margin-top: 1rem; }
+.sub-label { font-size: 0.8125rem; font-weight: 400; color: var(--muted-foreground); }
+.num-word { font-size: clamp(1.9rem, 3.4vw, 2.6rem); letter-spacing: -0.02em; }
+.tool-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.6rem 1rem; margin: 0.9rem 0 0; }
+.tool-facts dt { font-size: 0.8125rem; color: var(--muted-foreground); }
+.tool-facts dd { margin: 0.1rem 0 0; font-weight: 600; font-variant-numeric: tabular-nums; }
+.tool-warnings { margin: 0.8rem 0 0; padding: 0; list-style: none; display: grid; gap: 0.4rem; }
+.tool-warnings li { padding: 0.5rem 0.7rem; border: 1px solid color-mix(in oklab, var(--warning) 45%, transparent); border-radius: calc(var(--radius) - 2px); background: color-mix(in oklab, var(--warning) 12%, transparent); font-size: 0.875rem; }
+.events { list-style: none; margin: 0.6rem 0 0; padding: 0; display: grid; gap: 0.1rem; max-height: 17rem; overflow: auto; }
+.events li { display: grid; grid-template-columns: 4.6rem 1fr; gap: 0.6rem; padding: 0.45rem 0; border-top: 1px solid var(--border); font-size: 0.875rem; }
+.events li:first-child { border-top: 0; }
+.events li.empty { display: block; color: var(--muted-foreground); }
+.events time { font: 400 0.75rem var(--mono); color: var(--muted-foreground); padding-top: 0.15rem; }
+.events .warn { color: var(--destructive); }
+@media (max-width: 900px) { .tool-row { grid-template-columns: 1fr; } }
+
 /* ---------- calibrate ---------- */
 .cal-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
 .cal-steps { list-style: none; counter-reset: s; display: flex; gap: 0.5rem; padding: 0; margin: 0 0 1rem; flex-wrap: wrap; }

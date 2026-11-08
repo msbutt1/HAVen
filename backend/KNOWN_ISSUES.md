@@ -65,3 +65,12 @@ listed. Everything below was reproduced.
   the label comes from `signals/.../processor.py` (Salaar's package), not the backend. Pinned as an xfail in
   `tests/test_firmware_emulator_review.py::test_firmware_side_drops_are_not_labelled_transport`.
 - This link layer was verified against a pty emulator of the firmware README (`tests/firmware_emulator.py`), never a real board.
+
+## Wi-Fi wearable (from firmware/INTEGRATION_FOR_ABDULJABBAR.md)
+
+- Verified against the simulated Wi-Fi wearable (`vg-backend fake-wifi`), not yet against board W itself.
+- Tool-use thresholds are provisional (signals `ToolUseConfig`), tuned on a phone motor, not a power tool. The
+  warnings are team choices, not regulatory limits.
+- Grip effort is relative to each wearer's calibration; it is not force and not %MVC.
+- Raw telemetry is stored during recordings only; the guide suggests keeping it always. Start a recording to keep it.
+- Warnings do not buzz the sleeve: there is no laptop-to-board command channel yet (the guide's open question 3).

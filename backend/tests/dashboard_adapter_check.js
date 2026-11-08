@@ -16,7 +16,7 @@ for (const f of ['contract.js', 'backend-station.js', 'backend-adapter.js']) vm.
 const VG = ctx.VG, out = {};
 const emgMsg = (over = {}) => ({ channel: 'derived', runtime: 'wearable', payload: { type: 'stream_features', stream: 'emg', device_id: 'd1', source_seq: 7, t_us: 5000000,
   provenance: { source: 'simulated' }, quality: { clipped_samples: 0 },
-  features: { emg_activation: { envelope: { value: { emg0: 183.1 }, units: { emg0: 'x' } }, normalized: { status: 'ok', display: { emg0: 0.5 } }, calibration: { state: 'calibrated' } } }, ...over } });
+  features: { emg_activation: { envelope: { value: { emg0: 183.1 }, units: { emg0: 'x' } }, normalized: { status: 'ok', value: { emg0: 0.5 }, display: { emg0: 0.5 } }, calibration: { state: 'calibrated' } } }, ...over } });
 const status = (o = {}) => ({ runtime: 'wearable', device_id: 'd1', state: 'ready', connection: 'connected', calibration: { state: 'calibrated' }, active_session_id: null, ...o });
 
 (async () => {
@@ -28,7 +28,7 @@ const status = (o = {}) => ({ runtime: 'wearable', device_id: 'd1', state: 'read
     { kind: 'station', station_session_id: 'ss0', state: 'completed', trial_count: 3 },
     { kind: 'station', station_session_id: 'ss00', state: 'testing' }, { kind: 'wearable', session_id: 's2', state: 'recording' }] } };
   const a = new VG.BackendAdapter({});
-  const ev = { telemetry: [], state: [], connection: [], session: [], history: [], calibration: [] };
+  const ev = { telemetry: [], state: [], connection: [], session: [], history: [], calibration: [], tool: [], event: [] };
   for (const k of Object.keys(ev)) a.on(k, (m) => ev[k].push(m));
   out.wsUrl = a.wsUrl;
   a.connect(); await new Promise((r) => setTimeout(r, 300));
@@ -101,8 +101,33 @@ const status = (o = {}) => ({ runtime: 'wearable', device_id: 'd1', state: 'read
   out.err = ev.state.at(-1).state + ':' + ev.state.at(-1).detail;
   // calibration refused by the backend is reported as failed with the backend's reason
   routes['POST /api/runtimes/wearable/calibration'] = { ok: false, status: 409, body: { detail: 'recording in progress' } };
-  await a.send('calibrate'); await new Promise((r) => setTimeout(r, 200));
+  await a.send('calibrate_relaxed'); await new Promise((r) => setTimeout(r, 200));
   out.cal = ev.calibration.map((c) => c.phase + ':' + c.reason);
+  // the processor's reason codes become the guide's plain words
+  let calState = 'capturing_relaxed';
+  routes['POST /api/runtimes/wearable/calibration'] = { body: { ok: true } };
+  routes['GET /api/runtimes/wearable'] = () => ({ body: status({ calibration: { state: calState, reason: calState === 'failed' ? 'insufficient_separation' : null } }) });
+  ev.calibration.length = 0;
+  const p1 = a.send('calibrate_relaxed');
+  setTimeout(() => { calState = 'relaxed_captured'; }, 50);
+  await p1; await new Promise((r) => setTimeout(r, 4200));
+  out.calRelaxed = [...new Set(ev.calibration.map((c) => c.phase))];
+  calState = 'failed';
+  ev.calibration.length = 0;
+  await a.send('calibrate_squeeze'); await new Promise((r) => setTimeout(r, 4200));
+  out.calFailed = ev.calibration.filter((c) => c.phase === 'failed').map((c) => c.reason);
+  // grip effort: the number is the unbounded value, the bar the clamped display; flags pass through
+  ws.onmessage({ data: JSON.stringify(emgMsg({ features: { emg_activation: { envelope: { value: { emg0: 9 } }, normalized: { status: 'degraded', value: { emg0: 1.25 }, display: { emg0: 1 }, above_reference: { emg0: true }, below_relaxed: { emg0: false } }, calibration: { state: 'calibrated' } } } })) });
+  const g = ev.telemetry.at(-1);
+  out.grip = [g.values.activation_pct, g.values.activation_bar_pct, g.quality.above_max, g.quality.below_rest, g.quality.degraded];
+  // tool use and events are passed to their own channels
+  ws.onmessage({ data: JSON.stringify({ channel: 'derived', runtime: 'wearable', payload: { type: 'tool_use', state: 'tool', status: 'ok', session_tool_s: 12.5, bouts: 2, warnings: [] } }) });
+  ws.onmessage({ data: JSON.stringify({ channel: 'derived', runtime: 'wearable', payload: { type: 'stream_event', event: 'boot_change', stream: null, detail: { previous_boot_id: 'b-1' } } }) });
+  out.tool = ev.tool.map((t) => [t.state, t.session_tool_s, t.saved]);
+  out.event = ev.event.map((e) => e.event);
+  routes['POST /api/runtimes/wearable/tool-use/new-shift'] = (o) => ({ body: { event: 'tool_session_reset', previous: { session_tool_s: 12.5 }, request_id: JSON.parse(o.body).request_id ? 'yes' : 'no' } });
+  const shift = await a.send('new_shift');
+  out.shift = [shift.status, shift.event, shift.request_id];
   a.disconnect();
   console.log(JSON.stringify(out));
 })().catch((e) => { console.error(e); process.exit(1); });

@@ -9,7 +9,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    TextField("http://localhost:8765", text: $draft.baseURL)
+                    TextField("http://localhost:8000", text: $draft.baseURL)
                         .keyboardType(.URL)
                         .textInputAutocapitalization(.never)
                         .autocorrectionDisabled()
@@ -19,7 +19,7 @@ struct SettingsView: View {
                 } header: {
                     Text("Backend")
                 } footer: {
-                    Text("In the Simulator the Mac is localhost. On an iPhone, use the Mac’s address on the same Wi-Fi (for example http://192.168.1.20:8765) with the backend started with --host 0.0.0.0 and a password, or the backend’s https address.")
+                    Text("In the Simulator the Mac is localhost. On an iPhone, use the Mac’s address on the same Wi-Fi (for example http://192.168.1.20:8000) with the backend started with --host 0.0.0.0 and a password, or the backend’s https address.")
                 }
                 Section {
                     TextField("Username", text: $draft.username)

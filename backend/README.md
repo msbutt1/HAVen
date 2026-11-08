@@ -26,16 +26,16 @@ cd backend
 uv sync
 uv run pytest -q                       # ~230 tests, about 2 minutes, simulated data, offline
 uv run vg-backend seed-history         # optional: 14 days of labelled SIMULATED history
-uv run vg-backend serve                # http://127.0.0.1:8765, simulated wearable
+uv run vg-backend serve                # http://127.0.0.1:8000, simulated wearable
 ```
 
-Then open **http://127.0.0.1:8765/** (a status page: device state, data source, measurements, sessions)
-or try the API (the examples assume the default port 8765; with `--http-port N` use `localhost:N`):
+Then open **http://127.0.0.1:8000/** (a status page: device state, data source, measurements, sessions)
+or try the API (the examples assume the default port 8000; with `--http-port N` use `localhost:N`):
 
 ```sh
-curl -s localhost:8765/api/runtimes/wearable | head -c 600
-curl -s -XPOST localhost:8765/api/sessions -H 'content-type: application/json' -d '{"label":"try"}'
-curl -s -XPOST localhost:8765/api/sessions/SESSION_ID/stop -H 'content-type: application/json' -d '{}'   # use the id printed above
+curl -s localhost:8000/api/runtimes/wearable | head -c 600
+curl -s -XPOST localhost:8000/api/sessions -H 'content-type: application/json' -d '{"label":"try"}'
+curl -s -XPOST localhost:8000/api/sessions/SESSION_ID/stop -H 'content-type: application/json' -d '{}'   # use the id printed above
 ```
 
 ### See a full calibrated session (one command)
@@ -63,11 +63,48 @@ follows the stream instead of timing by hand.
 | `vg-backend serve --scenario fault_mix --duration 60` | Any `vg-sim` scenario (see `uv run --project ../signals vg-sim --list`). |
 | `vg-backend serve --device serial --port '/dev/cu.usbmodem*' --baud 921600` | Real firmware over USB serial. The glob finds the port again after a replug. |
 | `… --imu-counts-per-g 4096 --imu-conversion-source "LSM6DS3 datasheet, ±8 g"` | Gives m/s² and the score on real hardware. Without a confirmed conversion, vibration stays in counts and the score stays unavailable (by design). |
+| `vg-backend serve --device wifi` | **The wearable over Wi-Fi** (board W). It finds the laptop by UDP broadcast on 8766 and streams to TCP 8765. Uses Salaar's live configuration: accelerometer 4096 LSB/g (MPU-6500 at ±8 g, cited), so vibration is in m/s², and tool use is detected. See "The wearable over Wi-Fi" below. |
+| `vg-backend fake-wifi` | A **simulated** Wi-Fi wearable that does the same discovery and streams simulator data (labelled `simulated`; default scenario `tool_vs_arm`), to rehearse without the board. |
 | `vg-backend serve --device none` | API only: station records, history, replays. |
 
 Data goes to `backend/data/` (git-ignored). Override it with `--data-dir DIR` (before or after
 the subcommand) or `$VG_DATA_DIR`; a relative path is resolved once, so sessions keep working
 when you start from another folder.
+
+### The wearable over Wi-Fi
+
+Salaar's guide is `firmware/INTEGRATION_FOR_ABDULJABBAR.md`. The backend follows it with option A: it embeds the
+signals `Processor` (one per device) and does not re-implement any processing.
+
+```sh
+uv run vg-backend serve --device wifi              # dashboard at http://127.0.0.1:8000/dashboard/
+uv run vg-backend fake-wifi                        # optional, in another terminal: a SIMULATED wearable
+```
+
+| Port | Who | Purpose |
+|---|---|---|
+| 8765 TCP | wearable → backend | telemetry (contract v1 NDJSON); `--wifi-port` |
+| 8766 UDP | wearable → broadcast | discovery: the backend answers `VGDISCOVER 1 <id>` with `VGBRIDGE 1 8765`; `--discovery-port` |
+| 8000 TCP | dashboard and phone → backend | web API, `/ws/live`, `/dashboard/`; `--http-port` (moved from 8765 for the wearable) |
+
+- **Only the wearable can take the stream.** A new connection replaces the current one (the wearable reconnecting
+  after a reboot) only when its first line is a telemetry record; anything else (a browser or app pointed at the
+  wrong port) is closed and counted in `adapter.rejected_connections`. If something else already listens on 8765
+  (`vg-bridge`, another backend), the backend refuses to start the Wi-Fi intake and says so.
+- **Grip effort** is `normalized.value` (unbounded; may exceed 100 %) with `normalized.display` for bars, and the
+  `above_reference` / `below_relaxed` flags. It is muscle activity relative to this wearer's calibration, not grip force.
+- **Tool use** (`tool_use` records) is published on `/ws/live`, kept in the snapshot, and saved to
+  `data/tool_use/<device>.json` about once a second; after a backend restart the last known totals are shown as
+  `tool_use_saved` until live data arrives. Start a new shift with
+  `POST /api/runtimes/wearable/tool-use/new-shift` (`request_id` makes it safe to repeat). Each recording stores its
+  tool time in `counters.readings.tool_time_s`.
+- **Calibration** is two steps, as the guide's phone flow: `POST /api/runtimes/wearable/calibration` with
+  `{"action": "relaxed"}`, wait for `relaxed_captured`, then `{"action": "squeeze"}`; `cancel` stops. It is not kept
+  across a wearable reboot (`survives_reboot = False`): after `boot_change` the screens say to recalibrate. A saved
+  calibration is restored after a backend restart and shows `calibration_unverified` until new data confirms it.
+- **Silence** is visible: the processor is polled every 50 ms with a 1 s stale limit, so a wearable that stops
+  sending shows `stream_stale` within about a second and its values become dashes.
+- Raw telemetry and derived records are stored **during recordings** (as before), each keeping its provenance.
 
 ### Demo-day tools
 
@@ -147,7 +184,7 @@ A station `stimulus` is the **motor setting**, not a measured amplitude. Send
 `measured_amplitude` (`{value, units, source}`) only when one was actually measured. A
 timeout is `response: "missing"`, never `not_felt`.
 
-## Live delivery: `ws://127.0.0.1:8765/ws/live`
+## Live delivery: `ws://127.0.0.1:8000/ws/live`
 
 Query parameters: `channels=derived,runtime,session,station,device,telemetry` (default:
 everything except the high-volume `telemetry`) and `runtime=wearable` (default: all).
@@ -211,7 +248,7 @@ after the session stops (409 while it is recording).
 3. Record a known-good session on the day (calibrate first, then start the session), then, from
    `backend/`: `uv run vg-backend export-backup SESSION_ID backup/day-of` and commit it
    (`git add backup/day-of`). Use another `--http-port` and `preflight --url http://127.0.0.1:PORT`
-   if 8765 is taken.
+   if 8000 is taken.
 4. If live data fails: stop the server and run `uv run vg-backend serve --backup backup/day-of --loop`.
    The dashboard shows the same `wearable`, now labelled `REPLAY`. Say so. Without `--loop` it plays once
    and stops; `POST /api/runtimes/wearable/restart` plays it again.

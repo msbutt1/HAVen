@@ -45,6 +45,8 @@
       this.timer = null;
       this.dropped = false;
       this.cmdSeq = 0;
+      this.relaxedLevel = null;
+      this.tool = { state: 'unknown', onFor: 0, offFor: 0, session: 0, bouts: 0, bout: 0, longest: 0, observed: 0, sinceEmit: 0 };
     }
 
     // ---- connection ----
@@ -106,10 +108,27 @@
       const s = this.states.sleeve;
       const st = this.states.station;
       switch (cmd.name) {
-        case 'calibrate':
+        case 'calibrate_relaxed':
           if (s !== 'ready') return this._reply(cmd, 'error', { error: `The sleeve is ${s}. It must be ready to calibrate.` });
-          this._startCal();
+          this.relaxedLevel = null;
+          this._startCal('relax');
           return this._reply(cmd, 'accepted');
+        case 'calibrate_squeeze':
+          if (this.relaxedLevel == null) return this._reply(cmd, 'error', { error: 'Capture the relaxed level first.' });
+          this._startCal('squeeze');
+          return this._reply(cmd, 'accepted');
+        case 'calibrate_cancel':
+          this.calRun = null;
+          this.relaxedLevel = null;
+          this._setState('sleeve', 'ready');
+          this.emit('calibration', { type: 'calibration', device_id: this.ids.sleeve, phase: 'cancelled' });
+          return this._reply(cmd, 'completed');
+        case 'new_shift': {
+          const before = { session_tool_s: Math.round(this.tool.session * 100) / 100, bouts: this.tool.bouts };
+          Object.assign(this.tool, { session: 0, bouts: 0, longest: 0, bout: 0 });
+          this.emit('event', { event: 'tool_session_reset', stream: 'imu', detail: before, at: new Date().toISOString() });
+          return this._reply(cmd, 'completed', { previous: before });
+        }
         case 'start_session':
           if (s !== 'ready') return this._reply(cmd, 'error', { error: `The sleeve is ${s}. It must be ready to record.` });
           this.session = {
@@ -163,7 +182,7 @@
       const vib = this.vibrating ? Math.max(0, 4.1 + gauss() * 0.5) : Math.max(0, 0.06 + gauss() * 0.02);
 
       let act = null;
-      if (this.cal) act = clamp(((env - this.cal.rest) / (this.cal.max - this.cal.rest)) * 100, 0, 100);
+      if (this.cal) act = Math.max(0, ((env - this.cal.rest) / (this.cal.max - this.cal.rest)) * 100);   // may exceed 100
       // PLACEHOLDER experimental formula: vibration weighted up by grip. Not validated.
       const scoreRate = act == null ? null : vib * (1 + act / 100);
 
@@ -187,19 +206,47 @@
         values: {
           emg_env: round(env, 1),
           activation_pct: act == null ? null : round(act, 1),
+          activation_bar_pct: act == null ? null : round(clamp(act, 0, 100), 1),
           vib_ahv_est: round(vib, 2),
           score_rate: scoreRate == null ? null : round(scoreRate, 2),
           score_total: this.session && this.session.calibrated ? round(this.session.total, 2) : null,
         },
         units: { emg_env: 'a.u.', activation_pct: '%MVC', vib_ahv_est: 'm/s²', score_rate: 'pts/min', score_total: 'pts' },
-        quality: { emg_vibration_artifact: artifact, imu_saturated: false, calibrated: !!this.cal },
+        quality: { emg_vibration_artifact: artifact, imu_saturated: false, calibrated: !!this.cal,
+                   above_max: act != null && act > 100, below_rest: false, degraded: false },
       });
+      this._toolTick();
     }
 
-    // ---- calibration ----
-    _startCal() {
+    // ---- tool use (mock: "Tool running" means a tool is vibrating) ----
+    _toolTick() {
+      const t = this.tool;
+      const nowMs = performance.now();
+      const dt = t.lastAt ? Math.min(1, (nowMs - t.lastAt) / 1000) : 0;   // real elapsed time: timers get throttled
+      t.lastAt = nowMs;
+      t.observed += dt;
+      if (this.vibrating) { t.onFor += dt; t.offFor = 0; } else { t.offFor += dt; t.onFor = 0; }
+      if (t.state !== 'tool' && t.onFor >= 2) { t.state = 'tool'; t.bouts += 1; t.bout = 0; }
+      else if (t.state === 'tool' && t.offFor >= 1.5) { t.state = 'no_tool'; }
+      else if (t.state === 'unknown' && t.observed > 1) t.state = 'no_tool';
+      if (t.state === 'tool') { t.session += dt; t.bout += dt; t.longest = Math.max(t.longest, t.bout); }
+      if ((t.sinceEmit += dt) >= 0.5) {
+        t.sinceEmit = 0;
+        const warnings = [];
+        if (t.state === 'tool' && t.bout >= 60) warnings.push('continuous_tool_use_long');
+        this.emit('tool', {
+          type: 'tool_use', state: t.state, status: 'ok', saved: false,
+          tool_band_rms_ms2: this.vibrating ? 4.1 : 0.05, dominant_hz: this.vibrating ? 120 : null,
+          bout_s: t.state === 'tool' ? t.bout : 0, bouts: t.bouts, longest_bout_s: t.longest,
+          session_tool_s: t.session, session_observed_s: t.observed, warnings,
+        });
+      }
+    }
+
+    // ---- calibration (two steps, like the real processor) ----
+    _startCal(phase) {
       this._setState('sleeve', 'calibrating');
-      this.calRun = { phase: 'relax', phaseStart: performance.now(), relax: [], squeeze: [] };
+      this.calRun = { phase, phaseStart: performance.now(), relax: [], squeeze: [] };
       this._emitCal();
     }
 
@@ -209,12 +256,14 @@
       r[r.phase].push(env);
       if (now - r.phaseStart >= CAL_PHASE_MS) {
         if (r.phase === 'relax') {
-          r.phase = 'squeeze';
-          r.phaseStart = now;
+          this.relaxedLevel = mean(r.relax.slice(Math.floor(r.relax.length / 3)));
+          this.calRun = null;
+          this._setState('sleeve', 'ready');
+          this.emit('calibration', { type: 'calibration', device_id: this.ids.sleeve, phase: 'relaxed_captured' });
         } else {
           this._finishCal();
-          return;
         }
+        return;
       }
       this._emitCal();
     }
@@ -233,13 +282,14 @@
     _finishCal() {
       const r = this.calRun;
       this.calRun = null;
-      const rest = mean(r.relax.slice(Math.floor(r.relax.length / 3)));
+      const rest = this.relaxedLevel;
+      this.relaxedLevel = null;
       const sorted = r.squeeze.slice().sort((a, b) => a - b);
       const max = sorted[Math.floor(sorted.length * 0.9)];
       if (!(max - rest > 100)) {
         this.emit('calibration', {
           type: 'calibration', device_id: this.ids.sleeve, phase: 'failed',
-          reason: 'The squeeze was too weak to tell apart from rest. Check the electrodes and try again.',
+          reason: 'The squeeze wasn’t clearly stronger than rest. Squeeze harder, or check the pads, and try again.',
         });
       } else {
         this.cal = { rest, max, at: new Date().toISOString() };

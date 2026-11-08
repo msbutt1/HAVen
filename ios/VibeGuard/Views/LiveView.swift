@@ -13,10 +13,11 @@ struct LiveView: View {
                 FreshnessLine(freshness: fresh, now: now)
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 12)], spacing: 12) {
-                    ReadoutCard(title: "Muscle activation", value: v?.activationPct, digits: 0, unit: "% of max squeeze",
+                    ReadoutCard(title: "Grip effort", value: v?.activationPct.map { max(0, $0) }, digits: 0,
+                                unit: "% of your calibrated maximum squeeze",
                                 stale: fresh != .fresh,
-                                note: activationNote) {
-                        ProgressView(value: min(100, max(0, v?.activationPct ?? 0)), total: 100)
+                                note: activationNote(v)) {
+                        ProgressView(value: min(100, max(0, v?.activationBarPct ?? v?.activationPct ?? 0)), total: 100)
                             .tint(Theme.activation)
                     }
                     ReadoutCard(title: "Wrist vibration", value: v?.vibration, digits: 2, unit: "m/s²",
@@ -43,7 +44,12 @@ struct LiveView: View {
                 }
 
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 12)], spacing: 12) {
-                    ChartCard(title: "Muscle activation, last 30 s", series: backend.activation, color: Theme.activation,
+                    ToolCard(fresh: fresh == .fresh)
+                    EventsCard()
+                }
+
+                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 12)], spacing: 12) {
+                    ChartCard(title: "Grip effort, last 30 s", series: backend.activation, color: Theme.activation,
                               now: now, window: 30, fixedMax: 100, stale: fresh != .fresh)
                     ChartCard(title: "Wrist vibration, last 30 s", series: backend.vibration, color: Theme.vibration,
                               now: now, window: 30, floorMax: 1, stale: fresh != .fresh)
@@ -57,10 +63,18 @@ struct LiveView: View {
         .navigationTitle("Live")
     }
 
-    private var activationNote: String {
-        if backend.calibration != nil { return "Calibrated in this app." }
-        if backend.latest?.calibrated == true { return "Calibrated before this screen opened." }
-        return "Not calibrated. Run calibration to see activation."
+    private func activationNote(_ v: Telemetry?) -> String {
+        let calibrated = backend.calibration != nil || backend.latest?.calibrated == true
+        guard calibrated else {
+            return backend.needsRecalibration ? "The wearable restarted, so the calibration was dropped. Calibrate again."
+                                              : "Not calibrated. Run calibration to see grip effort."
+        }
+        var parts = [backend.calibration != nil ? "Calibrated in this app." : "Calibrated before this screen opened."]
+        if v?.aboveMax == true { parts.append("Above your calibrated maximum.") }
+        if v?.belowRest == true { parts.append("Below your relaxed baseline.") }
+        if v?.degraded == true { parts.append("Some samples clipped: treat with caution.") }
+        parts.append("Muscle activity, not grip force.")
+        return parts.joined(separator: " ")
     }
 
     private func qualityWarning(_ t: Telemetry?) -> String? {
@@ -214,5 +228,89 @@ struct RecordingBar: View {
         case .error: return "Clear the sleeve error before recording."
         default: return "Connect the sleeve to record."
         }
+    }
+}
+
+/// Tool use, estimated from vibration (provisional thresholds), with the New shift button.
+struct ToolCard: View {
+    @Environment(Backend.self) private var backend
+    let fresh: Bool
+    @State private var confirmShift = false
+
+    var body: some View {
+        let t = backend.tool
+        let live = t != nil && t?.saved == false && backend.connected
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text("Tool use").font(.subheadline.weight(.medium)).foregroundStyle(Theme.muted)
+                Text("estimated from vibration").font(.caption).foregroundStyle(Theme.muted.opacity(0.8))
+            }
+            Text(live && fresh ? (t?.stateText ?? "—") : "—")
+                .font(.system(size: 34, weight: .semibold))
+                .tracking(-0.5)
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], alignment: .leading, spacing: 8) {
+                fact("Tool time this session", seconds(t?.sessionToolS) + (t?.saved == true ? " (last known)" : ""))
+                fact("Bouts", t?.bouts.map(String.init) ?? "—")
+                fact("Longest bout", seconds(t?.longestBoutS))
+                fact("Dominant frequency", live ? (t?.dominantHz.map { "\(Int($0.rounded())) Hz" } ?? "—") : "—")
+            }
+            ForEach(live ? (t?.warnings ?? []) : [], id: \.self) { w in
+                Label(Translate.warningText[w] ?? w.replacingOccurrences(of: "_", with: " "), systemImage: "exclamationmark.triangle")
+                    .font(.footnote)
+                    .padding(8)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 8).fill(Theme.warning.opacity(0.14)))
+            }
+            if t?.saved == true {
+                Text("Last known before the backend restarted.").font(.footnote).foregroundStyle(Theme.muted)
+            }
+            Text("Thresholds are provisional team choices, tuned on a phone motor, not regulatory limits.")
+                .font(.footnote).foregroundStyle(Theme.muted)
+            Button("New shift") { confirmShift = true }
+                .buttonStyle(OutlineButtonStyle())
+                .disabled(!backend.connected)
+        }
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .panel()
+        .confirmationDialog("Start a new shift?", isPresented: $confirmShift, titleVisibility: .visible) {
+            Button("Start new shift", role: .destructive) { Task { await backend.newShift() } }
+        } message: {
+            Text("Tool time and bouts go back to zero.")
+        }
+    }
+
+    private func fact(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption).foregroundStyle(Theme.muted)
+            Text(value).font(.subheadline.weight(.semibold)).monospacedDigit()
+        }
+    }
+
+    private func seconds(_ s: Double?) -> String {
+        guard let s else { return "—" }
+        return s < 60 ? "\(Int(s.rounded())) s" : "\(Int(s) / 60) min \(String(format: "%02d", Int(s.rounded()) % 60)) s"
+    }
+}
+
+/// The latest events from the processor, in plain words (restarts, gaps, stale data, calibration steps).
+struct EventsCard: View {
+    @Environment(Backend.self) private var backend
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Events").font(.subheadline.weight(.medium)).foregroundStyle(Theme.muted)
+            if backend.events.isEmpty {
+                Text("Nothing yet.").font(.subheadline).foregroundStyle(Theme.muted)
+            } else {
+                ForEach(backend.events.prefix(8)) { e in
+                    HStack(alignment: .firstTextBaseline, spacing: 10) {
+                        Text(e.at.formatted(date: .omitted, time: .standard)).font(.caption.monospaced()).foregroundStyle(Theme.muted)
+                        Text(e.text).font(.subheadline).foregroundStyle(e.isWarning ? Theme.destructive : Theme.foreground)
+                    }
+                }
+            }
+        }
+        .frame(maxHeight: .infinity, alignment: .topLeading)
+        .panel()
     }
 }

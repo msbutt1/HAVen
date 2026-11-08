@@ -279,6 +279,11 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
     async def calibrate(name: str, body: dict = Body(...)) -> dict:
         return await _call(b.calibrate, name, body.get("action"), body.get("request_id"))
 
+    @app.post("/api/runtimes/{name}/tool-use/new-shift")
+    async def new_shift(name: str, body: dict = Body(default={})) -> dict:
+        """Start a new tool-time session (a new shift): tool time and bouts go back to zero."""
+        return await _call(b.new_shift, name, body.get("request_id"))
+
     @app.post("/api/runtimes/{name}/simulate-disconnect")
     async def simulate_disconnect(name: str, body: dict = Body(default={})) -> dict:
         seconds = body.get("seconds", 3.0)

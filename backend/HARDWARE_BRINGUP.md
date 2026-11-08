@@ -163,16 +163,16 @@ uv run vg-backend serve --profile hardware.json
 1. `ports`, then confirm the facts above. Collins checks wiring and logic levels BEFORE anything touches a person.
 2. Firmware emits contract records from fake data first, then real sensors.
 3. `serial-check --seconds 60 --save rec.ndjson`: rate matches, no gaps, raw EMG, no hum.
-4. `uv run vg-backend serve --profile hardware.json --http-port 8765 --data-dir data`, then open
-   `http://127.0.0.1:8765/`: the **Device facts** card lists what the device says it is and the measured rates;
-   unresolved items are shown as such. (Use another `--http-port` if 8765 is taken.)
+4. `uv run vg-backend serve --profile hardware.json --http-port 8000 --data-dir data`, then open
+   `http://127.0.0.1:8000/`: the **Device facts** card lists what the device says it is and the measured rates;
+   unresolved items are shown as such. (Use another `--http-port` if 8000 is taken.)
 5. `uv run vg-backend preflight --expect live`: all PASS.
 6. Calibrate a wearer, relaxed first and then squeeze (a weak squeeze must fail with `insufficient_separation`):
-   `curl -XPOST localhost:8765/api/runtimes/wearable/calibration -H 'content-type: application/json' -d '{"action":"relaxed"}'`
+   `curl -XPOST localhost:8000/api/runtimes/wearable/calibration -H 'content-type: application/json' -d '{"action":"relaxed"}'`
    then `-d '{"action":"squeeze"}'`. Calibrate BEFORE starting the session you will keep as the fallback.
 7. Switch the vibration source on: m/s^2 rises, no clipping, and check the relaxed EMG does not rise from
    vibration alone (the hour-12 gate).
-8. Record: `curl -XPOST localhost:8765/api/sessions -H 'content-type: application/json' -d '{"label":"hardware run"}'`,
+8. Record: `curl -XPOST localhost:8000/api/sessions -H 'content-type: application/json' -d '{"label":"hardware run"}'`,
    later `.../api/sessions/SESSION_ID/stop`, then `uv run vg-backend export-backup SESSION_ID backup/real-hardware`
    and commit it. That is the real-hardware fallback (`serve --backup backup/real-hardware --loop`).
 
