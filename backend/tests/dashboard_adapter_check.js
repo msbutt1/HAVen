@@ -25,6 +25,8 @@ const status = (o = {}) => ({ runtime: 'wearable', device_id: 'd1', state: 'read
       trials: [{ trial_id: 'a', stimulus: { motor_setting: 150 }, response: 'felt', is_catch: false, response_latency_ms: 300 }, { trial_id: 'b', stimulus: { motor_setting: 110 }, response: 'not_felt', is_catch: false, response_latency_ms: 410.4 }, { trial_id: 'c', stimulus: { motor_setting: 0 }, response: 'missing', is_catch: true, response_latency_ms: null }] } };
   routes['GET /api/history'] = { body: { items: [
     { kind: 'wearable', session_id: 's1', device_id: 'd1', state: 'completed', end_reason: 'stopped_by_user', source: 'replay', started_at: '2026-11-07T20:00:00Z', ended_at: '2026-11-07T20:00:30Z', calibration_id: 'c1', score: { at_start: { cumulative_au: 1 }, at_end: { cumulative_au: 3.5 } } },
+    { kind: 'wearable', session_id: 's3', state: 'completed', end_reason: 'simulated_history', source: 'simulated', started_at: '2026-11-06T20:00:00Z', ended_at: '2026-11-06T20:00:30Z', calibration_id: 'c3', score: { at_start: null, at_end: { cumulative_au: 0.06 }, session_au: 0.059868 }, counters: { readings: { tool_time_s: 12.45, tool_bouts: 1, mean_activation_pct: 40 } } },
+    { kind: 'wearable', session_id: 's4', state: 'completed', end_reason: 'stopped_by_user', source: 'live', started_at: '2026-11-05T20:00:00Z', ended_at: '2026-11-05T20:00:30Z', calibration_id: 'c4', score: { at_start: { cumulative_au: 1 }, at_end: { cumulative_au: 3 }, session_au: null, reason: 'score_accumulation_reset_during_session' } },
     { kind: 'station', station_session_id: 'ss0', state: 'completed', trial_count: 3 },
     { kind: 'station', station_session_id: 'ss00', state: 'testing' }, { kind: 'wearable', session_id: 's2', state: 'recording' }] } };
   const a = new VG.BackendAdapter({});
@@ -37,6 +39,7 @@ const status = (o = {}) => ({ runtime: 'wearable', device_id: 'd1', state: 'read
   out.state = ev.state.map((s) => s.device_role + ':' + s.state);
   out.histStation = ev.history[0].tests.map((t) => [t.test_id, t.provenance, t.threshold_setting, t.trials.length, t.trials[1].rt_ms, t.catch_trials, t.missing_responses]);
   out.history = ev.history[0] && ev.history[0].sessions.map((s) => [s.session_id, s.provenance, s.duration_s, s.score_total, s.ended_reason]);
+  out.historyTool = ev.history[0].sessions.map((s) => [s.session_id, s.tool_time_s, s.tool_bouts]);
 
   // IMU: only a converted (physical) value is shown; EMG 0..1 display becomes a percentage
   ws.onmessage({ data: JSON.stringify({ channel: 'derived', runtime: 'wearable', payload: { type: 'stream_features', stream: 'imu', features: { vibration: { physical: { status: 'ok', combined_rms: 2.5 } } } } }) });

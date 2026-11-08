@@ -1,0 +1,2 @@
+Chart.js 4.4.1 (MIT), dist/chart.umd.js from the npm package chart.js@4.4.1
+sha256 of the tarball: 9ee0a0470ab0888f95f2cd380b219c9e31a0a64a8356cea970f49bbfa829fd83

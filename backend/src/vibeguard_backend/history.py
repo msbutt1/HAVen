@@ -22,7 +22,42 @@ from .service import Backend, station_summary
 
 # (scenario, relaxed capture at, squeeze capture at) in device seconds for a 30 s run: each
 # squeeze capture falls inside that scenario's stronger-activation phase, so calibration succeeds.
-SCENARIOS = (("demo", 0.5, 4.5), ("happy_path", 0.5, 6.5), ("strong_activation", 0.5, 10.0))
+SCENARIOS = (("demo", 0.5, 4.5), ("happy_path", 0.5, 6.5), ("strong_activation", 0.5, 10.0),
+             ("tool_vs_arm", 0.5, 10.0))
+
+
+def readings_from_derived(derived: list[dict]) -> dict:
+    """The same per-recording readings a live recording stores (runtime._readings_view), from derived records."""
+    act, vib, tool_first, tool_last, bouts_first, bouts_last = [], [], None, None, None, None
+    for o in derived:
+        if o.get("type") == "stream_features" and o.get("stream") == "emg":
+            norm = ((o.get("features") or {}).get("emg_activation") or {}).get("normalized") or {}
+            disp = norm.get("display") or {}
+            if norm.get("status") == "ok" and disp:
+                v = next(iter(disp.values()))
+                if isinstance(v, (int, float)):
+                    act.append(v * 100.0)
+        elif o.get("type") == "stream_features" and o.get("stream") == "imu":
+            phys = ((o.get("features") or {}).get("vibration") or {}).get("physical") or {}
+            if phys.get("status") == "ok" and isinstance(phys.get("combined_rms"), (int, float)):
+                vib.append(float(phys["combined_rms"]))
+        elif o.get("type") == "tool_use" and o.get("status") == "ok":
+            if isinstance(o.get("session_tool_s"), (int, float)):
+                tool_first = o["session_tool_s"] if tool_first is None else tool_first
+                tool_last = o["session_tool_s"]
+            if isinstance(o.get("bouts"), int):
+                bouts_first = o["bouts"] if bouts_first is None else bouts_first
+                bouts_last = o["bouts"]
+    return {
+        "mean_activation_pct": round(sum(act) / len(act), 1) if act else None,
+        "peak_activation_pct": round(max(act), 1) if act else None,
+        "activation_windows": len(act),
+        "peak_vibration_ms2": round(max(vib), 3) if vib else None,
+        "vibration_windows": len(vib),
+        "tool_time_s": None if tool_last is None else round(max(0.0, tool_last), 2),   # the run starts at 0
+        "tool_bouts": None if bouts_last is None else bouts_last,
+        "note": "SIMULATED history: computed from the simulator's derived records, like a live recording",
+    }
 
 
 def _iso(dt: datetime) -> str:
@@ -81,7 +116,8 @@ def seed_history(backend: Backend, days: int = 14, seed: int = 7, duration_s: fl
             sid, state="completed", end_reason="simulated_history", ended_at=_iso(start + timedelta(seconds=duration_s)),
             calibration_id=(proc.calibration_record() or {}).get("calibration_id"),
             score=session_score_summary(None, scores[0] if scores else None, scores[-1] if scores else None),
-            counters={"frames": len(records), "derived_records": len(derived), "simulated": True},
+            counters={"frames": len(records), "derived_records": len(derived), "simulated": True,
+                      "readings": readings_from_derived(derived)},
             files=files)
         (rec.dir / "manifest.json").write_text(json.dumps(
             {"session": row, "processing_config": config.to_dict(), "simulated_history": True,

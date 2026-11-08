@@ -5,6 +5,7 @@ import Foundation
 enum Translate {
     static let endReasonText: [String: String] = [
         "stopped_by_user": "stopped",
+        "simulated_history": "stopped",   // vg-backend seed-history: a whole simulated recording
         "end_of_input": "the replayed recording reached its end",
         "device_changed": "a different sleeve connected",
         "runtime_stopped": "the backend stopped",
@@ -132,8 +133,13 @@ enum Translate {
         let atStart = row["score"]["at_start"]["cumulative_au"].double
         let atEnd = row["score"]["at_end"]["cumulative_au"].double
         let calibrated = row["calibration_id"].string != nil
+        // the backend's own figure (score.session_au: counted from zero when nothing was scored before, null
+        // with a reason when it can't be attributed); rows saved before it existed fall back to end minus start
         var total: Double? = nil
-        if calibrated, let a = atStart, let e = atEnd { total = max(0, e - a) }
+        if calibrated {
+            if row["score"].object?["session_au"] != nil { total = row["score"]["session_au"].double.map { max(0, $0) } }
+            else if let a = atStart, let e = atEnd { total = max(0, e - a) }
+        }
         let readings = row["counters"]["readings"]
         let reason = row["end_reason"].string ?? "stopped"
         return SessionRecord(

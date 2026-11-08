@@ -74,3 +74,12 @@ listed. Everything below was reproduced.
 - Grip effort is relative to each wearer's calibration; it is not force and not %MVC.
 - Raw telemetry is stored during recordings only; the guide suggests keeping it always. Start a recording to keep it.
 - Warnings do not buzz the sleeve: there is no laptop-to-board command channel yet (the guide's open question 3).
+
+## Android app (android/)
+
+- Tested on the Android emulator (API 35) against a local backend: Find, typed address, the password prompt and the
+  live WebSocket behind `VG_BASIC_AUTH`, the dashboard screens, and the offline demo. Not yet on a physical phone or
+  a real Wi-Fi network; campus and guest Wi-Fi (eduroam) usually block phone-to-laptop traffic, so use a hotspot.
+- The APK is debug-signed (sideloading only). A Play Store build needs a release key the team keeps outside the repo.
+- Traffic is plain http on the local network; `VG_BASIC_AUTH` is the only protection. The password goes over the
+  air in Basic auth (base64, not encrypted), so use a network you trust.

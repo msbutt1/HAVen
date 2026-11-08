@@ -16,7 +16,10 @@ def test_backend_adapter_translation():
     o = json.loads(r.stdout.strip().splitlines()[-1])
     assert o["wsUrl"] == "ws://h:1/ws/live"
     assert o["state"] == ["sleeve:ready", "station:ready"]
-    assert o["history"] == [["s1", "replay", 30, 2.5, "stopped"]]          # wearable sessions only, none still recording
+    assert o["history"] == [["s1", "replay", 30, 2.5, "stopped"],           # wearable sessions only, none still recording
+                            ["s3", "simulated", 30, 0.059868, "stopped"],        # the backend's session_au (start was null)
+                            ["s4", "live", 30, None, "stopped"]]            # session_au null: the backend could not attribute it
+    assert o["historyTool"] == [["s1", None, None], ["s3", 12.45, 1], ["s4", None, None]]
     assert o["t1"] == [50, 2.5, 4.2, None, "simulated", True, 183.1]       # display 0.5 -> 50 %; no total outside a recording
     assert o["t2"] == [None, None, None, False]                            # nothing invented before calibration / conversion
     assert o["ignoredOther"] is True

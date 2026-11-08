@@ -73,7 +73,7 @@
   }
 
   // ---------- views / tabs ----------
-  const VIEWS = ['live', 'calibrate', 'station', 'history'];
+  const VIEWS = ['live', 'overview', 'calibrate', 'station', 'history'];
   function showView(v) {
     if (!VIEWS.includes(v)) v = 'live';
     S.view = v;
@@ -83,8 +83,10 @@
       tab.setAttribute('aria-selected', String(name === v));
       tab.tabIndex = name === v ? 0 : -1;
     }
+    document.body.dataset.view = v;
     if (location.hash !== `#${v}`) history.replaceState(null, '', `#${v}`);
     if (v === 'history') drawHistoryCharts();
+    if (v === 'overview' && VG.Overview) VG.Overview.render(S.saved);
   }
   document.querySelectorAll('.tabs button').forEach((b) => {
     b.addEventListener('click', () => showView(b.dataset.view));
@@ -108,6 +110,7 @@
       el.title = d.detail || '';
     }
     $('btn-connect').textContent = S.connected ? 'Disconnect' : 'Connect';
+    $('btn-connect').dataset.connected = String(S.connected);
 
     const errs = ['sleeve', 'station'].filter((r) => S.devices[r].state === 'error');
     const banner = $('error-banner');
@@ -211,8 +214,9 @@
     if (ql.above_max) flags.push('Above your calibrated maximum.');
     if (ql.below_rest) flags.push('Below your relaxed baseline.');
     if (ql.degraded) flags.push('Some samples clipped: treat with caution.');
+    $('btn-go-cal').hidden = !!calibrated || !S.connected || S.devices.sleeve.state === 'recording';
     $('act-note').textContent = !calibrated
-      ? (S.recalibrate ? 'The wearable restarted, so the calibration was dropped. Calibrate again.' : 'Not calibrated. Run calibration to see grip effort.')
+      ? (S.recalibrate ? 'The wearable restarted, so the calibration was dropped. Calibrate again.' : 'Not calibrated yet. Calibrate to see grip effort.')
       : [S.calibration ? `Calibrated at ${fmtTime(S.calibration.at)}.` : 'Calibrated before this page opened.', ...flags].join(' ')
         + ' Muscle activity, not grip force.';
 
@@ -231,13 +235,15 @@
     btn.classList.toggle('btn-stop', rec);
     btn.disabled = S.busy || !(st === 'ready' || rec);
     let msg;
-    if (rec) msg = S.session ? `Recording ${S.session.id}, ${fmtDur(Date.now() - S.session.startedAt)}` : 'Recording';
+    if (rec) msg = S.session ? `Recording: ${fmtDur(Date.now() - S.session.startedAt)}` : 'Recording';
     else if (st === 'ready') msg = (S.calibration || (S.latest && S.latest.quality && S.latest.quality.calibrated)) ? 'Ready to record.' : 'Ready to record. Not calibrated, so the score will stay empty.';
     else if (st === 'calibrating') msg = 'Wait for calibration to finish.';
     else if (st === 'error') msg = 'Clear the sleeve error before recording.';
     else msg = 'Connect the sleeve to record.';
     $('rec-status').textContent = msg;
   }
+
+  $('btn-go-cal').addEventListener('click', () => showView('calibrate'));
 
   $('btn-record').addEventListener('click', async () => {
     const rec = S.devices.sleeve.state === 'recording';
@@ -591,38 +597,96 @@
     return span;
   }
 
+  // Newest first, a page at a time. Each row's facts are label + value pairs: one line on the desktop table,
+  // a card on a phone.
+  const HIST_PAGE = 20;
+  let histShown = HIST_PAGE;
+  const fmtLength = (sec) => {
+    if (sec == null || Number.isNaN(sec)) return '—';
+    const s = Math.round(sec);
+    if (s < 60) return `${s} s`;
+    if (s < 3600) return `${Math.round(s / 60)} min`;
+    return `${Math.floor(s / 3600)} h ${String(Math.round((s % 3600) / 60)).padStart(2, '0')} min`;
+  };
+  function fmtWhen(iso) {
+    const d = iso ? new Date(iso) : null;
+    if (!d || Number.isNaN(d.getTime())) return '—';
+    const time = d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    const day = new Date(d);
+    day.setHours(0, 0, 0, 0);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const ago = Math.round((today - day) / 86400000);
+    if (ago === 0) return `Today, ${time}`;
+    if (ago === 1) return `Yesterday, ${time}`;
+    const opts = { weekday: 'short', day: 'numeric', month: 'short' };
+    if (d.getFullYear() !== today.getFullYear()) opts.year = 'numeric';
+    return `${d.toLocaleDateString([], opts)}, ${time}`;
+  }
+  function factList(facts) {
+    const ul = document.createElement('ul');
+    ul.className = 'facts';
+    for (const [label, value, cls] of facts) {
+      const li = document.createElement('li');
+      if (cls) li.className = cls;
+      if (label) {
+        const span = document.createElement('span');
+        span.textContent = label;
+        li.appendChild(span);
+      }
+      const b = document.createElement('b');
+      b.textContent = value;
+      li.appendChild(b);
+      ul.appendChild(li);
+    }
+    return ul;
+  }
+
   function renderHistory() {
     $('hist-empty').hidden = S.saved.length > 0;
     $('hist-table').hidden = S.saved.length === 0;
     const body = $('hist-rows');
     body.textContent = '';
-    for (const item of S.saved) {
+    for (const item of S.saved.slice(0, histShown)) {
       const r = item.rec;
-      const tr = document.createElement('tr');
-      const cells = [fmtTime(item.at), item.kind === 'session' ? 'Wearable recording' : 'Perception test', null, ''];
+      let facts;
       if (item.kind === 'session') {
-        const bits = [`${fmtDur(r.duration_s * 1000)} long`];
-        bits.push(r.score_total == null ? 'no score (not calibrated)' : `score ${fmtScore(r.score_total)} ${r.score_units || 'points'} (experimental)`);
-        if (r.mean_activation_pct != null) bits.push(`mean activation ${fmtNum(r.mean_activation_pct, 0)} %`);
-        if (r.peak_vib_ahv_est != null) bits.push(`peak vibration ${fmtNum(r.peak_vib_ahv_est, 2)} m/s²`);
-        if (r.ended_reason !== 'stopped') bits.push(`ended early: ${r.ended_reason}`);
-        cells[3] = bits.join(', ');
+        facts = [['Length', fmtLength(r.duration_s)]];
+        if (r.mean_activation_pct != null) facts.push(['Mean grip effort', `${fmtNum(r.mean_activation_pct, 0)} %`]);
+        if (r.peak_vib_ahv_est != null) facts.push(['Peak vibration', `${fmtNum(r.peak_vib_ahv_est, 2)} m/s²`]);
+        if (r.tool_time_s != null) facts.push(['Tool time (estimated)', fmtLength(r.tool_time_s)]);
+        facts.push(['Score (experimental)', r.score_total != null ? `${fmtScore(r.score_total)} ${r.score_units || 'points'}`
+          : r.calibrated ? 'none for this recording' : 'none (not calibrated)']);
+        if (r.ended_reason !== 'stopped') facts.push(['', `Ended early: ${r.ended_reason}`, 'warn']);
       } else {
-        const bits = [r.threshold_setting == null ? 'no threshold reached' : `threshold setting ${fmtNum(r.threshold_setting, 0)}`];
-        bits.push(`${r.trials.length} trials`);
-        if (r.missing_responses) bits.push(`${r.missing_responses} missing`);
-        bits.push(r.mode === 'preview' ? 'short preview' : 'full session');
-        cells[3] = bits.join(', ');
+        facts = [['Threshold', r.threshold_setting == null ? 'not reached' : `setting ${fmtNum(r.threshold_setting, 0)}`],
+          ['Trials', String(r.trials.length)]];
+        if (r.missing_responses) facts.push(['No answer', String(r.missing_responses)]);
+        facts.push(['Type', r.mode === 'preview' ? 'Quick test' : 'Full test']);
       }
-      cells.forEach((c, i) => {
+      const tr = document.createElement('tr');
+      const cells = [fmtWhen(item.at), item.kind === 'session' ? 'Wearable recording' : 'Perception test'];
+      for (const c of cells) {
         const td = document.createElement('td');
-        if (i === 2) td.appendChild(sourceTag(r.provenance));
-        else td.textContent = c;
+        td.textContent = c;
         tr.appendChild(td);
-      });
+      }
+      const tag = document.createElement('td');
+      tag.appendChild(sourceTag(r.provenance));
+      const sum = document.createElement('td');
+      sum.appendChild(factList(facts));
+      tr.append(tag, sum);
       body.appendChild(tr);
     }
+    const more = S.saved.length - histShown;
+    $('btn-hist-more').hidden = more <= 0;
+    $('btn-hist-more').textContent = `Show older (${more} more)`;
+    if (S.view === 'overview' && VG.Overview) VG.Overview.render(S.saved);
   }
+  $('btn-hist-more').addEventListener('click', () => {
+    histShown += HIST_PAGE;
+    renderHistory();
+  });
 
   // Deterministic simulated 12-week history.
   const SIM = (() => {
@@ -669,6 +733,11 @@
     $('mk-vibe').addEventListener('change', (e) => adapter.setVibration(e.target.checked));
     $('mk-drop').addEventListener('click', () => adapter.simulateDrop());
     $('mk-error').addEventListener('click', () => adapter.injectError());
+    $('mk-toggle').addEventListener('click', () => {   // phones: the controls fold away behind one button
+      const open = $('mock-panel').classList.toggle('open');
+      $('mk-toggle').setAttribute('aria-expanded', String(open));
+      $('mk-toggle').textContent = open ? 'Close practice controls' : 'Practice controls';
+    });
   }
 
   // ---------- loops ----------

@@ -51,6 +51,9 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--allow-host", action="append", default=[],
                    help="extra Host header value to accept (when listening beyond localhost)")
     s.add_argument("--http-port", type=int, default=8000)
+    s.add_argument("--app-discovery-port", type=int, default=8767,
+                   help="when the API listens beyond this computer (--host 0.0.0.0 or a LAN address): UDP port where "
+                        "the VibeGuard phone app's 'Find on this Wi-Fi' is answered (default 8767; 0 turns it off)")
     s.add_argument("--dashboard", default=None, metavar="DIR|none",
                    help="serve the dashboard from DIR at /dashboard/ (default: ../dashboard next to backend/, or "
                         "$VG_DASHBOARD_DIR; 'none' turns it off)")
@@ -541,9 +544,25 @@ def main(argv: list[str] | None = None) -> int:
     print(f"vg-backend: http://{args.host}:{args.http_port}  data={backend.data_dir}  "
           f"source={'backup replay' if args.backup else (adapter.kind if adapter is not None else 'none')}",
           file=sys.stderr)
-    # A client that never reads must not keep the server (and the open session) alive on Ctrl-C.
-    uvicorn.run(app, host=args.host, port=args.http_port, log_level=args.log_level,
-                timeout_graceful_shutdown=3)
+    discovery = None
+    if args.app_discovery_port and not args.host.startswith(("127.", "localhost", "::1")):
+        from .appdiscovery import AppDiscovery
+        discovery = AppDiscovery(args.http_port, password=basic_auth is not None, port=args.app_discovery_port)
+        try:
+            discovery.start()
+            print(f"vg-backend: phones on this Wi-Fi: open the VibeGuard app and tap Find on this Wi-Fi (answered on "
+                  f"UDP {discovery.port}), or type this laptop's Wi-Fi address with :{args.http_port}", file=sys.stderr)
+        except OSError as e:
+            print(f"vg-backend: the phone app's discovery is off: UDP {args.app_discovery_port} is in use ({e}); "
+                  f"type the address in the app instead", file=sys.stderr)
+            discovery = None
+    try:
+        # A client that never reads must not keep the server (and the open session) alive on Ctrl-C.
+        uvicorn.run(app, host=args.host, port=args.http_port, log_level=args.log_level,
+                    timeout_graceful_shutdown=3)
+    finally:
+        if discovery is not None:
+            discovery.stop()
     return 0
 
 
