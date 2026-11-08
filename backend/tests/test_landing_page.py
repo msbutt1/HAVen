@@ -36,9 +36,20 @@ def test_landing_is_self_contained_and_accessible():
         if ref.startswith("http"):
             assert tag == "a", f"third-party resource loaded: {ref}"   # only plain links may leave the site
             continue
-        assert (LANDING / ref.split("#")[0]).exists() or ref.endswith("/"), f"missing: {ref}"
+        path = ref.split("#")[0].split("?")[0]
+        if path.startswith("dashboard/"):   # landing/build-site.sh puts the dashboard at /dashboard/
+            target = LANDING.parent / path
+            assert (target / "index.html").exists() if path.endswith("/") else target.exists(), f"missing: {ref}"
+        else:
+            assert (LANDING / path).exists(), f"missing: {ref}"
     css = (LANDING / "style.css").read_text()
     assert "http" not in re.sub(r"/\*.*?\*/", "", css, flags=re.S)     # no @import / url() to other sites
+
+
+def test_the_demo_links_open_the_simulated_feed_and_need_no_server():
+    html = (LANDING / "index.html").read_text()
+    links = re.findall(r'href="(dashboard/[^"]*)"', html)
+    assert links and all(link == "dashboard/?source=mock" for link in links)
 
 
 def test_landing_keeps_the_scientific_framing():
