@@ -20,15 +20,19 @@ typedef struct {
 } pin_use_t;
 
 typedef struct {
-    vg_issue_t *out;
+    vg_issue_t *out;   /* may be NULL: count only */
     int max;
     int n;
+    int errors;
 } acc_t;
 
 static void add(acc_t *a, vg_severity_t sev, const char *code, const char *use, int gpio,
                 const char *fmt, ...)
 {
-    if (a->n < a->max) {
+    if (sev == VG_SEV_ERROR) {
+        a->errors++;
+    }
+    if (a->out != NULL && a->n < a->max) {
         vg_issue_t *is = &a->out[a->n];
         is->severity = sev;
         is->code = code;
@@ -48,7 +52,9 @@ static int collect_uses(const vg_hw_config_t *c, pin_use_t *u)
     u[n++] = (pin_use_t){"emg", c->emg.gpio, c->emg.enabled, USE_ADC_IN};
     u[n++] = (pin_use_t){"imu.sda", c->imu.sda_gpio, c->imu.enabled, USE_OPEN_DRAIN};
     u[n++] = (pin_use_t){"imu.scl", c->imu.scl_gpio, c->imu.enabled, USE_OPEN_DRAIN};
-    u[n++] = (pin_use_t){"motor", c->motor.gpio, c->motor.enabled, USE_OUTPUT};
+    bool gpio_motor = c->motor.driver == VG_MOTOR_DRIVER_GPIO;
+    u[n++] = (pin_use_t){"motor", gpio_motor ? c->motor.gpio : VG_PIN_NONE,
+                         c->motor.enabled && gpio_motor, USE_OUTPUT};
     u[n++] = (pin_use_t){"velostat", c->velostat.gpio, c->velostat.enabled, USE_ADC_IN};
     u[n++] = (pin_use_t){"dht11", c->dht11.gpio, c->dht11.enabled, USE_OPEN_DRAIN};
     return n;
@@ -99,9 +105,21 @@ static void check_pin(acc_t *a, const vg_hw_config_t *c, const pin_use_t *u)
     }
 }
 
+static acc_t check_all(const vg_hw_config_t *c, vg_issue_t *issues, int max_issues);
+
 int vg_pin_check(const vg_hw_config_t *c, vg_issue_t *issues, int max_issues)
 {
-    acc_t a = {issues, max_issues, 0};
+    return check_all(c, issues, max_issues).n;
+}
+
+int vg_pin_check_errors(const vg_hw_config_t *c)
+{
+    return check_all(c, NULL, 0).errors;
+}
+
+static acc_t check_all(const vg_hw_config_t *c, vg_issue_t *issues, int max_issues)
+{
+    acc_t a = {issues, max_issues, 0, 0};
     pin_use_t uses[8];
     int nu = collect_uses(c, uses);
 
@@ -188,13 +206,33 @@ int vg_pin_check(const vg_hw_config_t *c, vg_issue_t *issues, int max_issues)
             add(&a, VG_SEV_ERROR, "driver_unconfirmed", "motor", c->motor.gpio,
                 "no confirmed driver circuit; bare GPIO drive is never allowed");
         }
+        if (c->motor.driver == VG_MOTOR_DRIVER_DRV2605L) {
+            if (c->imu.sda_gpio == VG_PIN_NONE || c->imu.scl_gpio == VG_PIN_NONE) {
+                add(&a, VG_SEV_ERROR, "motor_no_bus", "motor", VG_PIN_NONE,
+                    "DRV2605L needs the I2C bus pins (imu.sda/scl) configured");
+            }
+            if (c->motor.i2c_address != 0x5A) {
+                add(&a, VG_SEV_ERROR, "i2c_address", "motor", VG_PIN_NONE,
+                    "DRV2605L address is fixed at 0x5A");
+            }
+            if (c->imu.enabled && c->imu.address == c->motor.i2c_address) {
+                add(&a, VG_SEV_ERROR, "i2c_address_conflict", "motor", VG_PIN_NONE,
+                    "IMU and DRV2605L share address 0x%02x", c->motor.i2c_address);
+            }
+            /* open-loop full scale must stay within the confirmed motor rating */
+            if (c->motor.od_clamp == 0 || c->motor.od_clamp > VG_DRV_OD_CLAMP_MAX) {
+                add(&a, VG_SEV_ERROR, "drive_voltage", "motor", VG_PIN_NONE,
+                    "od_clamp must be 1..%d (<= %.2f V)", VG_DRV_OD_CLAMP_MAX,
+                    VG_DRV_OD_CLAMP_MAX * 0.02159);
+            }
+        }
         if (c->motor.max_pulse_ms == 0 ||
             c->motor.max_pulse_ms > VG_MOTOR_MAX_PULSE_CEILING_MS) {
             add(&a, VG_SEV_ERROR, "pulse_limit", "motor", c->motor.gpio,
                 "max_pulse_ms must be 1..%u", (unsigned)VG_MOTOR_MAX_PULSE_CEILING_MS);
         }
     }
-    return a.n;
+    return a;
 }
 
 int vg_issue_error_count(const vg_issue_t *issues, int n)
@@ -211,12 +249,7 @@ bool vg_motor_output_permitted(const vg_hw_config_t *c)
     if (!c->motor.enabled || c->role != VG_ROLE_STATION) {
         return false;
     }
-    vg_issue_t issues[32];
-    int n = vg_pin_check(c, issues, 32);
-    if (n > 32) {
-        return false; /* truncated: cannot prove there are no errors */
-    }
-    return vg_issue_error_count(issues, n) == 0;
+    return vg_pin_check_errors(c) == 0;   /* counts every issue; no buffer, no truncation */
 }
 
 static void line(vg_line_sink_t emit, void *ctx, const char *fmt, ...)
@@ -264,11 +297,13 @@ void vg_config_report(const vg_hw_config_t *c, vg_line_sink_t emit, void *ctx)
          c->oled.enabled ? "ENABLED" : "disabled", c->oled.address,
          c->dht11.enabled ? "ENABLED" : "disabled", pin_str(c->dht11.gpio, p1, sizeof p1));
 
-    vg_issue_t issues[32];
+    /* static: ~5 KB would overflow small embedded task stacks. Not reentrant. */
+    static vg_issue_t issues[32];
     int n = vg_pin_check(c, issues, 32);
     int shown = n < 32 ? n : 32;
-    line(emit, ctx, "pin check: %d errors, %d warnings%s", vg_issue_error_count(issues, shown),
-         shown - vg_issue_error_count(issues, shown), n > 32 ? " (truncated)" : "");
+    int errors = vg_pin_check_errors(c);
+    line(emit, ctx, "pin check: %d errors, %d warnings%s", errors, n - errors,
+         n > 32 ? " (list truncated)" : "");
     for (int i = 0; i < shown; i++) {
         line(emit, ctx, "  %s %s [%s] %s", issues[i].severity == VG_SEV_ERROR ? "ERROR" : "warn ",
              issues[i].code, issues[i].use, issues[i].message);

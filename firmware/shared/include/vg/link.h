@@ -34,6 +34,7 @@ typedef struct {
     int64_t status_period_us, hello_period_us;
     int64_t next_status_us, next_hello_us;
     bool started;
+    volatile bool resend_hello;      /* set by the transport on (re)connect */
 
     /* counters (also reported in status records) */
     uint64_t encode_errors;          /* record could not be encoded: data lost */

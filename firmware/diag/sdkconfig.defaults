@@ -1,0 +1,6 @@
+# Diagnostic build: console ON (UART0, 115200) for human-readable results.
+CONFIG_COMPILER_OPTIMIZATION_SIZE=y
+CONFIG_ESP_CONSOLE_UART_DEFAULT=y
+CONFIG_ESP_CONSOLE_UART_BAUDRATE=115200
+# app_main stack: headroom for startup checks (default 3584 overflowed on board S, Prompt 3)
+CONFIG_ESP_MAIN_TASK_STACK_SIZE=8192

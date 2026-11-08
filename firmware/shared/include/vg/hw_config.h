@@ -22,6 +22,11 @@ extern "C" {
  * commands and of board config. Board configs may only set a lower value. */
 #define VG_MOTOR_MAX_PULSE_CEILING_MS 2000u
 
+/* Station motor (product listing, 2026-11-07): ERM rated 2.5-3.8 V. DRV2605L
+ * open-loop full scale V = 21.59 mV x OD_CLAMP (SLOS854D Eq. 6), so 3.8 V
+ * rated max -> OD_CLAMP <= 176. */
+#define VG_DRV_OD_CLAMP_MAX 176
+
 typedef enum {
     VG_FACT_UNKNOWN = 0,   /* not known: logic must treat as unavailable */
     VG_FACT_PROVISIONAL,   /* inferred (photo, seller label); not verified */
@@ -67,9 +72,17 @@ typedef struct {
     uint8_t bitwidth;          /* 0 = driver default */
 } vg_adc_input_cfg_t;
 
+typedef enum {
+    VG_MOTOR_DRIVER_GPIO = 0,      /* discrete driver (transistor/MOSFET) on a GPIO */
+    VG_MOTOR_DRIVER_DRV2605L = 1,  /* TI DRV2605L haptic driver on the shared I2C bus */
+} vg_motor_driver_t;
+
 typedef struct {
     bool enabled;              /* false unless motor, driver and wiring are confirmed */
-    int gpio;                  /* driver input pin; never the motor itself */
+    vg_motor_driver_t driver;
+    int gpio;                  /* GPIO driver input pin (DRIVER_GPIO only); never the motor */
+    uint8_t i2c_address;       /* DRV2605L: 0x5A (TI SLOS854D) */
+    uint8_t od_clamp;          /* DRV2605L open-loop full scale: V = 21.59 mV x od_clamp */
     bool active_high;
     vg_actuator_t actuator;
     bool driver_confirmed;     /* a real driver circuit exists and is verified */
