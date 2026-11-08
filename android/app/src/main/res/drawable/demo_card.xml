@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- the dashboard marks simulated data in violet; a dashed violet edge says the same here -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/card" />
+    <stroke android:width="1.5dp" android:color="@color/sim" android:dashWidth="6dp" android:dashGap="4dp" />
+    <corners android:radius="16dp" />
+</shape>

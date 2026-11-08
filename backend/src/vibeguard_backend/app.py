@@ -212,12 +212,19 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
 
         app.mount("/dashboard", StaticFiles(directory=str(dashboard_dir), html=True), name="dashboard")
 
+    def challenge(headers) -> JSONResponse:
+        """401. Browsers get the Basic challenge (they then ask for, or resend, the password). An app that handles the
+        password itself says so with X-VibeGuard-Client and gets a plain 401: on iOS a challenge makes the system
+        hold the request, waiting for a password prompt the app never shows."""
+        app_client = headers.get("x-vibeguard-client") is not None
+        return JSONResponse({"detail": "authentication required"}, status_code=401,
+                            headers={} if app_client else {"WWW-Authenticate": 'Basic realm="VibeGuard", charset="UTF-8"'})
+
     if want_auth is not None:
         @app.middleware("http")  # added last = runs first: nothing is served, not even a 403, without credentials
         async def require_auth(request, call_next):
             if not authorized(request.headers.get("authorization")):
-                return JSONResponse({"detail": "authentication required"}, status_code=401,
-                                    headers={"WWW-Authenticate": 'Basic realm="VibeGuard", charset="UTF-8"'})
+                return challenge(request.headers)
             return await call_next(request)
 
     @app.api_route("/", methods=["GET", "HEAD"], response_class=HTMLResponse, include_in_schema=False)
@@ -278,6 +285,11 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
     @app.post("/api/runtimes/{name}/calibration")
     async def calibrate(name: str, body: dict = Body(...)) -> dict:
         return await _call(b.calibrate, name, body.get("action"), body.get("request_id"))
+
+    @app.post("/api/runtimes/{name}/tool-use/new-shift")
+    async def new_shift(name: str, body: dict = Body(default={})) -> dict:
+        """Start a new tool-time session (a new shift): tool time and bouts go back to zero."""
+        return await _call(b.new_shift, name, body.get("request_id"))
 
     @app.post("/api/runtimes/{name}/simulate-disconnect")
     async def simulate_disconnect(name: str, body: dict = Body(default={})) -> dict:
@@ -388,7 +400,13 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
         wanted = DEFAULT_CHANNELS if not channels else frozenset(c for c in channels.split(",") if c in CHANNELS)
         runtimes = None if not runtime else frozenset(runtime.split(","))
         if not authorized(ws.headers.get("authorization")):
-            await ws.close(code=1008)  # the HTTP middleware does not see WebSocket handshakes
+            # The HTTP middleware does not see WebSocket handshakes. Answer with the same 401 challenge, not a bare
+            # close: a browser (the Android app's WebView included) does not send the password it holds on a
+            # WebSocket handshake until it is challenged, and then retries with it.
+            try:
+                await ws.send_denial_response(challenge(ws.headers))
+            except RuntimeError:            # a server without the denial-response extension
+                await ws.close(code=1008)
             return
         if not trusted_origin(ws.headers.get("origin"), ws.headers.get("host")) or (
                 hosts is not None and _host_only(ws.headers.get("host", "")) not in hosts):

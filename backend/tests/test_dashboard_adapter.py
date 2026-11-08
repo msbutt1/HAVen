@@ -16,7 +16,13 @@ def test_backend_adapter_translation():
     o = json.loads(r.stdout.strip().splitlines()[-1])
     assert o["wsUrl"] == "ws://h:1/ws/live"
     assert o["state"] == ["sleeve:ready", "station:ready"]
-    assert o["history"] == [["s1", "replay", 30, 2.5, "stopped"]]          # wearable sessions only, none still recording
+    assert o["browserWs"] == [1, True]                                      # a browser: just the URL, as before
+    assert o["authWs"] == ["ws://h:2/ws/live", "Basic dGVhbTpwdw=="]
+    assert o["authFetch"] == "Basic dGVhbTpwdw=="
+    assert o["history"] == [["s1", "replay", 30, 2.5, "stopped"],           # wearable sessions only, none still recording
+                            ["s3", "simulated", 30, 0.059868, "stopped"],        # the backend's session_au (start was null)
+                            ["s4", "live", 30, None, "stopped"]]            # session_au null: the backend could not attribute it
+    assert o["historyTool"] == [["s1", None, None], ["s3", 12.45, 1], ["s4", None, None]]
     assert o["t1"] == [50, 2.5, 4.2, None, "simulated", True, 183.1]       # display 0.5 -> 50 %; no total outside a recording
     assert o["t2"] == [None, None, None, False]                            # nothing invented before calibration / conversion
     assert o["ignoredOther"] is True
@@ -31,3 +37,8 @@ def test_backend_adapter_translation():
     assert o["stStates"] == ["testing", "completed"] and o["stAbortIdle"] == "error"
     assert o["disc"] == "disconnected:unplugged" and o["err"] == "error:boom"
     assert o["cal"] == ["failed:recording in progress"]
+    assert o["calRelaxed"][0] == "relax" and o["calRelaxed"][-1] == "relaxed_captured"   # step 1 ends waiting for step 2
+    assert o["calFailed"] == ["The squeeze wasn’t clearly stronger than rest. Squeeze harder, or check the pads, and try again."]
+    assert o["grip"] == [125, 100, True, False, True]          # unbounded value, clamped bar, flags
+    assert o["tool"] == [["tool", 12.5, False]] and o["event"] == ["boot_change"]
+    assert o["shift"] == ["accepted", "tool_session_reset", "yes"]

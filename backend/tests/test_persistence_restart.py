@@ -684,9 +684,10 @@ def test_session_ended_by_end_of_input_is_completed_and_survives_restart(tmp_pat
 # ----------------------------------------------------------------------------- (5) offline
 
 
+LOCAL_SOCKET_FILES = {"wifi.py", "fake_wifi.py", "bridge.py", "live_cli.py", "web_ui.py", "appdiscovery.py", "bonjour.py"}
 NETWORK_MODULES = {"requests", "httpx", "urllib.request", "urllib3", "http.client", "aiohttp", "socket",
                    "websockets", "smtplib", "ftplib", "boto3", "botocore", "google.cloud", "firebase_admin",
-                   "supabase", "openai", "anthropic"}
+                   "supabase", "openai", "anthropic", "zeroconf"}
 
 
 def _imports(path: Path) -> set[str]:
@@ -713,7 +714,23 @@ def test_source_has_no_network_client_imports_or_remote_urls(root):
                 r"https?://(?!127\.0\.0\.1|localhost)[a-z0-9]", f.read_text())
             continue
         bad = {m for m in _imports(f) if any(m == n or m.startswith(n + ".") for n in NETWORK_MODULES)}
+        # bonjour.py announces this backend by multicast DNS on the local network only (no remote host)
+        allowed = {"socket", "zeroconf", "zeroconf.IPVersion", "zeroconf.ServiceInfo", "zeroconf.Zeroconf"} \
+            if f.name == "bonjour.py" else {"socket"}
+        if f.name in LOCAL_SOCKET_FILES and bad <= allowed:
+            # The Wi-Fi wearable's link (firmware/INTEGRATION_FOR_ABDULJABBAR.md): the laptop LISTENS for the wearable
+            # and answers its discovery broadcast; appdiscovery.py answers the phone app's. These may use sockets, but
+            # only loopback, any-interface or broadcast addresses appear in them: no remote host is ever contacted.
+            text = f.read_text()
+            hosts = set(re.findall(r"[\"'](\d{1,3}(?:\.\d{1,3}){3})[\"']", text))
+            assert hosts <= {"127.0.0.1", "0.0.0.0", "255.255.255.255"}, f"{f} names hosts {sorted(hosts)}"
+            continue
         assert not bad, f"{f} imports network clients: {sorted(bad)}"
+        if f.name == "phoneqr.py":
+            # builds this computer's own address (http://<its LAN address>:<port>/dashboard/) for a QR code that
+            # phones read; it imports no network module and contacts nothing
+            assert re.findall(r"https?://[^\s\"'<>)]+", f.read_text()) == ["http://{ranked[0]}:{int(port"]   # the regex stops at ")"
+            continue
         for url in re.findall(r"https?://[^\s\"'<>)]+", f.read_text()):
             host = re.sub(r"^https?://", "", url).split("/")[0].split(":")[0]
             assert host in ("localhost", "127.0.0.1", "{args.host}"), f"{f} references remote URL {url}"

@@ -185,6 +185,10 @@ class _ActiveSession:
     act_peak: float | None = None
     vib_peak: float | None = None
     vib_n: int = 0
+    tool_first_s: float | None = None   # the tool-use session total when this recording first saw it
+    tool_last_s: float | None = None
+    tool_bouts_first: int | None = None
+    tool_bouts_last: int | None = None
 
 
 def _first_number(d: Any) -> float | None:
@@ -205,7 +209,12 @@ def _readings_view(s: "_ActiveSession") -> dict:
         "activation_windows": s.act_n,
         "peak_vibration_ms2": None if s.vib_peak is None else round(s.vib_peak, 3),
         "vibration_windows": s.vib_n,
-        "note": "activation is relative to the wearer's calibration; vibration is measured and unweighted",
+        "tool_time_s": (None if s.tool_first_s is None or s.tool_last_s is None
+                        else round(max(0.0, s.tool_last_s - s.tool_first_s), 2)),
+        "tool_bouts": (None if s.tool_bouts_first is None or s.tool_bouts_last is None
+                       else max(0, s.tool_bouts_last - s.tool_bouts_first)),
+        "note": "activation is relative to the wearer's calibration; vibration is measured and unweighted; "
+                "tool time is estimated from vibration with provisional thresholds",
     }
 
 
@@ -303,6 +312,7 @@ class DeviceRuntime:
         self.meta = meta or {}
         self.restore_calibration = restore_calibration
         self.call_timeout_s = call_timeout_s
+        self._tool_saved_mono = 0.0
         self._schedule = list(calibration_schedule or [])
         self._schedule_started = False
 
@@ -317,7 +327,8 @@ class DeviceRuntime:
         self.provenance: dict | None = None
         self.hello: dict | None = None
         self.device_status: dict | None = None
-        self.latest: dict[str, dict | None] = {"emg": None, "imu": None, "score": None}
+        self.latest: dict[str, dict | None] = {"emg": None, "imu": None, "score": None, "tool_use": None}
+        self.tool_use_saved = self._load_saved_tool_use()  # last known totals from before a backend restart
         self.counters: Counter = Counter()
         self.events: Counter = Counter()
         self.last_rx_wall: str | None = None
@@ -419,6 +430,7 @@ class DeviceRuntime:
             "last_rx_wall": self.last_rx_wall,
             "last_rx_age_s": None if last_rx is None else round(now - last_rx, 3),
             "data_fresh": self._data_fresh(),
+            "tool_use_saved": self.tool_use_saved,
             "counters": dict(self.counters.copy()), "events": dict(self.events.copy()),
             "last_invalid_frame": self.last_invalid, "last_frame_error": self.last_frame_error,
             "started_at": self.started_at, "meta": self.meta, "warnings": list(self.warnings),
@@ -758,7 +770,7 @@ class DeviceRuntime:
         self.proc = Processor(self.config)
         self.device_id, self.boot_id, self.provenance = new_id, None, None
         self.hello = self.device_status = None
-        self.latest = {"emg": None, "imu": None, "score": None}
+        self.latest = {"emg": None, "imu": None, "score": None, "tool_use": None}
         self.calibration_state, self.calibration_reason, self._cal_id = "uncalibrated", None, None
         self._restored, self._last_key, self._foreign = False, None, None
         self.counters["device_changes"] += 1
@@ -844,6 +856,23 @@ class DeviceRuntime:
                             and math.isfinite(v)):
                         s.vib_n += 1
                         s.vib_peak = float(v) if s.vib_peak is None else max(s.vib_peak, float(v))
+            elif kind == "tool_use":
+                self.latest["tool_use"] = out
+                self._save_tool_use(out)
+                if s is not None and out.get("status") == "ok":
+                    total, bouts = out.get("session_tool_s"), out.get("bouts")
+                    if isinstance(total, (int, float)) and not isinstance(total, bool):
+                        if s.tool_first_s is None or (s.tool_last_s is not None and total < s.tool_last_s):
+                            # first sight, or a new shift reset the total mid-recording: count from here
+                            base = 0.0 if s.tool_last_s is not None and s.tool_first_s is not None else total
+                            if s.tool_first_s is not None:
+                                base = total - (s.tool_last_s - s.tool_first_s)
+                            s.tool_first_s = base
+                        s.tool_last_s = total
+                    if isinstance(bouts, int) and not isinstance(bouts, bool):
+                        if s.tool_bouts_first is None or (s.tool_bouts_last is not None and bouts < s.tool_bouts_last):
+                            s.tool_bouts_first = bouts - (0 if s.tool_bouts_first is None else s.tool_bouts_last - s.tool_bouts_first)
+                        s.tool_bouts_last = bouts
             elif kind == "experimental_score":
                 self.latest["score"] = out
                 if s is not None and s.first_score is None:
@@ -993,6 +1022,46 @@ class DeviceRuntime:
             return {"runtime": self.name, "action": action, "events": events,
                     "calibration": self.status()["calibration"]}
         return self.call(run)
+
+    def new_shift(self) -> dict:
+        """Start a new tool-time session (a new shift): the processor's tool totals go back to zero."""
+        def run() -> dict:
+            if self.finished:
+                raise RuntimeConflict("the source has ended")
+            outs = self.proc.tool_use_reset_session()
+            self._emit(outs)
+            before = ((outs[0].get("detail") or {}) if outs else {})
+            self.counters["new_shifts"] += 1
+            return {"runtime": self.name, "event": "tool_session_reset", "previous": before,
+                    "at": utc_now_iso()}
+        return self.call(run)
+
+    # tool time survives a backend restart as "last known" (the processor's own totals start again at zero)
+    def _tool_use_dir(self) -> Path:
+        return self.data_dir / "tool_use"
+
+    def _save_tool_use(self, record: dict) -> None:
+        now = time.monotonic()
+        if record.get("status") != "ok" or now - self._tool_saved_mono < 1.0 or not self.device_id:
+            return
+        self._tool_saved_mono = now
+        try:
+            d = self._tool_use_dir()
+            d.mkdir(parents=True, exist_ok=True)
+            safe = "".join(c if c.isalnum() or c in "-_." else "_" for c in self.device_id)[:80]
+            tmp = d / f"{safe}.json.tmp"
+            tmp.write_text(json.dumps({"device_id": self.device_id, "saved_at": utc_now_iso(),
+                                       "provenance": (self.provenance or {}).get("source"), "record": record}))
+            tmp.replace(d / f"{safe}.json")
+        except OSError as exc:
+            self._note_io_error("tool_use", exc)
+
+    def _load_saved_tool_use(self) -> dict | None:
+        try:
+            files = sorted(self._tool_use_dir().glob("*.json"), key=lambda f: f.stat().st_mtime, reverse=True)
+            return json.loads(files[0].read_text()) if files else None
+        except (OSError, ValueError):
+            return None
 
     def start_session(self, label: str | None = None) -> dict:
         return self.call(lambda: self._start_session(label))

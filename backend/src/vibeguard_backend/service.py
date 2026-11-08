@@ -134,6 +134,19 @@ def processing_config_for(adapter_kind: str, counts_per_g: float | None = None,
     """
     if adapter_kind in ("sim", "replay-sim"):
         return demo_processing_config()
+    if adapter_kind == "wifi":
+        # Salaar's live configuration for the Wi-Fi wearable (signals/.../bridge.py): host clock, a 1 s stale limit
+        # (Wi-Fi delivers in bursts), and the accelerometer conversion with its cited source.
+        from vibeguard_signals.bridge import live_config
+        from .hardware import ProfileError, validate_counts_per_g
+        try:
+            lsb = validate_counts_per_g(counts_per_g if counts_per_g is not None else 4096.0, "accelerometer LSB per g")
+        except ProfileError as exc:
+            raise ValueError(str(exc)) from exc
+        cfg = live_config(lsb)
+        if conversion_source:
+            cfg = dataclasses.replace(cfg, imu=dataclasses.replace(cfg.imu, conversion_source=conversion_source))
+        return cfg
     if counts_per_g is not None:
         from .hardware import ProfileError, validate_counts_per_g
         try:
@@ -363,6 +376,11 @@ class Backend:
                                 lambda: self.runtime(runtime).calibrate(action))
 
     # ------------------------------------------------------------------ wearable sessions
+
+    def new_shift(self, runtime: str, request_id: str | None = None) -> dict:
+        """A new tool-time session (a new shift) on this runtime's processor."""
+        _request_id(request_id)
+        return self._idempotent(request_id, f"new_shift:{runtime}", lambda: self.runtime(runtime).new_shift())
 
     def start_session(self, runtime: str = "wearable", label: str | None = None,
                       request_id: str | None = None) -> dict:
