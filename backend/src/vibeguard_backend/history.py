@@ -17,6 +17,7 @@ from vibeguard_signals.demo import demo_processing_config, process_records
 from vibeguard_signals.simulator import SimConfig, Simulation
 
 from .adapters import new_id
+from .exposure import session_exposure_summary
 from .runtime import SessionRecorder, session_score_summary
 from .service import Backend, station_summary
 
@@ -106,6 +107,7 @@ def seed_history(backend: Backend, days: int = 14, seed: int = 7, duration_s: fl
         if cal is not None:  # the calibration_id on the session row must exist in the calibrations table
             backend.store.save_calibration(cal, records[0]["device_id"], "simulated", sid)
         scores = [o for o in derived if o["type"] == "experimental_score"]
+        exposures = [o for o in derived if o["type"] == "exposure"]
         boots = sorted({r["boot_id"] for r in records})
         backend.store.create_wearable_session({
             "session_id": sid, "runtime": "simulated-history", "device_id": records[0]["device_id"],
@@ -117,7 +119,9 @@ def seed_history(backend: Backend, days: int = 14, seed: int = 7, duration_s: fl
             calibration_id=(proc.calibration_record() or {}).get("calibration_id"),
             score=session_score_summary(None, scores[0] if scores else None, scores[-1] if scores else None),
             counters={"frames": len(records), "derived_records": len(derived), "simulated": True,
-                      "readings": readings_from_derived(derived)},
+                      "readings": readings_from_derived(derived),
+                      "exposure": session_exposure_summary(None, exposures[0] if exposures else None,
+                                                           exposures[-1] if exposures else None)},
             files=files)
         (rec.dir / "manifest.json").write_text(json.dumps(
             {"session": row, "processing_config": config.to_dict(), "simulated_history": True,
