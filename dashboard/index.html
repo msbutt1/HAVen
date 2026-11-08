@@ -16,7 +16,7 @@
     <h1 class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg></span>VibeGuard<span class="crumb">dashboard</span></h1>
     <div class="devices" aria-live="polite">
       <span class="device" id="dev-sleeve" data-state="disconnected"><span class="dot" aria-hidden="true"></span>Sleeve <b class="device-state">Disconnected</b></span>
-      <span class="device" id="dev-station" data-state="disconnected"><span class="dot" aria-hidden="true"></span>Station <b class="device-state">Disconnected</b></span>
+      <span class="device" id="dev-station" data-state="disconnected" hidden><span class="dot" aria-hidden="true"></span>Station <b class="device-state">Disconnected</b></span>
     </div>
     <button id="btn-connect" class="btn">Connect</button>
   </header>
@@ -29,7 +29,9 @@
     <button role="tab" id="tab-live" data-view="live" aria-controls="view-live"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg><span>Live</span></button>
     <button role="tab" id="tab-overview" data-view="overview" aria-controls="view-overview"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6.5 17v-5"/><path d="M11.5 17V6"/><path d="M16.5 17v-8"/></svg><span class="for-desktop">Overview</span><span class="for-phone">Summary</span></button>
     <button role="tab" id="tab-calibrate" data-view="calibrate" aria-controls="view-calibrate"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l3.5-3.5"/><path d="M3.5 18.5a9.5 9.5 0 1 1 17 0"/><circle cx="12" cy="14" r="1.2"/></svg><span>Calibrate</span></button>
-    <button role="tab" id="tab-station" data-view="station" aria-controls="view-station"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="4" width="8" height="16" rx="2"/><path d="M4.5 9v6"/><path d="M19.5 9v6"/></svg><span class="for-desktop">Perception test</span><span class="for-phone">Touch test</span></button>
+    <!-- perception test (station) is out of the demo: tab hidden, code kept -->
+    <button role="tab" id="tab-station" data-view="station" aria-controls="view-station" hidden><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="4" width="8" height="16" rx="2"/><path d="M4.5 9v6"/><path d="M19.5 9v6"/></svg><span class="for-desktop">Perception test</span><span class="for-phone">Touch test</span></button>
+    <button role="tab" id="tab-limits" data-view="limits" aria-controls="view-limits"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 4v5c0 4.5-3.4 8.3-8 9-4.6-.7-8-4.5-8-9V7z"/><path d="M12 8v5"/><circle cx="12" cy="16" r="0.6"/></svg><span>Limits</span></button>
     <button role="tab" id="tab-history" data-view="history" aria-controls="view-history"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/><path d="M12 7.5V12l3 2"/></svg><span>History</span></button>
   </nav>
 
@@ -37,6 +39,28 @@
     <!-- LIVE -->
     <section id="view-live" class="view" role="tabpanel" aria-labelledby="tab-live">
       <p class="freshness" id="freshness" data-fresh="none">No data. Connect the sleeve.</p>
+      <!-- DAILY EXPOSURE (exposure.js): ISO 5349-1 A(8) estimate vs the EU/UK action and limit values -->
+      <article class="readout exposure" id="ro-exposure" data-level="none">
+        <h2>Daily vibration exposure <span class="tag tag-exp">Estimate</span><span class="tag tag-sim" id="exp-sim" hidden>Simulated</span></h2>
+        <div class="exp-top">
+          <p class="value"><span class="num" id="exp-points">—</span><span class="unit">points today <span class="for-desktop">(100 = action value, <span id="exp-limit-label">400 = limit</span>)</span></span></p>
+          <p class="exp-level" id="exp-level">Waiting for the wearable.</p>
+        </div>
+        <div class="exp-bar" aria-hidden="true">
+          <div class="exp-fill" id="exp-fill"></div>
+          <span class="exp-mark exp-mark-eav" id="exp-mark-eav"><b>100</b> action</span>
+          <span class="exp-mark exp-mark-limit" id="exp-mark-limit"><b>400</b> limit</span>
+        </div>
+        <dl class="tool-facts exp-facts">
+          <div><dt>A(8) estimate</dt><dd id="exp-a8">—</dd></div>
+          <div><dt>Points per hour now</dt><dd id="exp-pph">—</dd></div>
+          <div><dt><span class="for-desktop">Time to action value at this intensity</span><span class="for-phone">Until action value</span></dt><dd id="exp-to-eav">—</dd></div>
+          <div><dt><span class="for-desktop">Time to limit at this intensity</span><span class="for-phone">Until limit</span></dt><dd id="exp-to-limit">—</dd></div>
+        </dl>
+        <p class="sub" id="exp-grip">Gripped contact: —</p>
+        <p class="note"><span class="for-desktop">Estimate from a wrist sensor: a monitoring guide, not a certified measurement. Below the action value is not “safe”.</span><span class="for-phone">An estimate from the wrist sensor, not a certified measurement.</span> <a href="#limits">How this is calculated</a></p>
+      </article>
+
       <div class="readouts">
         <article class="readout" id="ro-activation">
           <h2>Grip effort</h2>
@@ -51,7 +75,7 @@
           <p class="note"><span class="for-desktop">Estimate from a hobby motion sensor. Not a standards-grade measurement.</span><span class="for-phone">How strongly the wrist is shaking. An estimate, not a certified measurement.</span></p>
         </article>
         <article class="readout experimental" id="ro-score">
-          <h2>Exposure score <span class="tag tag-exp">Experimental</span></h2>
+          <h2>Legacy score <span class="tag tag-exp">Experimental</span></h2>
           <p class="value"><span class="num" id="score-rate">—</span><span class="unit" id="score-rate-unit">points / min</span></p>
           <p class="sub">This recording: <strong id="score-total">—</strong> <span id="score-total-unit">points</span></p>
           <p class="note"><span class="for-desktop">Placeholder formula that weights vibration by grip. Not a validated dose.</span><span class="for-phone">A test feature. It is not a safety limit.</span></p>
@@ -205,18 +229,71 @@
         <figure class="ov-card"><figcaption>Highest exposure scores <span class="tag tag-exp">Experimental</span></figcaption><div class="ov-plot"><canvas id="ov-score"></canvas></div></figure>
       </div>
 
-      <h3 class="ov-section">Tool use and the fingertip test</h3>
+      <h3 class="ov-section">Tool use</h3>
       <div class="ov-grid">
         <figure class="ov-card"><figcaption>Recording time with a tool <span class="sub-label">estimated from vibration</span></figcaption><div class="ov-plot ov-donut"><canvas id="ov-tool"></canvas><div class="ov-center" id="ov-tool-center"></div></div></figure>
-        <figure class="ov-card"><figcaption>Perception test answers <span class="sub-label">newest tests</span></figcaption><div class="ov-plot"><canvas id="ov-answers"></canvas></div></figure>
+        <figure class="ov-card" hidden><figcaption>Perception test answers <span class="sub-label">newest tests</span></figcaption><div class="ov-plot"><canvas id="ov-answers"></canvas></div></figure>
         <figure class="ov-card"><figcaption>Grip effort vs peak vibration <span class="sub-label">each dot is a recording</span></figcaption><div class="ov-plot"><canvas id="ov-scatter"></canvas></div></figure>
       </div>
       <div class="ov-grid ov-grid-row">
         <figure class="ov-card"><figcaption>Peak vibration per recording <span class="sub-label">m/s², unweighted</span></figcaption><div class="ov-plot"><canvas id="ov-vib"></canvas></div></figure>
-        <figure class="ov-card"><figcaption>Perception threshold per test <span class="sub-label">motor setting, higher means less sensitive</span></figcaption><div class="ov-plot"><canvas id="ov-threshold"></canvas></div></figure>
+        <figure class="ov-card" hidden><figcaption>Perception threshold per test <span class="sub-label">motor setting, higher means less sensitive</span></figcaption><div class="ov-plot"><canvas id="ov-threshold"></canvas></div></figure>
         <figure class="ov-card"><figcaption>Where the data came from</figcaption><div class="ov-plot ov-donut"><canvas id="ov-sources"></canvas><div class="ov-center" id="ov-sources-center"></div></div></figure>
       </div>
-      <p class="note">Measured vibration is unweighted (not ISO 5349). Grip effort is relative to each wearer’s calibration, not force. The exposure score is experimental and not a dose. No chart draws a safe or unsafe line: there are no validated limits behind these numbers.</p>
+      <p class="note">Measured vibration is unweighted (not ISO 5349). Grip effort is relative to each wearer’s calibration, not force. The legacy score is experimental and not a dose. Daily exposure against the EU/UK action and limit values is on the Live and Limits tabs.</p>
+    </section>
+
+    <!-- LIMITS (info page; static, so it also works on the mock feed and the landing demo) -->
+    <section id="view-limits" class="view limits" role="tabpanel" aria-labelledby="tab-limits" hidden>
+      <h2 class="section-title">Daily vibration limits</h2>
+      <p class="lead">VibeGuard compares each worker’s daily hand-arm vibration with the limits used in European and UK law. This page explains the numbers, where they come from, and what our wrist sensor can and cannot tell you.</p>
+
+      <div class="lim-grid">
+        <article class="panel lim-card"><h3>Action value</h3><p class="lim-num">2.5 <span>m/s² A(8)</span></p><p class="lim-pts">100 points</p><p>Above this, the employer must act to reduce exposure: rotate jobs, use lower-vibration tools, plan breaks, and offer health surveillance.</p></article>
+        <article class="panel lim-card lim-limit"><h3>Limit value</h3><p class="lim-num">5.0 <span>m/s² A(8)</span></p><p class="lim-pts">400 points</p><p>Must not be exceeded on any day. A supervisor or occupational health can set a lower personal limit (for example 100 points after symptoms). Current personal limit: <strong id="lim-personal">400 points</strong>.</p></article>
+      </div>
+
+      <h3 class="ov-section">Why these limits</h3>
+      <p>The values come from <strong>EU Directive 2002/44/EC</strong>, set on the basis of <strong>ISO 5349-1</strong> and epidemiological evidence on vibration white finger and other hand-arm vibration effects. The UK adopted them in the <strong>Control of Vibration at Work Regulations 2005</strong>, and HSE added the exposure points system used here. ACGIH uses similar values, which Canadian provinces often refer to. Alberta has no numeric hand-arm vibration limit (employers have a general duty to control the hazard), so we follow the international standard.</p>
+
+      <h3 class="ov-section">How we calculate it</h3>
+      <ol class="lim-steps">
+        <li><strong>Vibration magnitude</strong> a<sub>hv</sub> = √(a<sub>x</sub>² + a<sub>y</sub>² + a<sub>z</sub>²), from the wrist accelerometer after removing gravity and slow arm movement.</li>
+        <li><strong>Only tool time counts.</strong> A second is added only while the tool detector says a tool is vibrating and the worker is gripping. If grip is unknown the second still counts, so missing data never hides exposure.</li>
+        <li><strong>Daily exposure</strong> A(8) = √( Σ a<sub>hv</sub>² × time ÷ 8 h ). Harm scales with vibration² × time, so several tools in one day add up.</li>
+        <li><strong>Points</strong> = 2 × a<sub>hv</sub>² × hours (HSE). 100 points = action value, 400 = limit value.</li>
+        <li><strong>Time left</strong> at the current intensity = (level − points so far) ÷ points per hour now.</li>
+      </ol>
+      <p class="lim-example"><strong>Worked example:</strong> a grinder at 6 m/s² gives 2 × 6² = <strong>72 points per hour</strong>. The action value (100) is reached after about <strong>1 h 23 min</strong>, the limit (400) after about <strong>5 h 33 min</strong>.</p>
+
+      <h3 class="ov-section">What grip adds</h3>
+      <p>Grip (forearm EMG) does not multiply the number. It decides <em>whether</em> a second counts as hand–tool contact, and it is reported alongside the dose, as ISO 5349-1 §4.3 asks for coupling forces. We also show how hard the worker grips during contact: the 10th, 50th and 90th percentiles of effort. Jonsson’s 1982 reference levels are static under 2–5 %, median under 10–14 % and peak under 50–70 % of maximum; they were developed mainly for shoulder and neck muscles, so they are a reference only.</p>
+
+      <h3 class="ov-section">Long-term risk</h3>
+      <p>ISO 5349-1 Annex C estimates the years of daily exposure after which <strong>10 % of a group</strong> of workers would develop vibration white finger: D<sub>y</sub> = 31.8 × A(8)<sup>−1.06</sup> years (A(8) 2.5 → about 12 years; 3.0 → 9.9; 5.0 → 5.8). It is a <strong>group estimate, not a diagnosis</strong>. Later research suggests it is conservative, and we do not show it for A(8) below 1 m/s².</p>
+
+      <h3 class="ov-section">Where we measure</h3>
+      <p>HSE’s guidance says measurements away from the palm, including at the wrist, are unlikely to be representative, and that <strong>monitoring</strong> systems must not be confused with <strong>measurement</strong> systems (monitors can differ by up to 20 % on the same task). <strong>ISO/TS 22270:2026</strong> now gives guidance for monitoring daily exposure with sensors on the hand, wrist or arm, as a supplement to ISO 5349-1. VibeGuard is a monitoring tool: live alerts, trends, grip and tool comparisons. Formal risk assessments still use an ISO 5349-2 measurement or tool data. Next step: a per-tool wrist-to-hand calibration against a reference measurement.</p>
+
+      <h3 class="ov-section">Limitations</h3>
+      <ul class="lim-list">
+        <li>A hobby IMU at the wrist (500 Hz, about 5–218 Hz usable band; the ISO band reaches about 1250 Hz). Our A(8) is an estimate.</li>
+        <li>Unweighted by default: compared with ISO W<sub>h</sub> weighting this over-states high-frequency tools, while the wrist position tends to under-read the hand.</li>
+        <li>Below the action value is not risk-free. The limits are group-based and individuals differ, which is why a personal limit exists.</li>
+        <li>Not a medical device and not a diagnosis.</li>
+      </ul>
+
+      <h3 class="ov-section">Sources</h3>
+      <ul class="lim-sources">
+        <li><a href="https://eur-lex.europa.eu/eli/dir/2002/44/oj" target="_blank" rel="noopener">EU Directive 2002/44/EC (vibration)</a></li>
+        <li><a href="https://www.legislation.gov.uk/uksi/2005/1093/schedules/made" target="_blank" rel="noopener">UK Control of Vibration at Work Regulations 2005, Schedule 1</a></li>
+        <li><a href="https://www.hse.gov.uk/vibration/" target="_blank" rel="noopener">HSE: hand-arm vibration and the exposure points system</a></li>
+        <li><a href="https://www.hse.gov.uk/Vibration/hav/measurement-monitoring.htm" target="_blank" rel="noopener">HSE: measurement and monitoring (palm vs wrist)</a></li>
+        <li><a href="https://cdn.standards.iteh.ai/samples/32355/63954671e32b44ef9c136bc4bbb18a36/ISO-5349-1-2001.pdf" target="_blank" rel="noopener">ISO 5349-1:2001 (sample)</a> · <a href="https://www.medrxiv.org/content/10.1101/2022.08.02.22278336.full.pdf" target="_blank" rel="noopener">Annex C is conservative (medRxiv)</a></li>
+        <li><a href="https://knowledge.bsigroup.com/products/mechanical-vibration-practical-guidance-and-requirements-for-the-monitoring-and-measurement-of-hand-transmitted-vibration-on-the-hand-wrist-or-forearm" target="_blank" rel="noopener">ISO/TS 22270:2026 (hand/wrist/arm monitoring)</a></li>
+        <li><a href="https://ohsinsider.com/vibration-exposure-and-hand-arm-vibration-syndrome-havs-what-every-canadian-ohs-professional-needs-to-know/" target="_blank" rel="noopener">Canadian context and ACGIH</a></li>
+        <li><a href="https://link.springer.com/article/10.1007/BF00421518" target="_blank" rel="noopener">Jonsson 1982, EMG load guidelines</a></li>
+      </ul>
     </section>
 
     <!-- HISTORY -->
@@ -264,5 +341,6 @@
   <script src="vendor/chartjs/chart.umd.js"></script>
   <script src="js/overview.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/exposure.js"></script>
 </body>
 </html>

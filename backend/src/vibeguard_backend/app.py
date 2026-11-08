@@ -46,6 +46,7 @@ from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from . import __version__
 from .hub import CHANNELS, DEFAULT_CHANNELS, utc_now_iso
 from .runtime import RuntimeConflict, RuntimeGone
+from .exposure import limits_info
 from .service import Backend, BadRequest, NotFound
 from .station import StationError
 from .status_page import CSP, STATUS_PAGE
@@ -384,6 +385,27 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
     @app.get("/api/history")
     async def history(source: str | None = None, limit: int = Query(200, ge=1, le=1000)) -> dict:
         return await _call(b.history, source, limit)
+
+    # ---------------------------------------------------------------- daily exposure (estimate)
+
+    @app.get("/api/exposure/limits")
+    async def exposure_limits() -> dict:
+        """Action/limit values, formulas, worked example, sources and limitations (Limits page)."""
+        return limits_info()
+
+    @app.get("/api/exposure/daily")
+    async def exposure_daily(days: int = Query(14, ge=1, le=90)) -> dict:
+        """Per-day, per-source A(8) and HSE points from saved sessions; rolling 7-day mean."""
+        return await _call(b.exposure_daily, days)
+
+    @app.get("/api/exposure/personal-limit")
+    async def get_personal_limit() -> dict:
+        return b.exposure_limit.view()
+
+    @app.put("/api/exposure/personal-limit")
+    async def put_personal_limit(body: dict = Body(...)) -> dict:
+        """Lower the worker's daily limit (HSE points, in (0, 400]); applied to every runtime."""
+        return await _call(b.set_personal_exposure_limit, body.get("personal_limit_points"))
 
     @app.get("/api/devices")
     async def devices() -> list[dict]:

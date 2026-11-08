@@ -18,6 +18,7 @@
     : SOURCE === 'backend'
       ? new VG.BackendAdapter({ base: params.get('base') || '', runtime: params.get('runtime') || 'wearable' })
       : new VG.MockAdapter();
+  VG.adapter = adapter; // exposure.js (daily exposure card) subscribes to the same feed
 
   const STALE_MS = 1000;
   const STATE_LABEL = {
@@ -73,7 +74,7 @@
   }
 
   // ---------- views / tabs ----------
-  const VIEWS = ['live', 'overview', 'calibrate', 'station', 'history'];
+  const VIEWS = ['live', 'overview', 'calibrate', 'limits', 'history']; // station (perception test) hidden: out of the demo
   function showView(v) {
     if (!VIEWS.includes(v)) v = 'live';
     S.view = v;
