@@ -37,8 +37,10 @@ The APK is **debug-signed**: fine for installing on team phones by sideloading, 
    With the wearable: `serve --device wifi --host 0.0.0.0`. On a network you do not control, add a password:
    `VG_BASIC_AUTH=team:something-long uv run vg-backend serve --host 0.0.0.0` (the app asks for it).
 2. Phone and laptop on the **same Wi-Fi**. macOS may ask whether Python may accept incoming connections: allow it.
-3. In the app, tap **Find on this Wi-Fi**, then the laptop in the list. Or type its address (macOS: System Settings ›
-   Wi-Fi › Details), e.g. `192.168.1.23` (port 8000 is assumed).
+3. Open the app. It gets going on its own: it tries the laptop used last time, otherwise it searches this Wi-Fi, and
+   shows each laptop it finds as one big **Open** button. If nothing is found, **Can't connect?** shows the steps above
+   in plain words and a box to type the laptop's address (macOS: System Settings › Wi-Fi › Details), e.g.
+   `192.168.1.23` (port 8000 is assumed).
 
 How Find works: the app broadcasts `VGFIND 1` to UDP 8767; the backend (`backend/src/vibeguard_backend/appdiscovery.py`)
 answers `VGAPI 1 <http port> <password 0|1> <name>`, only to private addresses and only when it listens beyond the
@@ -46,6 +48,13 @@ laptop. The app then checks `/api/health` and opens `http://<laptop>:<port>/dash
 
 Some networks keep devices apart (eduroam and most guest or campus Wi-Fi). There, Find gets no answer and the address
 does not open: use a phone hotspot (laptop joins the phone's hotspot) or a home router.
+
+## Made for people new to phones
+
+The connect screen starts by itself and says what it is doing in one card; buttons are at least 60 dp tall and text
+follows the phone's font-size setting. Inside, the dashboard switches to its phone layout (see `dashboard/README.md`):
+a bottom menu with icons, the main action of each screen first, larger text, and plain labels, with the technical
+details still there further down.
 
 ## The demo
 

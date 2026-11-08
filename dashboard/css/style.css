@@ -107,6 +107,9 @@ h1, h2, h3 { margin: 0; font-weight: 600; }
 :focus-visible { outline: 2px solid color-mix(in oklab, var(--ring) 70%, transparent); outline-offset: 2px; border-radius: 6px; }
 kbd { margin-left: 0.4em; border: 1px solid currentColor; border-radius: 0.25rem; padding: 0 0.35em; font: 500 0.75em var(--mono); opacity: 0.65; }
 .mono { font-family: var(--mono); }
+/* phone-only and desktop-only wording (the phone layout is the @media (max-width: 640px) block at the end) */
+.for-phone, .tab-ico, .big-ico { display: none; }
+.mk-body { display: contents; }
 
 /* rim-lit card (the landing page's panel) */
 .panel, .readout, .chart, .recording-bar, .cal-stage, .cal-result div, .st-panel, .kpi, .ov-card {
@@ -313,6 +316,12 @@ main { max-width: 80rem; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 2rem);
 .log .tag { margin-left: 0; }
 
 /* ---------- history ---------- */
+.facts { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 0.15rem 1.1rem; }
+.facts li span { color: var(--muted-foreground); margin-right: 0.35rem; }
+.facts li b { font-weight: 600; }
+.facts li.warn { flex-basis: 100%; color: var(--destructive); }
+.btn-more { margin-top: 1rem; }
+.btn-go { margin-top: 0.9rem; }
 .section-title { font-size: 1.25rem; font-weight: 600; letter-spacing: -0.02em; }
 .empty { color: var(--muted-foreground); margin-top: 0.5rem; }
 .sim-block { margin-top: 2rem; padding: 1.25rem; border-radius: 0.95rem; border: 1px solid transparent; background: linear-gradient(var(--background), var(--background)) padding-box, repeating-linear-gradient(135deg, var(--sim) 0 10px, var(--sim-2) 10px 20px) border-box; }
@@ -332,16 +341,130 @@ main { max-width: 80rem; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 2rem);
   .readouts, .charts, .cal-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
-  /* one row that scrolls sideways (five tabs no longer fit a 2-column grid without one left alone) */
-  .tabs { width: auto; max-width: none; margin: 1rem clamp(1rem, 3vw, 2rem) 0; scrollbar-width: none; }
-  .tabs::-webkit-scrollbar { display: none; }
-  /* a fade on the side that has more tabs (app.js sets the classes) */
-  .tabs.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent); }
-  .tabs.more-left { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 3rem), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 3rem), transparent); }
-  .tabs.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 3rem, #000 calc(100% - 3rem), transparent); mask-image: linear-gradient(to right, transparent, #000 3rem, #000 calc(100% - 3rem), transparent); }
-  .tabs button { flex: 0 0 auto; padding: 0.5rem 0.85rem; }
   .cal-result { grid-template-columns: 1fr; }
   .log th, .log td { padding: 0.55rem 0.6rem; }
+}
+
+/* ---------- phones: for people new to smartphones ----------
+   Bigger everything (the root size scales every rem), a bottom menu with icons and words, the main action of each
+   screen first, and plain words (the .for-phone spans). The technical details stay, lower down. */
+@media (max-width: 640px) {
+  html { font-size: 112.5%; }                          /* 18px: every rem-based size grows with it */
+  body { padding-bottom: calc(6.5rem + env(safe-area-inset-bottom)); }
+  .for-desktop { display: none !important; }
+  .for-phone { display: inline; }
+  .tab-ico { display: block; }
+
+  /* header: the brand and the one device that matters on this screen */
+  .topbar { height: auto; min-height: 3.6rem; flex-wrap: nowrap; padding-block: 0.5rem; gap: 0.6rem; }
+  .brand { font-size: 1.05rem; }
+  .brand .mark { width: 2rem; height: 2rem; }
+  .devices { order: 0; width: auto; }
+  .device { height: 2.4rem; font-size: 0.85rem; padding: 0 0.75rem; }
+  .dot { width: 0.65rem; height: 0.65rem; }
+  #dev-station { display: none; }
+  body[data-view="station"] #dev-station { display: inline-flex; }
+  body[data-view="station"] #dev-sleeve { display: none; }
+  #btn-connect[data-connected="true"] { display: none; }   /* no "Disconnect" to tap by mistake */
+  #btn-connect { height: 2.6rem; font-size: 0.95rem; }
+  .source-band { font-size: 0.85rem; padding: 0.55rem 1rem; }
+
+  /* the bottom menu */
+  .tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 25; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0.15rem; width: auto; max-width: none; margin: 0; padding: 0.35rem 0.3rem calc(0.35rem + env(safe-area-inset-bottom)); overflow: visible; border: 0; border-top: 1px solid var(--border); border-radius: 0; background: var(--background); box-shadow: 0 -6px 18px oklch(0% 0 0 / 0.07); }
+  .tabs button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 0.2rem; min-height: 3.75rem; padding: 0.35rem 0.1rem; border-radius: 0.9rem; font-size: 0.72rem; font-weight: 600; line-height: 1.15; text-align: center; white-space: normal; color: var(--muted-foreground); }
+  .tabs .tab-ico { width: 1.6rem; height: 1.6rem; }
+  .tabs button[aria-selected="true"] { color: var(--primary); background: color-mix(in oklab, var(--primary) 13%, transparent); box-shadow: none; }
+
+  main { padding: 1rem 0.9rem; }
+
+  /* buttons: big targets */
+  .btn { height: 3.2rem; font-size: 1rem; padding: 0 1.2rem; }
+  .btn-small { height: 2.9rem; font-size: 0.95rem; }
+  .row { gap: 0.6rem; }
+  .row > .btn { flex: 1 1 100%; }
+  .row > .hint { flex-basis: 100%; }
+  .hint, .note { font-size: 0.85rem; }
+
+  /* live: the recording button first, then the readings */
+  #view-live:not([hidden]) { display: flex; flex-direction: column; }
+  #view-live > .freshness { order: 0; }
+  #view-live > .recording-bar { order: 1; margin: 0 0 1rem; }
+  #view-live > .readouts { order: 2; }
+  #view-live > .quality { order: 3; }
+  #view-live > .tool-row { order: 4; }
+  #view-live > .charts { order: 5; }
+  .recording-bar { flex-direction: column; align-items: stretch; gap: 0.6rem; padding: 1rem; }
+  #btn-record { width: 100%; height: 4rem; font-size: 1.25rem; font-weight: 600; }
+  .rec-status { text-align: center; font-size: 0.95rem; }
+  .readouts { gap: 0.8rem; }
+  .readout { padding: 1.15rem; }
+  .readout h2 { font-size: 1.05rem; font-weight: 600; color: var(--foreground); }
+  .num { font-size: 3.1rem; }
+  .unit { font-size: 0.95rem; }
+  .meter { height: 0.75rem; }
+  .btn-go { width: 100%; }
+  .num-word { font-size: 2.1rem; }
+  .tool-facts dt { font-size: 0.85rem; }
+  .tool-facts dd { font-size: 1.15rem; }
+  .tool-warnings { padding: 0; list-style: none; }
+  .tool-warnings li { font-size: 0.95rem; font-weight: 500; }
+  .events li { grid-template-columns: 4.2rem 1fr; font-size: 0.9rem; }
+  .chart canvas { height: 150px; }
+
+  /* calibrate: big prompt, big count, big buttons */
+  .cal-steps li { flex: 1 1 0; padding: 0.55rem 0.6rem; font-size: 0.85rem; }
+  .cal-steps li span { display: none; }
+  .cal-prompt { font-size: 1.45rem; }
+  .cal-count { font-size: 4rem; min-height: 4rem; }
+  .bar { height: 0.7rem; }
+  .cal-result { grid-template-columns: 1fr; }
+
+  /* touch test: two very large answer buttons */
+  .st-panel { padding: 1.15rem; }
+  .lead { font-size: 1rem; }
+  .modes label { padding: 0.95rem 1rem; font-size: 1rem; }
+  .modes input { width: 1.35rem; height: 1.35rem; }
+  #btn-st-start, #btn-st-again { width: 100%; height: 3.6rem; font-size: 1.15rem; }
+  .st-prompt { font-size: 1.7rem; }
+  .st-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+  .btn-big { height: 8.5rem; flex-direction: column; gap: 0.5rem; white-space: normal; text-align: center; font-size: 1.2rem; padding: 0 0.6rem; }
+  .btn-big .big-ico { display: block; width: 2.4rem; height: 2.4rem; }
+  .btn-big kbd { display: none; }
+  #btn-felt:not(:disabled) { background: color-mix(in oklab, var(--success) 14%, var(--background)); border-color: color-mix(in oklab, var(--success) 55%, transparent); }
+  #btn-notfelt:not(:disabled) { background: color-mix(in oklab, var(--foreground) 6%, var(--background)); }
+  #btn-st-abort { height: 2.9rem; }
+
+  /* overview */
+  .ov-filters { width: 100%; }
+  .ov-filters label { flex: 1 1 0; }
+  .ov-filters select { height: 3rem; font-size: 1rem; }
+  .kpi .kd { flex-direction: column; gap: 0.3rem; }
+
+  /* history: cards, not a wide table */
+  #hist-table, #hist-table tbody { display: block; border: 0; background: none; overflow: visible; }
+  #hist-table thead { display: none; }
+  #hist-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.15rem 0.6rem; margin-top: 0.75rem; padding: 1rem; border: 1px solid var(--border); border-radius: 0.95rem; background: var(--card); }
+  #hist-table tbody tr:hover td { background: none; }
+  #hist-table td { display: block; padding: 0; border: 0; }
+  #hist-table td:nth-child(2) { grid-column: 1; grid-row: 1; font-size: 1.05rem; font-weight: 600; }
+  #hist-table td:nth-child(1) { grid-column: 1; grid-row: 2; color: var(--muted-foreground); font-size: 0.85rem; }
+  #hist-table td:nth-child(3) { grid-column: 2; grid-row: 1 / span 2; align-self: start; }
+  #hist-table td:nth-child(4) { grid-column: 1 / -1; grid-row: 3; margin-top: 0.6rem; }
+  #hist-table .facts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0.5rem 0.75rem; }
+  #hist-table .facts li span { display: block; margin: 0; font-size: 0.8rem; }
+  #hist-table .facts li b { font-size: 1.05rem; }
+  .btn-more { width: 100%; }
+
+  /* practice controls: one small button above the menu that opens them */
+  .mock-panel { left: auto; right: 0.6rem; bottom: calc(5.1rem + env(safe-area-inset-bottom)); flex-direction: column; align-items: stretch; width: min(19rem, calc(100% - 1.2rem)); padding: 0; border: 0; background: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .mk-toggle { display: block; align-self: flex-end; height: 2.6rem; padding: 0 1rem; border: 1px dashed var(--sim); border-radius: 999px; background: var(--background); color: var(--sim); font: 600 0.85rem var(--sans); box-shadow: var(--elevation-sm); }
+  .mk-body { display: none; }
+  .mock-panel.open .mk-body { display: grid; gap: 0.5rem; margin-bottom: 0.5rem; padding: 0.8rem; border: 1px dashed var(--sim); border-radius: 0.95rem; background: var(--background); box-shadow: var(--elevation-md); order: -1; }
+  .mock-panel.open .mk-body .btn { width: 100%; }
+  .mock-panel.open .toggle { min-height: 2.9rem; padding: 0 1rem; border: 1px solid var(--border); border-radius: calc(var(--radius) - 2px); }
+  .mock-panel.open .toggle input { width: 1.3rem; height: 1.3rem; }
+
+  .toast { bottom: calc(5.6rem + env(safe-area-inset-bottom)); max-width: calc(100% - 2rem); font-size: 1rem; text-align: center; }
 }
 @media (prefers-reduced-motion: reduce) {
   .toast, .meter-fill { transition: none; }

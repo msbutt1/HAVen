@@ -195,7 +195,7 @@ public class DashboardActivity extends Activity {
             if (!request.isForMainFrame() || response.getStatusCode() == 401) return;
             int code = response.getStatusCode();
             showError(code == 404 ? getString(R.string.no_dashboard, Address.label(origin()))
-                    : getString(R.string.http_error, Address.label(origin()), code));
+                    : getString(R.string.page_http_error, Address.label(origin()), code));
         }
 
         @Override

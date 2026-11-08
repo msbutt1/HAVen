@@ -29,6 +29,20 @@ Publishing it on livops.uz through a tunnel: see `backend/DEPLOY_LIVOPS.md`.
 
 Each screen has its own link, so a refresh stays put: `#live`, `#overview`, `#calibrate`, `#station`, `#history`.
 
+## On a phone
+
+Below 640 px wide (a phone, or the Android app) the dashboard switches to a layout for people who may be new to phones:
+
+- a bottom menu with an icon over a word: Live, Summary, Calibrate, Touch test, History;
+- everything about 12 % larger (the root font size), buttons at least about 52 px tall, the touch test's answers as two
+  very large buttons;
+- the main action first: **Start recording** at the top of Live, **Calibrate now** on the grip card when it is needed;
+- plain labels (`.for-phone` spans next to the `.for-desktop` wording), and no **Disconnect** button to tap by mistake;
+- History as cards with dates, 20 at a time; the demo's practice controls folded behind one button.
+
+The technical details (tool bouts and frequency, raw calibration signal, trial log, notes on what each number is and
+is not) stay on the phone too, lower down. The desktop layout is unchanged.
+
 ## Overview
 
 KPI tiles (with the change against the previous period) and nine charts over the saved recordings and perception
