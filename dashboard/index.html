@@ -25,10 +25,12 @@
   <div id="error-banner" class="error-banner" role="alert" hidden></div>
 
   <nav class="tabs" role="tablist" aria-label="Screens">
-    <button role="tab" id="tab-live" data-view="live" aria-controls="view-live">Live</button>
-    <button role="tab" id="tab-calibrate" data-view="calibrate" aria-controls="view-calibrate">Calibrate</button>
-    <button role="tab" id="tab-station" data-view="station" aria-controls="view-station">Perception test</button>
-    <button role="tab" id="tab-history" data-view="history" aria-controls="view-history">History</button>
+    <!-- on a phone this is the bottom menu: an icon over a short word (css: .tab-ico, .for-phone) -->
+    <button role="tab" id="tab-live" data-view="live" aria-controls="view-live"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg><span>Live</span></button>
+    <button role="tab" id="tab-overview" data-view="overview" aria-controls="view-overview"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M6.5 17v-5"/><path d="M11.5 17V6"/><path d="M16.5 17v-8"/></svg><span class="for-desktop">Overview</span><span class="for-phone">Summary</span></button>
+    <button role="tab" id="tab-calibrate" data-view="calibrate" aria-controls="view-calibrate"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 14l3.5-3.5"/><path d="M3.5 18.5a9.5 9.5 0 1 1 17 0"/><circle cx="12" cy="14" r="1.2"/></svg><span>Calibrate</span></button>
+    <button role="tab" id="tab-station" data-view="station" aria-controls="view-station"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="4" width="8" height="16" rx="2"/><path d="M4.5 9v6"/><path d="M19.5 9v6"/></svg><span class="for-desktop">Perception test</span><span class="for-phone">Touch test</span></button>
+    <button role="tab" id="tab-history" data-view="history" aria-controls="view-history"><svg class="tab-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1L3.5 8.5"/><path d="M3.5 3.5v5h5"/><path d="M12 7.5V12l3 2"/></svg><span>History</span></button>
   </nav>
 
   <main>
@@ -37,27 +39,48 @@
       <p class="freshness" id="freshness" data-fresh="none">No data. Connect the sleeve.</p>
       <div class="readouts">
         <article class="readout" id="ro-activation">
-          <h2>Muscle activation</h2>
-          <p class="value"><span class="num" id="act-num">—</span><span class="unit">% of max squeeze</span></p>
+          <h2>Grip effort</h2>
+          <p class="value"><span class="num" id="act-num">—</span><span class="unit"><span class="for-desktop">% of your calibrated maximum squeeze</span><span class="for-phone">% of your strongest squeeze</span></span></p>
           <div class="meter" aria-hidden="true"><div class="meter-fill" id="act-fill"></div></div>
           <p class="note" id="act-note">Not calibrated. Run calibration to see activation.</p>
+          <button id="btn-go-cal" class="btn btn-primary btn-go" hidden>Calibrate now</button>
         </article>
         <article class="readout" id="ro-vibration">
           <h2>Wrist vibration</h2>
           <p class="value"><span class="num" id="vib-num">—</span><span class="unit">m/s²</span></p>
-          <p class="note">Estimate from a hobby motion sensor. Not a standards-grade measurement.</p>
+          <p class="note"><span class="for-desktop">Estimate from a hobby motion sensor. Not a standards-grade measurement.</span><span class="for-phone">How strongly the wrist is shaking. An estimate, not a certified measurement.</span></p>
         </article>
         <article class="readout experimental" id="ro-score">
           <h2>Exposure score <span class="tag tag-exp">Experimental</span></h2>
           <p class="value"><span class="num" id="score-rate">—</span><span class="unit" id="score-rate-unit">points / min</span></p>
           <p class="sub">This recording: <strong id="score-total">—</strong> <span id="score-total-unit">points</span></p>
-          <p class="note">Placeholder formula that weights vibration by grip. Not a validated dose.</p>
+          <p class="note"><span class="for-desktop">Placeholder formula that weights vibration by grip. Not a validated dose.</span><span class="for-phone">A test feature. It is not a safety limit.</span></p>
         </article>
       </div>
       <p class="quality" id="quality" hidden></p>
 
+      <div class="tool-row">
+        <article class="readout" id="ro-tool">
+          <h2>Tool use <span class="sub-label for-desktop">estimated from vibration</span></h2>
+          <p class="value"><span class="num num-word" id="tool-state">—</span></p>
+          <dl class="tool-facts">
+            <div><dt><span class="for-desktop">Tool time this session</span><span class="for-phone">Tool time this shift</span></dt><dd id="tool-time">—</dd></div>
+            <div><dt><span class="for-desktop">Bouts</span><span class="for-phone">Tool bouts</span></dt><dd id="tool-bouts">—</dd></div>
+            <div><dt><span class="for-desktop">Longest bout</span><span class="for-phone">Longest without a break</span></dt><dd id="tool-longest">—</dd></div>
+            <div><dt><span class="for-desktop">Dominant frequency</span><span class="for-phone">Tool frequency</span></dt><dd id="tool-hz">—</dd></div>
+          </dl>
+          <ul class="tool-warnings" id="tool-warnings" hidden></ul>
+          <p class="note" id="tool-note"><span class="for-desktop">Thresholds are provisional team choices, tuned on a phone motor, not regulatory limits.</span><span class="for-phone">Estimated from vibration. Warnings are team guidance, not legal limits.</span></p>
+          <div class="row"><button id="btn-new-shift" class="btn btn-small"><span class="for-desktop">New shift</span><span class="for-phone">Start a new shift</span></button><span class="hint" id="tool-hint"></span></div>
+        </article>
+        <article class="readout" id="ro-events">
+          <h2><span class="for-desktop">Events</span><span class="for-phone">Messages</span></h2>
+          <ol class="events" id="events"><li class="empty">Nothing yet.</li></ol>
+        </article>
+      </div>
+
       <div class="charts">
-        <figure class="chart"><figcaption><span class="swatch sw-act"></span>Muscle activation, last 30 s</figcaption><canvas id="chart-act"></canvas></figure>
+        <figure class="chart"><figcaption><span class="swatch sw-act"></span>Grip effort, last 30 s</figcaption><canvas id="chart-act"></canvas></figure>
         <figure class="chart"><figcaption><span class="swatch sw-vib"></span>Wrist vibration, last 30 s</figcaption><canvas id="chart-vib"></canvas></figure>
         <figure class="chart"><figcaption><span class="swatch sw-score"></span>Exposure score rate (experimental), last 30 s</figcaption><canvas id="chart-score"></canvas></figure>
       </div>
@@ -73,9 +96,9 @@
       <div class="cal-layout">
         <div>
           <ol class="cal-steps" id="cal-steps">
-            <li data-step="relax">Relax your forearm <span>3 s</span></li>
-            <li data-step="squeeze">Squeeze as hard as you can <span>3 s</span></li>
-            <li data-step="done">Saved</li>
+            <li data-step="relax">Relaxed <span>about 3.5 s</span></li>
+            <li data-step="squeeze">Maximum squeeze <span>about 3.5 s</span></li>
+            <li data-step="done">Calibrated</li>
           </ol>
           <div class="cal-stage">
             <p class="cal-prompt" id="cal-prompt">Put the sleeve on, rest your arm on the table, then start.</p>
@@ -83,7 +106,9 @@
             <div class="bar"><div class="bar-fill" id="cal-bar"></div></div>
           </div>
           <div class="row">
-            <button id="btn-calibrate" class="btn btn-primary">Start calibration</button>
+            <button id="btn-cal-relaxed" class="btn btn-primary">Start relaxed</button>
+            <button id="btn-cal-squeeze" class="btn btn-primary" hidden>Start squeeze</button>
+            <button id="btn-cal-cancel" class="btn" hidden>Cancel</button>
             <span class="hint" id="cal-hint"></span>
           </div>
         </div>
@@ -101,11 +126,11 @@
     <!-- STATION -->
     <section id="view-station" class="view" role="tabpanel" aria-labelledby="tab-station" hidden>
       <div id="st-idle" class="st-panel">
-        <p class="lead">Finds the lowest motor setting the person reports feeling at their fingertip.</p>
+        <p class="lead"><span class="for-desktop">Finds the lowest motor setting the person reports feeling at their fingertip.</span><span class="for-phone">Checks the softest buzz the person can feel. Rest a fingertip on the motor, then answer each time: felt it, or didn’t.</span></p>
         <fieldset class="modes">
           <legend>Test length</legend>
-          <label><input type="radio" name="st-mode" value="preview" checked> Short preview, 6 trials (about 30 s)</label>
-          <label><input type="radio" name="st-mode" value="full"> Full session, runs until 8 reversals</label>
+          <label><input type="radio" name="st-mode" value="preview" checked> <span class="for-desktop">Short preview, 6 trials (about 30 s)</span><span class="for-phone">Quick test, about 30 seconds</span></label>
+          <label><input type="radio" name="st-mode" value="full"> <span class="for-desktop">Full session, runs until 8 reversals</span><span class="for-phone">Full test, a few minutes</span></label>
         </fieldset>
         <div class="row">
           <button id="btn-st-start" class="btn btn-primary">Start test</button>
@@ -116,15 +141,15 @@
       <div id="st-running" class="st-panel" hidden>
         <div class="st-head">
           <span id="st-progress" class="st-progress">Trial 1</span>
-          <button id="btn-st-abort" class="btn btn-danger">Abort test</button>
+          <button id="btn-st-abort" class="btn btn-danger"><span class="for-desktop">Abort test</span><span class="for-phone">Stop test</span></button>
         </div>
         <p class="st-prompt" id="st-prompt">Keep your fingertip on the motor.</p>
         <div class="bar"><div class="bar-fill" id="st-window"></div></div>
         <div class="st-buttons">
-          <button id="btn-felt" class="btn btn-big" disabled>Felt it <kbd>F</kbd></button>
-          <button id="btn-notfelt" class="btn btn-big" disabled>Didn’t feel it <kbd>N</kbd></button>
+          <button id="btn-felt" class="btn btn-big" disabled><svg class="big-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 12.5l5 5 10-11"/></svg>Felt it <kbd>F</kbd></button>
+          <button id="btn-notfelt" class="btn btn-big" disabled><svg class="big-ico" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M6 6l12 12"/><path d="M18 6L6 18"/></svg>Didn’t feel it <kbd>N</kbd></button>
         </div>
-        <p class="note">No answer within the window is saved as a missing response, not as “didn’t feel it”.</p>
+        <p class="note"><span class="for-desktop">No answer within the window is saved as a missing response, not as “didn’t feel it”.</span><span class="for-phone">No answer in time is saved as “no answer”, not as “didn’t feel it”.</span></p>
       </div>
 
       <div id="st-complete" class="st-panel" hidden>
@@ -143,6 +168,57 @@
       <p class="note">Motor settings are drive levels sent to the motor, not measured vibration amplitudes.</p>
     </section>
 
+    <!-- OVERVIEW -->
+    <section id="view-overview" class="view" role="tabpanel" aria-labelledby="tab-overview" hidden>
+      <div class="ov-head">
+        <div>
+          <h2 class="section-title"><span class="for-desktop">Overview</span><span class="for-phone">Summary</span></h2>
+          <p class="note" id="ov-scope">From saved recordings and perception tests.</p>
+        </div>
+        <div class="ov-filters">
+          <label>Period
+            <select id="ov-period">
+              <option value="7">Last 7 days</option>
+              <option value="30" selected>Last 30 days</option>
+              <option value="0">All time</option>
+            </select>
+          </label>
+          <label>Data
+            <select id="ov-source">
+              <option value="all">All sources</option>
+              <option value="live">Live only</option>
+              <option value="replay">Replay only</option>
+              <option value="simulated">Simulated only</option>
+            </select>
+          </label>
+        </div>
+      </div>
+      <p class="ov-sim" id="ov-sim" hidden></p>
+
+      <h3 class="ov-section">Recordings</h3>
+      <div class="kpis" id="kpis"></div>
+
+      <h3 class="ov-section">Exposure over time</h3>
+      <div class="ov-grid">
+        <figure class="ov-card"><figcaption>Recordings per day</figcaption><div class="ov-plot"><canvas id="ov-per-day"></canvas></div></figure>
+        <figure class="ov-card"><figcaption>Grip effort per recording <span class="sub-label">mean and peak, % of calibration</span></figcaption><div class="ov-plot"><canvas id="ov-trend"></canvas></div></figure>
+        <figure class="ov-card"><figcaption>Highest exposure scores <span class="tag tag-exp">Experimental</span></figcaption><div class="ov-plot"><canvas id="ov-score"></canvas></div></figure>
+      </div>
+
+      <h3 class="ov-section">Tool use and the fingertip test</h3>
+      <div class="ov-grid">
+        <figure class="ov-card"><figcaption>Recording time with a tool <span class="sub-label">estimated from vibration</span></figcaption><div class="ov-plot ov-donut"><canvas id="ov-tool"></canvas><div class="ov-center" id="ov-tool-center"></div></div></figure>
+        <figure class="ov-card"><figcaption>Perception test answers <span class="sub-label">newest tests</span></figcaption><div class="ov-plot"><canvas id="ov-answers"></canvas></div></figure>
+        <figure class="ov-card"><figcaption>Grip effort vs peak vibration <span class="sub-label">each dot is a recording</span></figcaption><div class="ov-plot"><canvas id="ov-scatter"></canvas></div></figure>
+      </div>
+      <div class="ov-grid ov-grid-row">
+        <figure class="ov-card"><figcaption>Peak vibration per recording <span class="sub-label">m/s², unweighted</span></figcaption><div class="ov-plot"><canvas id="ov-vib"></canvas></div></figure>
+        <figure class="ov-card"><figcaption>Perception threshold per test <span class="sub-label">motor setting, higher means less sensitive</span></figcaption><div class="ov-plot"><canvas id="ov-threshold"></canvas></div></figure>
+        <figure class="ov-card"><figcaption>Where the data came from</figcaption><div class="ov-plot ov-donut"><canvas id="ov-sources"></canvas><div class="ov-center" id="ov-sources-center"></div></div></figure>
+      </div>
+      <p class="note">Measured vibration is unweighted (not ISO 5349). Grip effort is relative to each wearer’s calibration, not force. The exposure score is experimental and not a dose. No chart draws a safe or unsafe line: there are no validated limits behind these numbers.</p>
+    </section>
+
     <!-- HISTORY -->
     <section id="view-history" class="view" role="tabpanel" aria-labelledby="tab-history" hidden>
       <h2 class="section-title">Saved recordings and tests</h2>
@@ -151,6 +227,7 @@
         <thead><tr><th scope="col">Saved</th><th scope="col">What</th><th scope="col">Data source</th><th scope="col">Summary</th></tr></thead>
         <tbody id="hist-rows"></tbody>
       </table>
+      <button id="btn-hist-more" class="btn btn-more" hidden>Show older</button>
 
       <div class="sim-block">
         <div class="sim-head">
@@ -166,11 +243,14 @@
   </main>
 
   <aside id="mock-panel" class="mock-panel" hidden aria-label="Mock controls">
-    <h2>Mock controls</h2>
-    <button id="mk-squeeze" class="btn btn-small">Hold to squeeze <kbd>S</kbd></button>
-    <label class="toggle"><input type="checkbox" id="mk-vibe"> Tool running</label>
-    <button id="mk-drop" class="btn btn-small">Drop connection</button>
-    <button id="mk-error" class="btn btn-small">Inject sleeve error</button>
+    <h2 class="for-desktop">Mock controls</h2>
+    <button id="mk-toggle" class="mk-toggle for-phone" aria-expanded="false" aria-controls="mk-body">Practice controls</button>
+    <div class="mk-body" id="mk-body">
+      <button id="mk-squeeze" class="btn btn-small">Hold to squeeze <kbd>S</kbd></button>
+      <label class="toggle"><input type="checkbox" id="mk-vibe"> Tool running</label>
+      <button id="mk-drop" class="btn btn-small">Drop connection</button>
+      <button id="mk-error" class="btn btn-small">Inject sleeve error</button>
+    </div>
   </aside>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
@@ -181,6 +261,8 @@
   <script src="js/backend-station.js"></script>
   <script src="js/backend-adapter.js"></script>
   <script src="js/charts.js"></script>
+  <script src="vendor/chartjs/chart.umd.js"></script>
+  <script src="js/overview.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

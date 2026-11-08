@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The backend runs on a laptop on the same Wi-Fi, at an address known only when the app runs
+     (for example 192.168.1.23), over plain http: a LAN address has no certificate. So cleartext is allowed.
+     Run the backend with VG_BASIC_AUTH=user:password on any network you do not control. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="true">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

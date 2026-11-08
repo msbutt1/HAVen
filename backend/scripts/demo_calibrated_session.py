@@ -2,7 +2,7 @@
 
 SIMULATED device. Needs `vg-backend serve` running (default speed 1, demo scenario).
 
-    cd backend && uv run python scripts/demo_calibrated_session.py [--url http://127.0.0.1:8765]
+    cd backend && uv run python scripts/demo_calibrated_session.py [--url http://127.0.0.1:8000]
 
 The calibration is a device-time schedule inside one 30 s simulated run, so the script
 waits for a run to start, then follows the stream: it starts a session, sends the relaxed
@@ -79,7 +79,7 @@ async def drive(base: str) -> dict:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    ap.add_argument("--url", default="http://127.0.0.1:8765")
+    ap.add_argument("--url", default="http://127.0.0.1:8000")
     base = ap.parse_args().url.rstrip("/")
     health = call(base, "GET", "/api/health")
     say(f"Backend ok, runtimes: {health['runtimes']}")

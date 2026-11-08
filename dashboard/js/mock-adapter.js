@@ -27,6 +27,72 @@
   };
   const shortId = (p) => `${p}-${Date.now().toString(36).slice(-5)}`;
 
+  /**
+   * Made-up history for the in-browser demo: about 60 days of recordings on workdays and a weekly perception
+   * test, so the Overview and History screens have something to show. Deterministic (seeded), dated relative
+   * to `nowMs`, every record labelled provenance "simulated" and sample: true. Not data from a person.
+   */
+  VG.sampleHistory = function sampleHistory(nowMs, days = 60) {
+    let seed = 20261108;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const between = (a, b) => a + (b - a) * rnd();
+    const sessions = [];
+    const tests = [];
+    const day0 = new Date(nowMs);
+    day0.setHours(0, 0, 0, 0);
+    for (let d = days; d >= 1; d--) {
+      const day = new Date(day0.getTime() - d * 86400000);
+      const dow = day.getDay();
+      if (dow === 0 || dow === 6) continue;
+      const trend = (days - d) / days;                 // later days run a little busier, for visible deltas
+      const n = rnd() < 0.12 ? 0 : 1 + Math.floor(rnd() * (1.6 + trend * 1.4));
+      for (let i = 0; i < n; i++) {
+        const start = day.getTime() + (8 + i * 2.6 + between(0, 1.6)) * 3600000;
+        const dur = Math.round(between(18, 70) * 60);
+        const calibrated = rnd() > 0.1;
+        const toolShare = between(0.12, 0.5 + trend * 0.15);
+        const vib = between(2.2, 4.2) + toolShare * between(4, 8);
+        const grip = calibrated ? between(22, 48) + toolShare * 25 : null;
+        const peakGrip = grip == null ? null : Math.min(100, grip + between(25, 60));
+        const score = calibrated ? vib * toolShare * (1 + grip / 100) * (dur / 60) * 1.4 : null;
+        sessions.push({
+          type: 'session_saved', session_id: `sample-ses-${sessions.length + 1}`, device_id: 'sleeve-simulated',
+          provenance: 'simulated', sample: true,
+          started_at: new Date(start).toISOString(), ended_at: new Date(start + dur * 1000).toISOString(), duration_s: dur,
+          ended_reason: rnd() < 0.05 ? 'Lost connection to the sleeve' : 'stopped', calibrated,
+          score_total: score == null ? null : round(score, 1), score_units: 'au',
+          peak_vib_ahv_est: round(vib, 2), mean_activation_pct: grip == null ? null : round(grip, 1),
+          peak_activation_pct: peakGrip == null ? null : round(peakGrip, 1),
+          tool_time_s: round(dur * toolShare, 0), tool_bouts: Math.max(1, Math.round(dur * toolShare / 240)),
+        });
+      }
+      if (dow === 3 || (dow === 1 && rnd() < 0.4)) {        // a test most Wednesdays, sometimes a Monday too
+        const start = day.getTime() + between(13, 16) * 3600000;
+        const threshold = Math.round(58 + trend * 18 + between(-6, 6));
+        const nTrials = 18 + Math.floor(rnd() * 10);
+        const trials = [];
+        for (let k = 0; k < nTrials; k++) {
+          const isCatch = rnd() < 0.15;
+          const setting = isCatch ? 0 : Math.round(threshold + between(-25, 25));
+          const pFelt = isCatch ? 0.08 : 1 / (1 + Math.exp(-(setting - threshold) / 6));
+          const response = rnd() < 0.05 ? 'missing' : rnd() < pFelt ? 'felt' : 'not_felt';
+          trials.push({ type: 'station_trial_result', trial_id: `sample-st-${tests.length + 1}-t${k + 1}`, index: k + 1,
+            stimulus_setting: setting, is_catch: isCatch, response, rt_ms: response === 'missing' ? null : Math.round(between(320, 900)) });
+        }
+        tests.push({
+          type: 'station_complete', test_id: `sample-st-${tests.length + 1}`, device_id: 'station-simulated',
+          provenance: 'simulated', sample: true, mode: 'full',
+          started_at: new Date(start).toISOString(), completed_at: new Date(start + nTrials * 6000).toISOString(),
+          threshold_setting: threshold, catch_trials: trials.filter((t) => t.is_catch).length,
+          catch_trials_felt: trials.filter((t) => t.is_catch && t.response === 'felt').length,
+          missing_responses: trials.filter((t) => t.response === 'missing').length,
+          measured_amplitude_available: false, trials,
+        });
+      }
+    }
+    return { sessions, tests };
+  };
+
   class MockAdapter extends VG.Emitter {
     constructor() {
       super();
@@ -45,6 +111,8 @@
       this.timer = null;
       this.dropped = false;
       this.cmdSeq = 0;
+      this.relaxedLevel = null;
+      this.tool = { state: 'unknown', onFor: 0, offFor: 0, session: 0, bouts: 0, bout: 0, longest: 0, observed: 0, sinceEmit: 0 };
     }
 
     // ---- connection ----
@@ -56,6 +124,11 @@
       this.emit('connection', { type: 'connection', connected: true });
       this._setState('sleeve', 'ready');
       this._setState('station', 'ready');
+      // made-up history for the Overview and History screens, once per page (labelled simulated and sample)
+      if (!this._historySent) {
+        this._historySent = true;
+        this.emit('history', { type: 'history', ...VG.sampleHistory(Date.now()) });
+      }
     }
 
     disconnect(reason = 'Disconnected by user') {
@@ -106,10 +179,27 @@
       const s = this.states.sleeve;
       const st = this.states.station;
       switch (cmd.name) {
-        case 'calibrate':
+        case 'calibrate_relaxed':
           if (s !== 'ready') return this._reply(cmd, 'error', { error: `The sleeve is ${s}. It must be ready to calibrate.` });
-          this._startCal();
+          this.relaxedLevel = null;
+          this._startCal('relax');
           return this._reply(cmd, 'accepted');
+        case 'calibrate_squeeze':
+          if (this.relaxedLevel == null) return this._reply(cmd, 'error', { error: 'Capture the relaxed level first.' });
+          this._startCal('squeeze');
+          return this._reply(cmd, 'accepted');
+        case 'calibrate_cancel':
+          this.calRun = null;
+          this.relaxedLevel = null;
+          this._setState('sleeve', 'ready');
+          this.emit('calibration', { type: 'calibration', device_id: this.ids.sleeve, phase: 'cancelled' });
+          return this._reply(cmd, 'completed');
+        case 'new_shift': {
+          const before = { session_tool_s: Math.round(this.tool.session * 100) / 100, bouts: this.tool.bouts };
+          Object.assign(this.tool, { session: 0, bouts: 0, longest: 0, bout: 0 });
+          this.emit('event', { event: 'tool_session_reset', stream: 'imu', detail: before, at: new Date().toISOString() });
+          return this._reply(cmd, 'completed', { previous: before });
+        }
         case 'start_session':
           if (s !== 'ready') return this._reply(cmd, 'error', { error: `The sleeve is ${s}. It must be ready to record.` });
           this.session = {
@@ -120,6 +210,8 @@
             peakVib: 0,
             actSum: 0,
             actN: 0,
+            actPeak: null,
+            toolS: 0,
             calibrated: !!this.cal,
           };
           this._setState('sleeve', 'recording');
@@ -163,14 +255,15 @@
       const vib = this.vibrating ? Math.max(0, 4.1 + gauss() * 0.5) : Math.max(0, 0.06 + gauss() * 0.02);
 
       let act = null;
-      if (this.cal) act = clamp(((env - this.cal.rest) / (this.cal.max - this.cal.rest)) * 100, 0, 100);
+      if (this.cal) act = Math.max(0, ((env - this.cal.rest) / (this.cal.max - this.cal.rest)) * 100);   // may exceed 100
       // PLACEHOLDER experimental formula: vibration weighted up by grip. Not validated.
       const scoreRate = act == null ? null : vib * (1 + act / 100);
 
       if (this.session) {
         if (scoreRate != null) this.session.total += (scoreRate * dt) / 60;
         this.session.peakVib = Math.max(this.session.peakVib, vib);
-        if (act != null) { this.session.actSum += act; this.session.actN++; }
+        // saved readings use the bar value (capped at 100 %), as the backend's counters.readings do
+        if (act != null) { const a = Math.min(100, act); this.session.actSum += a; this.session.actN++; this.session.actPeak = Math.max(this.session.actPeak || 0, a); }
       }
       if (this.calRun) this._calTick(env);
 
@@ -187,19 +280,47 @@
         values: {
           emg_env: round(env, 1),
           activation_pct: act == null ? null : round(act, 1),
+          activation_bar_pct: act == null ? null : round(clamp(act, 0, 100), 1),
           vib_ahv_est: round(vib, 2),
           score_rate: scoreRate == null ? null : round(scoreRate, 2),
           score_total: this.session && this.session.calibrated ? round(this.session.total, 2) : null,
         },
         units: { emg_env: 'a.u.', activation_pct: '%MVC', vib_ahv_est: 'm/s²', score_rate: 'pts/min', score_total: 'pts' },
-        quality: { emg_vibration_artifact: artifact, imu_saturated: false, calibrated: !!this.cal },
+        quality: { emg_vibration_artifact: artifact, imu_saturated: false, calibrated: !!this.cal,
+                   above_max: act != null && act > 100, below_rest: false, degraded: false },
       });
+      this._toolTick();
     }
 
-    // ---- calibration ----
-    _startCal() {
+    // ---- tool use (mock: "Tool running" means a tool is vibrating) ----
+    _toolTick() {
+      const t = this.tool;
+      const nowMs = performance.now();
+      const dt = t.lastAt ? Math.min(1, (nowMs - t.lastAt) / 1000) : 0;   // real elapsed time: timers get throttled
+      t.lastAt = nowMs;
+      t.observed += dt;
+      if (this.vibrating) { t.onFor += dt; t.offFor = 0; } else { t.offFor += dt; t.onFor = 0; }
+      if (t.state !== 'tool' && t.onFor >= 2) { t.state = 'tool'; t.bouts += 1; t.bout = 0; }
+      else if (t.state === 'tool' && t.offFor >= 1.5) { t.state = 'no_tool'; }
+      else if (t.state === 'unknown' && t.observed > 1) t.state = 'no_tool';
+      if (t.state === 'tool') { t.session += dt; t.bout += dt; t.longest = Math.max(t.longest, t.bout); if (this.session) this.session.toolS += dt; }
+      if ((t.sinceEmit += dt) >= 0.5) {
+        t.sinceEmit = 0;
+        const warnings = [];
+        if (t.state === 'tool' && t.bout >= 60) warnings.push('continuous_tool_use_long');
+        this.emit('tool', {
+          type: 'tool_use', state: t.state, status: 'ok', saved: false,
+          tool_band_rms_ms2: this.vibrating ? 4.1 : 0.05, dominant_hz: this.vibrating ? 120 : null,
+          bout_s: t.state === 'tool' ? t.bout : 0, bouts: t.bouts, longest_bout_s: t.longest,
+          session_tool_s: t.session, session_observed_s: t.observed, warnings,
+        });
+      }
+    }
+
+    // ---- calibration (two steps, like the real processor) ----
+    _startCal(phase) {
       this._setState('sleeve', 'calibrating');
-      this.calRun = { phase: 'relax', phaseStart: performance.now(), relax: [], squeeze: [] };
+      this.calRun = { phase, phaseStart: performance.now(), relax: [], squeeze: [] };
       this._emitCal();
     }
 
@@ -209,12 +330,14 @@
       r[r.phase].push(env);
       if (now - r.phaseStart >= CAL_PHASE_MS) {
         if (r.phase === 'relax') {
-          r.phase = 'squeeze';
-          r.phaseStart = now;
+          this.relaxedLevel = mean(r.relax.slice(Math.floor(r.relax.length / 3)));
+          this.calRun = null;
+          this._setState('sleeve', 'ready');
+          this.emit('calibration', { type: 'calibration', device_id: this.ids.sleeve, phase: 'relaxed_captured' });
         } else {
           this._finishCal();
-          return;
         }
+        return;
       }
       this._emitCal();
     }
@@ -233,13 +356,14 @@
     _finishCal() {
       const r = this.calRun;
       this.calRun = null;
-      const rest = mean(r.relax.slice(Math.floor(r.relax.length / 3)));
+      const rest = this.relaxedLevel;
+      this.relaxedLevel = null;
       const sorted = r.squeeze.slice().sort((a, b) => a - b);
       const max = sorted[Math.floor(sorted.length * 0.9)];
       if (!(max - rest > 100)) {
         this.emit('calibration', {
           type: 'calibration', device_id: this.ids.sleeve, phase: 'failed',
-          reason: 'The squeeze was too weak to tell apart from rest. Check the electrodes and try again.',
+          reason: 'The squeeze wasn’t clearly stronger than rest. Squeeze harder, or check the pads, and try again.',
         });
       } else {
         this.cal = { rest, max, at: new Date().toISOString() };
@@ -268,6 +392,8 @@
         score_total: s.calibrated ? round(s.total, 2) : null,
         peak_vib_ahv_est: round(s.peakVib, 2),
         mean_activation_pct: s.actN ? round(s.actSum / s.actN, 1) : null,
+        peak_activation_pct: s.actPeak == null ? null : round(s.actPeak, 1),
+        tool_time_s: round(s.toolS, 1),
       };
       this.emit('session', rec);
       return rec;

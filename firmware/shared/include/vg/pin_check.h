@@ -24,6 +24,9 @@ typedef struct {
 /* Writes up to max_issues issues; returns the total number found. */
 int vg_pin_check(const vg_hw_config_t *cfg, vg_issue_t *issues, int max_issues);
 
+/* Total number of errors, counted without storing issues (stack-safe). */
+int vg_pin_check_errors(const vg_hw_config_t *cfg);
+
 /* Number of VG_SEV_ERROR entries among the first n issues. */
 int vg_issue_error_count(const vg_issue_t *issues, int n);
 
@@ -31,7 +34,8 @@ int vg_issue_error_count(const vg_issue_t *issues, int n);
  * confirmed, on the station role, and the configuration has zero errors. */
 bool vg_motor_output_permitted(const vg_hw_config_t *cfg);
 
-/* Human-readable configuration report, one line per call to emit(). */
+/* Human-readable configuration report, one line per call to emit().
+ * Uses a static buffer: call from one task at a time. */
 typedef void (*vg_line_sink_t)(void *ctx, const char *line);
 void vg_config_report(const vg_hw_config_t *cfg, vg_line_sink_t emit, void *ctx);
 

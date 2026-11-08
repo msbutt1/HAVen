@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
 # Build one role for one board directory, in an isolated build dir.
-#   tools/build.sh <wearable|station> <board> [idf.py args...]
+#   tools/build.sh <wearable|station|diag> <board> [idf.py args...]
 # Requires ESP-IDF v6.1 exported: . ~/esp/esp-idf-v6.1/export.sh
 set -euo pipefail
 role=${1:?role: wearable|station}; board=${2:?board: directory under firmware/boards}; shift 2
 here=$(cd "$(dirname "$0")/.." && pwd)
-[[ $role == wearable || $role == station ]] || { echo "bad role $role" >&2; exit 2; }
+[[ $role == wearable || $role == station || $role == diag ]] || { echo "bad role $role" >&2; exit 2; }
 [[ -f $here/boards/$board/board.c ]] || { echo "no board $board" >&2; exit 2; }
 [[ -n ${IDF_PATH:-} ]] || { echo "ESP-IDF not exported: . ~/esp/esp-idf-v6.1/export.sh" >&2; exit 2; }
 want=$(cat "$here/IDF_VERSION")

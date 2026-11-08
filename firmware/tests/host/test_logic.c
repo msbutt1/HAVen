@@ -222,6 +222,38 @@ static void test_motor_gating(void)
     CHECK(!vg_motor_output_permitted(&c));
 }
 
+static void test_drv2605l_motor_rules(void)
+{
+    vg_hw_config_t c = base(VG_ROLE_STATION);
+    c.imu = (vg_i2c_imu_cfg_t){.enabled = false, .sda_gpio = 21, .scl_gpio = 22, .address = 0x68};
+    c.motor = (vg_motor_cfg_t){.enabled = true, .driver = VG_MOTOR_DRIVER_DRV2605L,
+                               .gpio = VG_PIN_NONE, .i2c_address = 0x5A, .od_clamp = 139,
+                               .actuator = VG_ACTUATOR_ERM_BRUSHED, .driver_confirmed = true,
+                               .max_pulse_ms = 1000};
+    CHECK(vg_motor_output_permitted(&c));
+    CHECK(!has(check(&c), "pin_unset", VG_SEV_ERROR));          /* no GPIO needed */
+
+    vg_hw_config_t d = c;
+    d.imu.sda_gpio = VG_PIN_NONE;
+    CHECK(!vg_motor_output_permitted(&d) && has(check(&d), "motor_no_bus", VG_SEV_ERROR));
+    d = c;
+    d.motor.od_clamp = VG_DRV_OD_CLAMP_MAX + 1;                 /* > 3.8 V rated max */
+    CHECK(!vg_motor_output_permitted(&d) && has(check(&d), "drive_voltage", VG_SEV_ERROR));
+    d = c;
+    d.motor.i2c_address = 0x5B;
+    CHECK(!vg_motor_output_permitted(&d));
+    d = c;
+    d.imu.enabled = true;
+    d.imu.address = 0x5A;
+    CHECK(!vg_motor_output_permitted(&d) && has(check(&d), "i2c_address_conflict", VG_SEV_ERROR));
+    d = c;
+    d.motor.actuator = VG_ACTUATOR_LRA;                          /* ERM-only configuration */
+    CHECK(!vg_motor_output_permitted(&d));
+    d = c;
+    d.motor.max_pulse_ms = VG_MOTOR_MAX_PULSE_CEILING_MS + 1;
+    CHECK(!vg_motor_output_permitted(&d));
+}
+
 static void test_fake_sources_deterministic_and_bounded(void)
 {
     vg_fake_emg_t a, b;
@@ -270,6 +302,7 @@ int main(void)
     RUN(test_conflicts_and_unset);
     RUN(test_unknown_chip);
     RUN(test_motor_gating);
+    RUN(test_drv2605l_motor_rules);
     RUN(test_fake_sources_deterministic_and_bounded);
     RUN(test_report_runs);
     return DONE();

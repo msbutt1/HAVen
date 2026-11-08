@@ -317,7 +317,7 @@ def test_disconnect_before_any_data_shows_disconnected_without_fake_values(backe
 
     assert wait_until(lambda: rt.host_state == "disconnected")
     snap = rt.snapshot()
-    assert snap["latest"] == {"emg": None, "imu": None, "score": None}
+    assert snap["latest"] == {"emg": None, "imu": None, "score": None, "tool_use": None}
     assert snap["last_rx_age_s"] is None
     assert [p["connection"] for _, p in connection_msgs(published, "wearable")][-1] == "disconnected"
 

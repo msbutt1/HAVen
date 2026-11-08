@@ -684,6 +684,7 @@ def test_session_ended_by_end_of_input_is_completed_and_survives_restart(tmp_pat
 # ----------------------------------------------------------------------------- (5) offline
 
 
+LOCAL_SOCKET_FILES = {"wifi.py", "fake_wifi.py", "bridge.py", "live_cli.py", "web_ui.py", "appdiscovery.py"}
 NETWORK_MODULES = {"requests", "httpx", "urllib.request", "urllib3", "http.client", "aiohttp", "socket",
                    "websockets", "smtplib", "ftplib", "boto3", "botocore", "google.cloud", "firebase_admin",
                    "supabase", "openai", "anthropic"}
@@ -713,6 +714,14 @@ def test_source_has_no_network_client_imports_or_remote_urls(root):
                 r"https?://(?!127\.0\.0\.1|localhost)[a-z0-9]", f.read_text())
             continue
         bad = {m for m in _imports(f) if any(m == n or m.startswith(n + ".") for n in NETWORK_MODULES)}
+        if f.name in LOCAL_SOCKET_FILES and bad <= {"socket"}:
+            # The Wi-Fi wearable's link (firmware/INTEGRATION_FOR_ABDULJABBAR.md): the laptop LISTENS for the wearable
+            # and answers its discovery broadcast; appdiscovery.py answers the phone app's. These may use sockets, but
+            # only loopback, any-interface or broadcast addresses appear in them: no remote host is ever contacted.
+            text = f.read_text()
+            hosts = set(re.findall(r"[\"'](\d{1,3}(?:\.\d{1,3}){3})[\"']", text))
+            assert hosts <= {"127.0.0.1", "0.0.0.0", "255.255.255.255"}, f"{f} names hosts {sorted(hosts)}"
+            continue
         assert not bad, f"{f} imports network clients: {sorted(bad)}"
         for url in re.findall(r"https?://[^\s\"'<>)]+", f.read_text()):
             host = re.sub(r"^https?://", "", url).split("/")[0].split(":")[0]

@@ -58,3 +58,17 @@ def test_landing_keeps_the_scientific_framing():
         assert must in text, must
     for banned in ("clinically proven", "guarantee", "prevents injury", "diagnoses", "early detection of", "certified"):
         assert banned not in text, banned
+
+
+def test_the_built_site_carries_every_file_the_dashboard_loads():
+    # build-site.sh copies the dashboard folder by folder; a new folder (e.g. vendor/ for Chart.js) must be listed there
+    dash = LANDING.parent / "dashboard"
+    s = Scan()
+    s.feed((dash / "index.html").read_text())
+    local = [v for tag, k, v in s.refs if tag in ("script", "link") and not v.startswith(("http", "#", "data:"))]
+    assert local, "the dashboard page loads no local files?"
+    script = (LANDING / "build-site.sh").read_text()
+    for ref in local:
+        assert (dash / ref).is_file(), f"missing: dashboard/{ref}"
+        top = ref.split("/")[0]
+        assert f'"$root/dashboard/{top}"' in script or top == "index.html", f"build-site.sh does not copy dashboard/{top}"

@@ -372,3 +372,59 @@ age, freshness limit), the `formula` with every coefficient, `accumulation`,
   it lowers coverage.
 - Every behaviour here was verified on synthetic data. Real timing jitter, noise, and
   stale/disconnect detection depend on hardware that is not confirmed yet.
+
+## Tool use vs normal arm use (`tool_use` records)
+
+One `tool_use` record follows every IMU `stream_features` record (about 20 per second
+from the live wearable), plus one at the end of input. Implementation:
+`processing/tool_use.py`. Configuration: `ToolUseConfig` in `processing/config.py`.
+
+**How it decides.** The accelerometer (in m/s², so a cited conversion is required) is
+split into two bands:
+- the **tool band**, a 4th-order high-pass at 20 Hz: power tools vibrate continuously
+  at tens to hundreds of Hz;
+- the **arm-motion band**, 0.5–10 Hz: reaching, swinging, lifting, shaking.
+
+| Step | Rule (defaults) |
+|---|---|
+| Candidate | Tool-band RMS ≥ 1.0 m/s² **and** ≥ 0.5 × arm-band RMS (0.5 s window) |
+| → `tool` | Candidates sustained for **2 s**. Knocks and taps never qualify |
+| → `no_tool` | Under 30 % of the last **3 s** had tool vibration (≥ 0.6 m/s², same ratio). Short pauses inside a job don't split it |
+| `unknown` | No valid data (warming up, gap, no conversion). This time is counted as neither tool nor no-tool |
+
+**Time and warnings.** The session survives gaps and device reboots;
+`Processor.tool_use_reset_session()` starts a new one (bridge command `newshift`).
+- `session_tool_s` counts only time with tool vibration, plus the 2 s that confirmed
+  each bout.
+- `bout_s` is the length of the current job, including short pauses.
+- `bouts` and `longest_bout_s` summarise the session.
+- `warnings`:
+  - `continuous_tool_use_long`: the current bout passed 20 min;
+  - `session_tool_time_approaching`: the session total reached 80 % of 2 h;
+  - `session_tool_time_high`: the session total passed 2 h.
+
+**These thresholds are provisional team settings, not regulatory exposure limits, and
+not a vibration dose.** Tune them on the real tools and mounting.
+
+Example (from `vg-sim --scenario tool_vs_arm`, simulated):
+
+```json
+{"type":"tool_use","state":"tool","status":"ok","candidate":true,
+ "tool_band_rms_ms2":6.937,"motion_band_rms_ms2":2.217,"dominant_hz":120.0,
+ "grip_activation":null,"gripping":null,"bout_s":2.05,"bouts":1,"longest_bout_s":2.05,
+ "session_tool_s":2.05,"session_observed_s":20.05,"warnings":[],"thresholds":{...}}
+```
+
+`grip_activation` and `gripping` report the latest normalised EMG activation (when it
+is calibrated) as supporting evidence. They are not required for detection.
+
+**Verified on simulated data** (`tests/test_tool_use.py`, 11 tests):
+- **The `tool_vs_arm` scenario** (60 s: arm swinging and knocks, then 120 Hz and 90 Hz
+  tools): 2 bouts, 27.7 s of tool time against 27 s true, dominant 120 and 90 Hz found,
+  and no false "tool" during arm use.
+- **Rejected as arm use:** knocks at rest, and vigorous 8 Hz and 10 Hz shaking.
+- **Bouts:** pauses shorter than 3 s keep one bout; longer pauses split it.
+- **Robustness:** without a unit conversion the detector reports `unavailable`; gaps and
+  reboots don't add tool time.
+
+**Hardware validation with real tools is pending.**

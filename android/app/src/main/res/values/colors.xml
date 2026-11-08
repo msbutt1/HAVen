@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The dashboard's livops tokens (dashboard/css/style.css), converted from OKLCH. -->
+<resources>
+    <color name="background">#FFFFFF</color>
+    <color name="card">#FAFBFC</color>
+    <color name="foreground">#0B0F19</color>
+    <color name="muted">#666D7C</color>
+    <color name="border">#DFE2E8</color>
+    <color name="primary">#006AE6</color>
+    <color name="primary_pressed">#0057BD</color>
+    <color name="on_primary">#FDFDFE</color>
+    <color name="code_bg">#F1F3F6</color>
+    <color name="sim">#A041B5</color>
+    <color name="ic_launcher_background">#006AE6</color>
+</resources>

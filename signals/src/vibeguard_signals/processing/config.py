@@ -172,6 +172,54 @@ class VibrationConfig:
             raise ValueError("vibration.nyquist_headroom must be in (0, 1]")
 
 
+@dataclass(frozen=True)
+class ToolUseConfig:
+    """Tool-use detection from accelerometer band energy (see tool_use.py).
+
+    Power tools vibrate continuously at tens to hundreds of Hz; normal arm use
+    is mostly below ~10 Hz and brief knocks last well under a second. The
+    thresholds below are PROVISIONAL team choices, to be tuned on the real
+    tools and mounting. They are not regulatory exposure values.
+    """
+    tool_band_low_hz: float = 20.0     # 4th-order high-pass: tool vibration band
+    motion_band_hz: tuple[float, float] = (0.5, 10.0)   # arm movement band
+    order: int = 4
+    window_s: float = 0.5
+    on_threshold_ms2: float = 1.0      # tool-band RMS to start counting as "tool"
+    off_threshold_ms2: float = 0.6     # tool-band RMS below which use has paused
+    tool_to_motion_min: float = 0.5    # tool-band RMS must be >= this x motion-band RMS
+    on_hold_s: float = 2.0             # sustained this long before "tool" (rejects knocks)
+    off_hold_s: float = 3.0            # quiet this long before "no_tool" (bridges short pauses)
+    max_step_s: float = 0.5            # longer update gaps count as unobserved time
+    # Warnings (team-chosen defaults, not regulatory limits):
+    continuous_warn_s: float = 20 * 60     # one bout of tool use longer than this
+    session_warn_s: float = 2 * 3600       # total tool time this session
+    session_notice_fraction: float = 0.8   # early notice at this fraction of session_warn_s
+    grip_activation_min: float = 0.10      # normalised activation counted as "gripping"
+
+    def check(self, rate_hz: float) -> str | None:
+        nyq = rate_hz / 2
+        if not 0 < self.tool_band_low_hz < 0.9 * nyq:
+            return f"tool_band_low_hz {self.tool_band_low_hz:g} must be below 0.9 x Nyquist ({0.9 * nyq:g} Hz)"
+        lo, hi = self.motion_band_hz
+        if not 0 < lo < hi < 0.9 * nyq:
+            return f"motion_band_hz {self.motion_band_hz} invalid at {rate_hz:g} Hz"
+        return None
+
+    def validate(self) -> None:
+        if not (1 <= self.order <= 8 and 0.1 <= self.window_s <= 5):
+            raise ValueError("tool_use: order 1..8 and window_s 0.1..5 s required")
+        if not (0 < self.off_threshold_ms2 <= self.on_threshold_ms2):
+            raise ValueError("tool_use: 0 < off_threshold_ms2 <= on_threshold_ms2 required")
+        if not (self.on_hold_s >= 0 and self.off_hold_s >= 0 and self.max_step_s > 0):
+            raise ValueError("tool_use: hold times >= 0 and max_step_s > 0 required")
+        if not (self.continuous_warn_s > 0 and self.session_warn_s > 0
+                and 0 < self.session_notice_fraction < 1):
+            raise ValueError("tool_use: warning limits must be > 0, notice fraction in (0, 1)")
+        if self.motion_band_hz[1] >= self.tool_band_low_hz:
+            raise ValueError("tool_use: motion band must lie below the tool band")
+
+
 ACTIVATION_MODES = ("required", "ignored")
 
 
@@ -208,6 +256,7 @@ class ProcessingConfig:
     calibration: CalibrationConfig = field(default_factory=CalibrationConfig)
     vibration: VibrationConfig = field(default_factory=VibrationConfig)
     score: ScoreConfig = field(default_factory=ScoreConfig)
+    tool_use: ToolUseConfig = field(default_factory=ToolUseConfig)
     # A stream with no new data for this long is stale; its features become unavailable.
     stale_after_s: float = 0.25
     # "device": staleness judged against the newest device time seen on any stream
@@ -226,6 +275,7 @@ class ProcessingConfig:
         self.calibration.validate()
         self.vibration.validate()
         self.score.validate()
+        self.tool_use.validate()
         if self.clock not in CLOCKS:
             raise ValueError(f"clock must be one of {CLOCKS}")
         if not self.stale_after_s > 0:

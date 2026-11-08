@@ -14,10 +14,17 @@ labelled experimental.
 
 ```bash
 cd backend && uv run vg-backend serve --backup backup/demo-session --loop   # the recorded demo, labelled replay
+# or, with the Wi-Fi wearable (or `uv run vg-backend fake-wifi` to simulate one):
+cd backend && uv run vg-backend serve --device wifi
 open ios/VibeGuard.xcodeproj                                                # then Run (iPhone simulator)
 ```
 
-The default backend address is `http://localhost:8765`, which is the Mac when running in the Simulator.
+The default backend address is `http://localhost:8000`, which is the Mac when running in the Simulator. (Port 8765
+belongs to the wearable's Wi-Fi telemetry; the web API is on 8000.)
+
+The Live screen shows grip effort (% of the wearer's calibrated maximum squeeze, not force), wrist vibration, the
+experimental score, **tool use** estimated from vibration (with **New shift**) and the latest **events** in plain words.
+Calibrate follows the guide's two steps: Start relaxed, then Start squeeze; a failure says why and goes back to step 1.
 
 From the command line:
 
@@ -33,7 +40,7 @@ xcodebuild -project VibeGuard.xcodeproj -scheme VibeGuard -destination 'platform
    `VG_BASIC_AUTH='demo:a-long-password' uv run vg-backend serve --host 0.0.0.0 --backup backup/demo-session --loop`
 2. In Xcode, pick your team under Signing & Capabilities (the bundle id is `dev.vibeguard.ios`; change it if Xcode
    asks) and run on the phone.
-3. In the app: Settings, set the address to the Mac's address on the same Wi-Fi (for example `http://192.168.1.20:8765`)
+3. In the app: Settings, set the address to the Mac's address on the same Wi-Fi (for example `http://192.168.1.20:8000`)
    and the username and password. iOS asks for local-network permission the first time.
 
 Plain http is allowed only on the local network (`NSAllowsLocalNetworking`); anything on the internet needs https.

@@ -1,3 +1,3 @@
 idf_component_register(SRCS "main.c"
-                       PRIV_REQUIRES shared boards target esp_timer freertos log
+                       PRIV_REQUIRES shared boards target esp_timer freertos log esp_adc
                                      esp_hw_support bootloader_support)
