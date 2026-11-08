@@ -51,6 +51,11 @@ def build_parser() -> argparse.ArgumentParser:
     s.add_argument("--allow-host", action="append", default=[],
                    help="extra Host header value to accept (when listening beyond localhost)")
     s.add_argument("--http-port", type=int, default=8765)
+    s.add_argument("--demo-fleet", type=int, default=0, metavar="N",
+                   help="add N SIMULATED workers to the map (replayed sleeves, wandering positions; all labelled "
+                        "simulated/replay). Needs --backup, or backup/demo-session next to backend/")
+    s.add_argument("--demo-center", default=None, metavar="LAT,LON",
+                   help="with --demo-fleet: where the simulated workers wander (default: an arbitrary demo spot)")
     s.add_argument("--dashboard", default=None, metavar="DIR|none",
                    help="serve the dashboard from DIR at /dashboard/ (default: ../dashboard next to backend/, or "
                         "$VG_DASHBOARD_DIR; 'none' turns it off)")
@@ -446,6 +451,20 @@ def main(argv: list[str] | None = None) -> int:
               file=sys.stderr)
     elif adapter is not None:
         backend.add_runtime("wearable", adapter, config, meta=runtime_meta)
+
+    if args.demo_fleet:
+        from .fleet import DEFAULT_CENTER, start_demo_fleet
+        src = args.backup or Path(__file__).resolve().parents[2] / "backup" / "demo-session"
+        try:
+            center = DEFAULT_CENTER if not args.demo_center else tuple(float(x) for x in args.demo_center.split(","))
+            if len(center) != 2:
+                raise ValueError("--demo-center must be LAT,LON")
+            start_demo_fleet(backend, args.demo_fleet, src, center)
+        except (ValueError, BackupError) as exc:
+            print(f"vg-backend: --demo-fleet: {exc}", file=sys.stderr)
+            backend.shutdown()
+            return 2
+        print(f"vg-backend: demo fleet of {args.demo_fleet} SIMULATED workers on the map", file=sys.stderr)
 
     wildcard = args.host in ("0.0.0.0", "::", "")
 

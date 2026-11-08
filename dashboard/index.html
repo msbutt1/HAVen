@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+  <link rel="stylesheet" href="vendor/leaflet/leaflet.css">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
@@ -26,6 +27,7 @@
     <button role="tab" id="tab-live" data-view="live" aria-controls="view-live">Live</button>
     <button role="tab" id="tab-calibrate" data-view="calibrate" aria-controls="view-calibrate">Calibrate</button>
     <button role="tab" id="tab-station" data-view="station" aria-controls="view-station">Perception test</button>
+    <button role="tab" id="tab-map" data-view="map" aria-controls="view-map">Map</button>
     <button role="tab" id="tab-history" data-view="history" aria-controls="view-history">History</button>
   </nav>
 
@@ -141,6 +143,25 @@
       <p class="note">Motor settings are drive levels sent to the motor, not measured vibration amplitudes.</p>
     </section>
 
+    <!-- MAP -->
+    <section id="view-map" class="view" role="tabpanel" aria-labelledby="tab-map" hidden>
+      <p class="lead">Where workers are, from their phones, and what their sleeves report.</p>
+      <p class="note" id="map-note" role="status">Loading workers…</p>
+      <div class="map-layout">
+        <div id="map" class="map" role="application" aria-label="Map of workers"></div>
+        <aside class="map-side">
+          <ul class="wm-legend" aria-label="Dot colours">
+            <li><span class="wm-swatch" style="background:#1e7f46"></span>Sleeve sending data</li>
+            <li><span class="wm-swatch" style="background:#f4b000"></span>Connected, no fresh data</li>
+            <li><span class="wm-swatch" style="background:#6b7780"></span>Sleeve offline</li>
+            <li><span class="wm-swatch" style="background:#8a6fb8"></span>No sleeve assigned</li>
+          </ul>
+          <ul id="map-list" class="wm-list" aria-label="Workers"></ul>
+        </aside>
+      </div>
+      <p class="note">Colour only says whether the sleeve is sending data. The readings are experimental and have no safety limit behind them, so a dot is never “safe” or “unsafe”. A dashed outline means the position is simulated; a faded dot is a last known position. Positions are kept in the backend’s memory only and disappear when it stops. The map tiles come from OpenStreetMap, so your browser contacts their server when this screen is open.</p>
+    </section>
+
     <!-- HISTORY -->
     <section id="view-history" class="view" role="tabpanel" aria-labelledby="tab-history" hidden>
       <h2 class="section-title">Saved since this page opened</h2>
@@ -179,6 +200,8 @@
   <script src="js/backend-station.js"></script>
   <script src="js/backend-adapter.js"></script>
   <script src="js/charts.js"></script>
+  <script src="vendor/leaflet/leaflet.js"></script>
+  <script src="js/map.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>

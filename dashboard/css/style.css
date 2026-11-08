@@ -305,3 +305,28 @@ main { padding: 1.5rem clamp(1rem, 3vw, 2rem); max-width: 1400px; margin: 0 auto
 @media (prefers-reduced-motion: reduce) {
   .toast { transition: none; }
 }
+
+/* ---------- map ---------- */
+.map-layout { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1rem; margin-top: 0.75rem; }
+.map { height: min(65vh, 36rem); min-height: 18rem; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
+.map-side { display: flex; flex-direction: column; gap: 0.75rem; min-width: 0; }
+.wm-legend, .wm-list { list-style: none; margin: 0; padding: 0; }
+.wm-legend li { display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; color: var(--ink-2); padding: 0.1rem 0; }
+.wm-swatch { display: inline-block; width: 0.9rem; height: 0.9rem; border-radius: 50%; border: 2px solid var(--surface); box-shadow: 0 0 0 1px var(--line); flex: none; }
+.wm-list { display: flex; flex-direction: column; gap: 0.4rem; max-height: 28rem; overflow: auto; }
+.wm-item { display: flex; gap: 0.6rem; align-items: flex-start; width: 100%; text-align: left; padding: 0.55rem 0.7rem; background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 5px; font: inherit; cursor: pointer; }
+.wm-item:hover { border-color: var(--ink-2); }
+.wm-item .wm-swatch { margin-top: 0.3rem; }
+.wm-detail { display: block; color: var(--ink-2); font-size: 0.88rem; }
+.wm-item .tag { margin-left: 0.5rem; }
+.wm-popup dl { margin: 0.4rem 0 0; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.6rem; font-size: 0.9rem; }
+.wm-popup dt { color: #56636b; }
+.wm-popup dd { margin: 0; }
+.wm-popup .wm-status, .wm-popup .wm-note { font-size: 0.85rem; color: #56636b; margin-top: 0.2rem; }
+@media (max-width: 860px) { .map-layout { grid-template-columns: 1fr; } }
+
+/* ---------- phone page ---------- */
+.ph-field { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.8rem; font-weight: 500; }
+.ph-field input { font: inherit; padding: 0.55rem 0.6rem; border: 1.5px solid var(--line); border-radius: 4px; background: var(--surface); color: var(--ink); max-width: 28rem; }
+.ph-consent { display: flex; gap: 0.6rem; align-items: flex-start; max-width: 38rem; margin: 0.4rem 0 0.8rem; }
+.ph-consent input { margin-top: 0.3rem; width: 1.2rem; height: 1.2rem; }

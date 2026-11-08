@@ -1,0 +1,3 @@
+Leaflet 1.9.4 (BSD-2-Clause), from the npm package leaflet@1.9.4
+sha256 of the tarball: 84c65a256e50657896f54c33bd857b6849ebe94c817803be818bf32a3dde0b77
+Only dist/leaflet.js, dist/leaflet.css and dist/images/layers*.png are used.

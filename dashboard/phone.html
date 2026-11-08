@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VibeGuard: share my location</title>
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar"><h1 class="brand">VibeGuard</h1></header>
+  <main>
+    <section class="view" aria-labelledby="ph-title">
+      <h2 class="section-title" id="ph-title">Share my location</h2>
+      <p class="lead">Put yourself on the site map so a supervisor can see where you are working, next to what your sleeve reports.</p>
+
+      <form id="ph-form" class="st-panel" autocomplete="off">
+        <label class="ph-field">Worker ID
+          <input id="ph-id" required maxlength="64" pattern="[A-Za-z0-9_.\-]{1,64}" inputmode="text" spellcheck="false">
+        </label>
+        <label class="ph-field">Name shown on the map
+          <input id="ph-name" maxlength="80">
+        </label>
+        <label class="ph-field">Sleeve name (optional, ask your supervisor)
+          <input id="ph-sleeve" maxlength="128" spellcheck="false">
+        </label>
+        <label class="ph-consent">
+          <input type="checkbox" id="ph-ok">
+          I understand that while this is on, my position and my sleeve’s readings are visible to everyone who can open the dashboard.
+        </label>
+        <div class="row">
+          <button type="submit" id="ph-start" class="btn btn-primary" disabled>Start sharing</button>
+          <button type="button" id="ph-stop" class="btn btn-stop" hidden>Stop sharing</button>
+        </div>
+      </form>
+
+      <p class="st-msg" id="ph-status" role="status">Not sharing.</p>
+      <p class="note">Your phone will ask for permission to use your location. Keep this page open and the screen on: phones pause location updates in the background. Stopping removes your position from the map straight away. Positions are held in the server’s memory only.</p>
+    </section>
+  </main>
+  <script src="js/phone.js"></script>
+</body>
+</html>

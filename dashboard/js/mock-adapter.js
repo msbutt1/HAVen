@@ -47,6 +47,31 @@
       this.cmdSeq = 0;
     }
 
+    // ---- workers on the map (SIMULATED: made-up workers wandering around an arbitrary spot) ----
+    async workers() {
+      if (!this.timer) return { error: 'Not connected. Press Connect to start the data feed.' };
+      if (!this._fleet) {
+        this._fleet = Array.from({ length: 4 }, (_, i) => ({
+          id: `m${i + 1}`, x: rand(-150, 150), y: rand(-150, 150), eff: rand(0.1, 0.6), off: i === 3,
+        }));
+      }
+      const lat0 = 41.3111, lon0 = 69.2797;
+      return {
+        workers: this._fleet.map((f, i) => {
+          f.x = Math.max(-250, Math.min(250, f.x + gauss() * 8));
+          f.y = Math.max(-250, Math.min(250, f.y + gauss() * 8));
+          f.eff = Math.max(0, Math.min(1, f.eff + gauss() * 0.05));
+          return {
+            worker_id: f.id, label: `Mock worker ${i + 1}`, runtime: null, status: f.off ? 'offline' : 'ok',
+            position: { lat: lat0 + f.y / 111320, lon: lon0 + f.x / 83000, accuracy_m: 10, age_s: 1, stale: false, source: 'simulated' },
+            sleeve: { status: f.off ? 'offline' : 'ok', source: 'simulated', state: 'ready', calibrated: true,
+                      activation_pct: f.off ? null : Math.round(f.eff * 100), vibration_ms2: f.off ? null : Math.round(f.eff * 400) / 100,
+                      score_rate_au_h: f.off ? null : Math.round(f.eff * 500) / 1000 },
+          };
+        }),
+      };
+    }
+
     // ---- connection ----
     connect() {
       if (this.timer) return;

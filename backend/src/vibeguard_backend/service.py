@@ -167,6 +167,7 @@ class Backend:
         self._key_locks: dict[str, list] = {}  # request_id -> [lock, users]; removed when unused
         self._loop_stop = threading.Event()
         self._station_engine = None
+        self._workers = None
         self._station_lock = threading.RLock()  # trial index allocation and session finish
         self.recovered = {"wearable_sessions_interrupted": 0, "station_sessions_interrupted": 0}
         if recover:
@@ -238,6 +239,14 @@ class Backend:
             from .station import StationEngine  # imported here: station imports this module
             self._station_engine = StationEngine(self)
         return self._station_engine
+
+    @property
+    def workers(self):
+        """Workers on the map: positions (memory only) joined with each worker's sleeve."""
+        if self._workers is None:
+            from .workers import WorkerRegistry  # imported here: workers imports this module
+            self._workers = WorkerRegistry(lambda: self.runtimes)
+        return self._workers
 
     # ------------------------------------------------------------------ lifecycle
 

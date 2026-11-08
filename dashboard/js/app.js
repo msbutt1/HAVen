@@ -19,6 +19,8 @@
       ? new VG.BackendAdapter({ base: params.get('base') || '', runtime: params.get('runtime') || 'wearable' })
       : new VG.MockAdapter();
 
+  const workerMap = new VG.WorkerMap({ mapEl: $('map'), listEl: $('map-list'), noteEl: $('map-note'), adapter });
+
   const STALE_MS = 1000;
   const STATE_LABEL = {
     disconnected: 'Disconnected', ready: 'Ready', calibrating: 'Calibrating', recording: 'Recording',
@@ -68,7 +70,7 @@
   }
 
   // ---------- views / tabs ----------
-  const VIEWS = ['live', 'calibrate', 'station', 'history'];
+  const VIEWS = ['live', 'calibrate', 'station', 'map', 'history'];
   function showView(v) {
     if (!VIEWS.includes(v)) v = 'live';
     S.view = v;
@@ -80,6 +82,7 @@
     }
     if (location.hash !== `#${v}`) history.replaceState(null, '', `#${v}`);
     if (v === 'history') drawHistoryCharts();
+    if (v === 'map') workerMap.show(); else workerMap.hide();
   }
   document.querySelectorAll('.tabs button').forEach((b) => {
     b.addEventListener('click', () => showView(b.dataset.view));

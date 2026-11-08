@@ -98,7 +98,8 @@ def _origin_host(origin: str) -> tuple[str, str | None] | None:
     return _split_hostport(u.netloc)
 
 
-DASHBOARD_CSP = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; "
+DASHBOARD_CSP = ("default-src 'none'; script-src 'self'; style-src 'self' 'unsafe-inline'; "
+                 "img-src 'self' data: https://tile.openstreetmap.org; "
                  "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
 
 
@@ -204,6 +205,8 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
                 resp.headers["Content-Security-Policy"] = DASHBOARD_CSP
                 resp.headers["X-Content-Type-Options"] = "nosniff"
                 resp.headers["Cache-Control"] = "no-cache"
+                resp.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"  # OpenStreetMap wants a Referer
+                resp.headers["Permissions-Policy"] = "geolocation=(self)"
             return resp
 
         @app.get("/dashboard", include_in_schema=False)
@@ -366,6 +369,30 @@ def create_app(backend: Backend, on_shutdown: Callable[[], None] | None = None,
     @app.get("/api/station/sessions/{sid}")
     async def station_session(sid: str) -> dict:
         return await _call(b.station_session, sid)
+
+    # ---------------------------------------------------------------- workers on the map
+
+    @app.get("/api/workers")
+    async def workers_list(trail: bool = False) -> list[dict]:
+        return await _call(b.workers.list, trail)
+
+    @app.put("/api/workers/{worker_id}")
+    async def worker_put(worker_id: str, body: dict = Body(default={})) -> dict:
+        return await _call(b.workers.upsert, worker_id, body.get("label"), body.get("runtime"))
+
+    @app.post("/api/workers/{worker_id}/position")
+    async def worker_position(worker_id: str, body: dict = Body(...)) -> dict:
+        """A phone reports where its worker is. Kept in memory only (see workers.py)."""
+        return await _call(b.workers.set_position, worker_id, body.get("lat"), body.get("lon"),
+                           body.get("accuracy_m"), body.get("at"), body.get("source", "live"))
+
+    @app.delete("/api/workers/{worker_id}/position")
+    async def worker_stop_sharing(worker_id: str) -> dict:
+        return await _call(b.workers.clear_position, worker_id)
+
+    @app.delete("/api/workers/{worker_id}")
+    async def worker_delete(worker_id: str) -> dict:
+        return await _call(b.workers.remove, worker_id)
 
     # ---------------------------------------------------------------- history & records
 

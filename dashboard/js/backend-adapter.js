@@ -340,6 +340,15 @@
       this.emit('history', { type: 'history', sessions: rows.map((row) => this._sessionRecord(row)), tests });
     }
 
+    // ---------------------------------------------------------------- workers on the map
+
+    async workers() {
+      if (!this.isOpen) return { error: 'Not connected to the backend.' };
+      const r = await this._http('GET', '/api/workers?trail=true');
+      if (!r.ok) return { error: r.error };
+      return { workers: Array.isArray(r.data) ? r.data : [] };
+    }
+
     // ---------------------------------------------------------------- commands
 
     _id(prefix) {
