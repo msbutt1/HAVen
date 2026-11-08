@@ -76,10 +76,12 @@ def test_basic_auth_protects_everything_including_the_websocket(be):
         assert c.delete("/api/runtimes/wearable").status_code == 401
         assert c.get("/api/runtimes", headers=_auth()).status_code == 200
         assert "VibeGuard dashboard" in c.get("/dashboard/", headers=_auth()).text
-        from starlette.websockets import WebSocketDisconnect
-        with pytest.raises(WebSocketDisconnect):
-            with c.websocket_connect("/ws/live"):
-                pass
+        from starlette.testclient import WebSocketDenialResponse
+        for bad in ({}, _auth("demo", "wrong")):
+            with pytest.raises(WebSocketDenialResponse) as denied:   # a challenge, so browsers retry with the password
+                with c.websocket_connect("/ws/live", headers=bad):
+                    pass
+            assert denied.value.status_code == 401 and "Basic" in denied.value.headers["www-authenticate"]
         with c.websocket_connect("/ws/live", headers=_auth()) as ws:
             assert ws.receive_json()["channel"] == "snapshot"
 

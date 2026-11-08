@@ -332,8 +332,14 @@ main { max-width: 80rem; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 2rem);
   .readouts, .charts, .cal-layout { grid-template-columns: 1fr; }
 }
 @media (max-width: 560px) {
-  .tabs { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); width: auto; max-width: none; margin: 1rem clamp(1rem, 3vw, 2rem) 0; }
-  .tabs button { padding: 0.5rem 0.4rem; }
+  /* one row that scrolls sideways (five tabs no longer fit a 2-column grid without one left alone) */
+  .tabs { width: auto; max-width: none; margin: 1rem clamp(1rem, 3vw, 2rem) 0; scrollbar-width: none; }
+  .tabs::-webkit-scrollbar { display: none; }
+  /* a fade on the side that has more tabs (app.js sets the classes) */
+  .tabs.more-right { -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent); mask-image: linear-gradient(to right, #000 calc(100% - 3rem), transparent); }
+  .tabs.more-left { -webkit-mask-image: linear-gradient(to left, #000 calc(100% - 3rem), transparent); mask-image: linear-gradient(to left, #000 calc(100% - 3rem), transparent); }
+  .tabs.more-left.more-right { -webkit-mask-image: linear-gradient(to right, transparent, #000 3rem, #000 calc(100% - 3rem), transparent); mask-image: linear-gradient(to right, transparent, #000 3rem, #000 calc(100% - 3rem), transparent); }
+  .tabs button { flex: 0 0 auto; padding: 0.5rem 0.85rem; }
   .cal-result { grid-template-columns: 1fr; }
   .log th, .log td { padding: 0.55rem 0.6rem; }
 }

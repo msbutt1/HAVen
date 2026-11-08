@@ -5,6 +5,7 @@ import Foundation
 enum Translate {
     static let endReasonText: [String: String] = [
         "stopped_by_user": "stopped",
+        "simulated_history": "stopped",   // vg-backend seed-history: a whole simulated recording
         "end_of_input": "the replayed recording reached its end",
         "device_changed": "a different sleeve connected",
         "runtime_stopped": "the backend stopped",

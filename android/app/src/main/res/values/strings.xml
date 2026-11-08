@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">VibeGuard</string>
+    <string name="eyebrow">CONNECT OVER WI-FI</string>
+    <string name="headline">Open the dashboard from your laptop</string>
+    <string name="intro">The laptop runs the VibeGuard backend and talks to the wearable. This phone shows its dashboard over Wi-Fi: live readings, overview charts, calibration and history. Phone and laptop must be on the same Wi-Fi.</string>
+
+    <string name="find_title">Find it on this Wi-Fi</string>
+    <string name="find_body">On the laptop, start the backend so phones on the Wi-Fi can reach it:</string>
+    <string name="serve_command" translatable="false">vg-backend serve --host 0.0.0.0</string>
+    <string name="find">Find on this Wi-Fi</string>
+    <string name="finding">Looking for VibeGuard on this Wi-Fi…</string>
+    <plurals name="found_some">
+        <item quantity="one">Found %d laptop. Tap it to open its dashboard.</item>
+        <item quantity="other">Found %d laptops. Tap one to open its dashboard.</item>
+    </plurals>
+    <string name="found_none">No VibeGuard backend answered. Check that the laptop runs vg-backend serve --host 0.0.0.0, that both are on the same Wi-Fi, and that macOS allowed incoming connections for Python. Some networks (eduroam, guest Wi-Fi) keep devices apart: use a phone hotspot or a home router, or type the address below.</string>
+    <string name="find_failed">Could not search this network (%1$s). Type the address below.</string>
+    <string name="asks_password">asks for a password</string>
+
+    <string name="type_title">Or type its address</string>
+    <string name="type_body">The laptop’s Wi-Fi address, with the port if it is not 8000 (macOS: System Settings › Wi-Fi › Details).</string>
+    <string name="address_hint" translatable="false">192.168.1.23:8000</string>
+    <string name="connect">Connect</string>
+    <string name="recent">Last used: %1$s</string>
+    <string name="bad_address">Type the laptop’s address, for example 192.168.1.23 or 192.168.1.23:8000.</string>
+    <string name="connecting">Connecting to %1$s…</string>
+    <string name="unreachable">Could not reach %1$s. Is the backend running with --host 0.0.0.0, on the same Wi-Fi as this phone?</string>
+    <string name="not_vibeguard">%1$s answered, but it is not a VibeGuard backend.</string>
+    <string name="http_error">%1$s answered with HTTP %2$d.</string>
+
+    <string name="demo_title">No laptop nearby?</string>
+    <string name="demo_body">Open the demo: the same dashboard on a simulated feed that runs on this phone. Nothing in it is a measurement from a person.</string>
+    <string name="demo">Open the demo (simulated)</string>
+
+    <string name="footer">Not a medical device. Vibration is unweighted (not ISO 5349); grip effort is relative to each wearer’s calibration, not force.</string>
+
+    <string name="page_error_title">The dashboard did not open</string>
+    <string name="page_error">Could not load %1$s (%2$s). The laptop may be off, asleep or on another Wi-Fi.</string>
+    <string name="no_dashboard">%1$s is a VibeGuard backend but does not serve the dashboard (was it started with --dashboard none?).</string>
+    <string name="retry">Try again</string>
+    <string name="back_to_connect">Back</string>
+
+    <string name="password_title">Sign in to %1$s</string>
+    <string name="password_message">This backend was started with a password (VG_BASIC_AUTH). It is kept only while the app is open.</string>
+    <string name="user_name">User name</string>
+    <string name="password">Password</string>
+    <string name="sign_in">Sign in</string>
+    <string name="password_cancelled">Sign-in cancelled. The dashboard needs the user name and password the backend was started with.</string>
+</resources>

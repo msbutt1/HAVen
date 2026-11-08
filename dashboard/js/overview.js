@@ -571,7 +571,7 @@
     const band = $('ov-sim');
     band.hidden = simulated === 0;
     band.textContent = simulated === all.length
-      ? (sample ? 'Simulated sample history, made up in the browser so this screen has something to show. None of it is a measurement from a person.'
+      ? (sample ? 'Simulated sample history, made up on this device so this screen has something to show. None of it is a measurement from a person.'
         : 'All of this is simulated data, not measurements from a person.')
       : `${simulated} of ${all.length} items here are simulated, not measurements from a person.`;
 

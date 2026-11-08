@@ -82,6 +82,14 @@
       const tab = $(`tab-${name}`);
       tab.setAttribute('aria-selected', String(name === v));
       tab.tabIndex = name === v ? 0 : -1;
+      // on a phone the tab row scrolls sideways: keep the chosen tab in view (never scrolls the page)
+      if (name === v && tab.parentElement.scrollWidth > tab.parentElement.clientWidth) {
+        const row = tab.parentElement;
+        const left = tab.offsetLeft - row.offsetLeft;
+        if (left < row.scrollLeft || left + tab.offsetWidth > row.scrollLeft + row.clientWidth) {
+          row.scrollLeft = Math.max(0, left - (row.clientWidth - tab.offsetWidth) / 2);
+        }
+      }
     }
     if (location.hash !== `#${v}`) history.replaceState(null, '', `#${v}`);
     if (v === 'history') drawHistoryCharts();
@@ -98,6 +106,14 @@
     });
   });
   window.addEventListener('hashchange', () => showView(location.hash.slice(1)));
+  // phones: the tab row scrolls sideways; fade the edge that has more tabs behind it
+  const tabRow = document.querySelector('.tabs');
+  function tabFade() {
+    tabRow.classList.toggle('more-left', tabRow.scrollLeft > 2);
+    tabRow.classList.toggle('more-right', tabRow.scrollLeft + tabRow.clientWidth < tabRow.scrollWidth - 2);
+  }
+  tabRow.addEventListener('scroll', tabFade, { passive: true });
+  window.addEventListener('resize', tabFade);
 
   // ---------- connection + device state ----------
   function renderDevices() {
@@ -701,6 +717,7 @@
   window.addEventListener('resize', () => { if (S.view === 'history') drawHistoryCharts(); });
 
   showView(location.hash.slice(1) || 'live');
+  tabFade();
   renderAll();
   renderHistory();
   requestAnimationFrame(frame);

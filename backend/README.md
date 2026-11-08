@@ -86,6 +86,7 @@ uv run vg-backend fake-wifi                        # optional, in another termin
 | 8765 TCP | wearable → backend | telemetry (contract v1 NDJSON); `--wifi-port` |
 | 8766 UDP | wearable → broadcast | discovery: the backend answers `VGDISCOVER 1 <id>` with `VGBRIDGE 1 8765`; `--discovery-port` |
 | 8000 TCP | dashboard and phone → backend | web API, `/ws/live`, `/dashboard/`; `--http-port` (moved from 8765 for the wearable) |
+| 8767 UDP | phone app → broadcast | the app's Find: the backend answers `VGFIND 1` with `VGAPI 1 <http port> <password 0/1> <name>`; `--app-discovery-port` |
 
 - **Only the wearable can take the stream.** A new connection replaces the current one (the wearable reconnecting
   after a reboot) only when its first line is a telemetry record; anything else (a browser or app pointed at the
@@ -102,6 +103,21 @@ uv run vg-backend fake-wifi                        # optional, in another termin
   `{"action": "relaxed"}`, wait for `relaxed_captured`, then `{"action": "squeeze"}`; `cancel` stops. It is not kept
   across a wearable reboot (`survives_reboot = False`): after `boot_change` the screens say to recalibrate. A saved
   calibration is restored after a backend restart and shows `calibration_unverified` until new data confirms it.
+
+### The phone app over Wi-Fi
+
+The Android app (`android/`, see `android/README.md`) opens this backend's dashboard from a phone on the same Wi-Fi.
+The web API must listen beyond the laptop for that:
+
+```sh
+uv run vg-backend serve --device wifi --host 0.0.0.0     # add VG_BASIC_AUTH=user:password off your own network
+```
+
+With a non-loopback `--host`, `serve` also answers the app's **Find on this Wi-Fi** (`appdiscovery.py`, UDP 8767):
+only to private, link-local or loopback senders, only to a query padded to 64 bytes, with a reply of at most 64
+bytes (it never amplifies). `--app-discovery-port 0` turns it off; on the default `--host 127.0.0.1` it never runs.
+With `VG_BASIC_AUTH`, an unauthenticated `/ws/live` handshake gets the same `401` challenge as HTTP (not a bare
+close), so a browser or the app's WebView retries it with the password it already holds.
 - **Silence** is visible: the processor is polled every 50 ms with a 1 s stale limit, so a wearable that stops
   sending shows `stream_stale` within about a second and its values become dashes.
 - Raw telemetry and derived records are stored **during recordings** (as before), each keeping its provenance.

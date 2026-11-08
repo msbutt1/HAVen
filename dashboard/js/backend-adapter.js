@@ -39,6 +39,7 @@
   const reasonText = (r) => REASON_TEXT[r] || (r ? String(r).replace(/_/g, ' ') : 'Calibration did not complete. Try again.');
   const END_TEXT = {
     stopped_by_user: 'stopped',
+    simulated_history: 'stopped', // vg-backend seed-history: a whole simulated recording, not one cut short
     end_of_input: 'the replayed recording reached its end',
     device_changed: 'a different sleeve connected',
     runtime_stopped: 'the backend stopped',
