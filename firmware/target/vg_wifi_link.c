@@ -66,6 +66,18 @@ static bool discover(char *ip, uint16_t *port)
     return true;
 }
 
+/* The Wi-Fi gateway's address. When the phone itself is the hotspot, the phone is the
+ * gateway: the VibeGuard app listens on tcp_port there (iOS apps cannot receive the
+ * discovery broadcast without a special entitlement, so the app never answers it). */
+static bool gateway(char *ip)
+{
+    esp_netif_t *nif = esp_netif_get_handle_from_ifkey("WIFI_STA_DEF");
+    esp_netif_ip_info_t info;
+    if (!nif || esp_netif_get_ip_info(nif, &info) != ESP_OK || info.gw.addr == 0) return false;
+    esp_ip4addr_ntoa(&info.gw, ip, 16);
+    return true;
+}
+
 static int open_tcp(const char *ip, uint16_t port)
 {
     int s = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
@@ -116,8 +128,13 @@ static void net_task(void *arg)
         if (s_cfg.fixed_host && s_cfg.fixed_host[0]) {
             strncpy(ip, s_cfg.fixed_host, sizeof ip - 1);
         } else if (!discover(ip, &port)) {
-            drain_offline();
-            continue;                              /* discover() waited 500 ms */
+            /* No laptop bridge answered: try the phone app at the gateway. A laptop
+             * bridge, when present, always wins because discovery is tried first. */
+            port = s_cfg.tcp_port;
+            if (!gateway(ip)) {
+                drain_offline();
+                continue;                          /* discover() waited 500 ms */
+            }
         }
         int s = open_tcp(ip, port);
         if (s < 0) {
