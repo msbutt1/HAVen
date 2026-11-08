@@ -1,77 +1,99 @@
 import Charts
 import SwiftUI
 
-struct LiveView: View {
-    @Environment(Backend.self) private var backend
-
-    var body: some View {
-        TimelineView(.periodic(from: .now, by: 0.5)) { context in
-            let now = context.date
-            let fresh = backend.freshness(at: now)
-            let v = fresh == .fresh ? backend.latest : nil
-            VStack(alignment: .leading, spacing: 16) {
-                FreshnessLine(freshness: fresh, now: now)
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 12)], spacing: 12) {
-                    ReadoutCard(title: "Muscle activation", value: v?.activationPct, digits: 0, unit: "% of max squeeze",
-                                stale: fresh != .fresh,
-                                note: activationNote) {
-                        ProgressView(value: min(100, max(0, v?.activationPct ?? 0)), total: 100)
-                            .tint(Theme.activation)
-                    }
-                    ReadoutCard(title: "Wrist vibration", value: v?.vibration, digits: 2, unit: "m/s²",
-                                stale: fresh != .fresh,
-                                note: "Measured by a hobby motion sensor, unweighted. Not a standards-grade measurement.") { EmptyView() }
-                    ReadoutCard(title: "Exposure score", experimental: true, value: v?.scoreRate, digits: 2, unit: "au/h",
-                                stale: fresh != .fresh,
-                                note: "Placeholder formula that weights vibration by grip. Not a validated dose.") {
-                        HStack(spacing: 4) {
-                            Text("This recording:")
-                            Text(formatScore(v?.scoreTotal)).fontWeight(.semibold).monospacedDigit()
-                            Text("au").foregroundStyle(Theme.muted)
-                        }
-                        .font(.subheadline)
-                    }
-                }
-
-                if let warning = qualityWarning(v) {
-                    Label(warning, systemImage: "exclamationmark.triangle")
-                        .font(.footnote)
-                        .padding(10)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .background(RoundedRectangle(cornerRadius: 10).fill(Theme.warning.opacity(0.14)))
-                }
-
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 12)], spacing: 12) {
-                    ChartCard(title: "Muscle activation, last 30 s", series: backend.activation, color: Theme.activation,
-                              now: now, window: 30, fixedMax: 100, stale: fresh != .fresh)
-                    ChartCard(title: "Wrist vibration, last 30 s", series: backend.vibration, color: Theme.vibration,
-                              now: now, window: 30, floorMax: 1, stale: fresh != .fresh)
-                    ChartCard(title: "Exposure score rate (experimental), last 30 s", series: backend.scoreRate, color: Theme.score,
-                              now: now, window: 30, floorMax: 1, stale: fresh != .fresh, dashed: true)
-                }
-
-                RecordingBar(now: now)
-            }
-        }
-        .navigationTitle("Live")
-    }
-
-    private var activationNote: String {
-        if backend.calibration != nil { return "Calibrated in this app." }
-        if backend.latest?.calibrated == true { return "Calibrated before this screen opened." }
-        return "Not calibrated. Run calibration to see activation."
-    }
-
-    private func qualityWarning(_ t: Telemetry?) -> String? {
-        guard let t, t.imuClipped else { return nil }
-        return "The motion sensor clipped: vibration is at least what is shown, possibly more."
-    }
-}
-
 func formatScore(_ v: Double?) -> String {
     guard let v else { return "—" }
     return abs(v) < 1 ? String(format: "%.3f", v) : String(format: "%.1f", v)
+}
+
+func formatDuration(_ s: Double?) -> String {
+    guard let s, s.isFinite else { return "—" }
+    let t = Int(s.rounded(.down))
+    return t >= 3600 ? String(format: "%d:%02d:%02d", t / 3600, t / 60 % 60, t % 60) : String(format: "%d:%02d", t / 60, t % 60)
+}
+
+/// Tool use vs normal arm use, from the vibration the sleeve measures.
+struct ToolCard: View {
+    let tool: ToolState?
+    let calibrated: Bool
+
+    var body: some View {
+        let inUse = tool?.state == "tool"
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 6) {
+                Text("Tool use").font(.subheadline.weight(.medium)).foregroundStyle(Theme.muted)
+                Text(calibrated ? "calibrated for this tool" : "default thresholds")
+                    .font(.caption).foregroundStyle(Theme.muted)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .overlay(Capsule().strokeBorder(Theme.border))
+                Spacer()
+            }
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Circle().fill(inUse ? Theme.warning : tool?.state == "no_tool" ? Theme.success : Theme.muted.opacity(0.5))
+                    .frame(width: 12, height: 12)
+                Text(tool == nil || tool?.state == "unknown" ? "—" : inUse ? "Tool in use" : "No tool")
+                    .font(.system(size: 34, weight: .semibold))
+            }
+            LazyVGrid(columns: [GridItem(.adaptive(minimum: 120), spacing: 10)], alignment: .leading, spacing: 10) {
+                stat("Tool time this shift", formatDuration(tool?.sessionToolS))
+                stat("Current bout", inUse ? formatDuration(tool?.boutS) : "—")
+                stat("Bouts", tool.map { "\($0.bouts)" } ?? "—")
+                stat("Longest bout", formatDuration(tool?.longestBoutS))
+            }
+            ForEach(tool?.warnings ?? [], id: \.self) { w in
+                Label(AppModel.warningText[w] ?? w, systemImage: "exclamationmark.triangle.fill")
+                    .font(.subheadline.weight(.medium))
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(RoundedRectangle(cornerRadius: 10).fill(Theme.warning.opacity(0.18)))
+            }
+            Text(detail).font(.caption.monospaced()).foregroundStyle(Theme.muted)
+            Text("Estimated from vibration: steady, repeating vibration counts as a tool; handshakes, waving and knocks do not. Warnings are team settings, not regulatory limits.")
+                .font(.footnote).foregroundStyle(Theme.muted)
+        }
+        .panel()
+        .accessibilityElement(children: .combine)
+    }
+
+    private var detail: String {
+        guard let t = tool, t.state != "unknown" else { return "Waiting for motion data." }
+        return "tool band \(formatNumber(t.toolBand, 2)) m/s² @ \(formatNumber(t.dominantHz, 0)) Hz · arm \(formatNumber(t.motionBand, 2)) m/s² · periodicity \(formatNumber(t.concentration, 2))"
+    }
+
+    private func stat(_ title: String, _ value: String) -> some View {
+        VStack(alignment: .leading, spacing: 2) {
+            Text(title).font(.caption).foregroundStyle(Theme.muted)
+            Text(value).font(.title3.weight(.semibold)).monospacedDigit()
+        }
+    }
+}
+
+/// Only with the simulated sleeve: make it squeeze, move the arm, or run a tool.
+struct DemoControls: View {
+    @Environment(AppModel.self) private var backend
+    @State private var tool = false
+    @State private var arm = false
+    @State private var squeezing = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Simulated sleeve controls").font(.subheadline.weight(.medium)).foregroundStyle(Theme.muted)
+            HStack(spacing: 10) {
+                Text(squeezing ? "Squeezing" : "Hold to squeeze")
+                    .font(.subheadline.weight(.medium))
+                    .padding(.horizontal, 14).frame(height: 40)
+                    .background(Capsule().fill(squeezing ? Theme.primary.opacity(0.25) : Theme.section))
+                    .overlay(Capsule().strokeBorder(Theme.border))
+                    .gesture(DragGesture(minimumDistance: 0)
+                        .onChanged { _ in if !squeezing { squeezing = true; backend.demo.squeeze = true } }
+                        .onEnded { _ in squeezing = false; backend.demo.squeeze = false })
+                Toggle("Tool running", isOn: $tool).onChange(of: tool) { _, v in backend.demo.tool = v }
+                Toggle("Arm moving", isOn: $arm).onChange(of: arm) { _, v in backend.demo.armMoving = v }
+            }
+            .toggleStyle(.button)
+        }
+        .panel(padding: 12)
+    }
 }
 
 func formatNumber(_ v: Double?, _ digits: Int) -> String {
@@ -80,7 +102,7 @@ func formatNumber(_ v: Double?, _ digits: Int) -> String {
 }
 
 struct FreshnessLine: View {
-    @Environment(Backend.self) private var backend
+    @Environment(AppModel.self) private var backend
     let freshness: Freshness
     let now: Date
 
@@ -95,7 +117,7 @@ struct FreshnessLine: View {
 
     private var text: String {
         switch freshness {
-        case .none: return backend.connected ? "Connected. Waiting for the first reading." : "No data. Connect to the backend."
+        case .none: return backend.connected ? "Connected. Waiting for the first reading." : "No data. Press Start, and power the sleeve."
         case .stale:
             let age = backend.lastTelemetryAt.map { now.timeIntervalSince($0) } ?? 0
             return String(format: "No new reading for %.1f s. Values are hidden until data resumes.", age)
@@ -178,41 +200,5 @@ struct ChartCard: View {
             .accessibilityLabel(title)
         }
         .panel(padding: 12)
-    }
-}
-
-struct RecordingBar: View {
-    @Environment(Backend.self) private var backend
-    let now: Date
-
-    var body: some View {
-        let state = backend.sleeve.kind
-        let recording = state == .recording
-        HStack(spacing: 12) {
-            Button(recording ? "Stop recording" : "Start recording") {
-                Task { await backend.toggleRecording() }
-            }
-            .buttonStyle(PrimaryButtonStyle(role: recording ? .destructive : nil))
-            .disabled(backend.busy || !(state == .ready || recording))
-            Text(message(state)).font(.subheadline).foregroundStyle(Theme.muted).monospacedDigit()
-        }
-        .panel(padding: 12)
-    }
-
-    private func message(_ state: DeviceStateKind) -> String {
-        switch state {
-        case .recording:
-            if let start = backend.sessionStartedAt {
-                let s = Int(now.timeIntervalSince(start))
-                return String(format: "Recording, %d:%02d", s / 60, s % 60)
-            }
-            return "Recording"
-        case .ready:
-            let calibrated = backend.calibration != nil || backend.latest?.calibrated == true
-            return calibrated ? "Ready to record." : "Ready to record. Not calibrated, so the score stays empty."
-        case .calibrating: return "Wait for calibration to finish."
-        case .error: return "Clear the sleeve error before recording."
-        default: return "Connect the sleeve to record."
-        }
     }
 }

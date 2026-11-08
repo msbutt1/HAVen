@@ -1,54 +1,79 @@
 # VibeGuard for iOS
 
-A native SwiftUI app for the VibeGuard backend: the same four screens as the web dashboard (Live, Calibrate,
-perception Test, History), in the same design (the landing page's livops.uz colour tokens, light and dark).
+A native SwiftUI app that reads the VibeGuard sleeve directly and does every calculation on the phone: grip
+effort from the EMG, vibration, tool use vs normal arm use, tool time, and the experimental exposure score.
+No laptop and no server are needed.
 
-**It is a client of the backend, not of the sleeve.** The sleeve plugs into the computer running the backend over
-USB, and an iPhone cannot read that port. The app connects to the backend over the network: live data on the
-WebSocket `/ws/live`, commands and history on `/api/...`, translated by the same rules as the web dashboard
-(`Translate.swift` mirrors `dashboard/js/backend-adapter.js`). Nothing is invented: a value the backend does not
-provide stays empty, every screen says whether data is live, a replay or simulated, and the exposure score is
-labelled experimental.
+Two pages:
+- **Dashboard:** the exposure bar for this shift, tool in use or not with tool time and warnings, grip effort,
+  vibration, and calibration status. **Calibrate** opens the grip (relax, squeeze) and tool (still, normal
+  movement, tool on) calibrations.
+- **Overview:** what the exposure score is, how it is calculated (with your live numbers), and what it means.
 
-## Run it in the Simulator
+Settings (gear): data source (sleeve or the in-app simulated sleeve), accelerometer range, the exposure bar's
+shift reference, connection details and recent events.
+
+## How the phone talks to the sleeve
+
+1. Turn on **Personal Hotspot** on the iPhone, with the name and password flashed into the sleeve
+   (`firmware/wearable/main/wifi_secrets.h`).
+2. Open the app (it starts listening on TCP port **8765**) and keep it in the foreground: iOS suspends
+   background apps, so the app keeps the screen awake while it runs.
+3. Power the sleeve. It joins the hotspot, broadcasts its discovery request, and when no laptop bridge answers
+   it connects to the hotspot gateway, which is the phone. Data appears within a few seconds.
+
+If a laptop running `vg-bridge` is on the same hotspot, the sleeve connects to the laptop instead (discovery is
+tried first). Stop the bridge to use the app. The gateway fallback needs firmware with
+`firmware/target/vg_wifi_link.c` from 2026-11-08 or later.
+
+iOS asks for local-network permission the first time.
+
+## The calculations
+
+`VibeGuard/Engine/` is a Swift port of the Python processor (`signals/src/vibeguard_signals/processing`):
+the same Butterworth filters, EMG envelope, relaxed/squeeze calibration, vibration features, tool detection
+(periodicity, steadiness, tool calibration) and score formula. It uses Foundation only, so it builds and is
+tested on Linux too:
 
 ```bash
-cd backend && uv run vg-backend serve --backup backup/demo-session --loop   # the recorded demo, labelled replay
-open ios/VibeGuard.xcodeproj                                                # then Run (iPhone simulator)
+cd ios && swift test -c release        # needs a Swift 5.9+ toolchain
 ```
 
-The default backend address is `http://localhost:8765`, which is the Mac when running in the Simulator.
+The tests feed **real recordings from the sleeve** (board W, 2026-11-08, `EngineTests/Fixtures`) through the
+Swift engine and compare with the Python processor's outputs on the same data, including a grip calibration
+and a tool calibration with the massage gun: envelope, grip %, vibration, tool band, arm band, periodicity,
+dominant frequency, tool state and the calibrated tool thresholds match exactly. Regenerate the fixtures with
+`EngineTests/make_fixtures.py`.
 
-From the command line:
+One deliberate difference: the score's interval bookkeeping is simpler than the Python engine's (each vibration
+update covers the time since the last one, at most 0.25 s, and counts only with fresh, calibrated grip). On the
+recordings the totals agree to within 0.000001 au.
+
+## Build and run
 
 ```bash
-cd ios
-xcodebuild -project VibeGuard.xcodeproj -scheme VibeGuard -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
-xcodebuild -project VibeGuard.xcodeproj -scheme VibeGuard -destination 'platform=iOS Simulator,name=iPhone 17 Pro' test
+open ios/VibeGuard.xcodeproj            # then Run, on an iPhone (the Simulator cannot reach the sleeve)
 ```
 
-## Run it on an iPhone
+In the Simulator, choose **Simulated sleeve (demo)** in Settings: it produces labelled simulated data with
+controls for squeezing, arm movement and a running tool.
 
-1. Start the backend so the phone can reach it, with a password (the API has no accounts):
-   `VG_BASIC_AUTH='demo:a-long-password' uv run vg-backend serve --host 0.0.0.0 --backup backup/demo-session --loop`
-2. In Xcode, pick your team under Signing & Capabilities (the bundle id is `dev.vibeguard.ios`; change it if Xcode
-   asks) and run on the phone.
-3. In the app: Settings, set the address to the Mac's address on the same Wi-Fi (for example `http://192.168.1.20:8765`)
-   and the username and password. iOS asks for local-network permission the first time.
-
-Plain http is allowed only on the local network (`NSAllowsLocalNetworking`); anything on the internet needs https.
-The password is stored in the Keychain.
+On a real iPhone: pick your team under Signing & Capabilities (bundle id `dev.vibeguard.ios`; change it if Xcode
+asks).
 
 ## What is where
 
 | File | What it does |
 |---|---|
-| `VibeGuard/Backend.swift` | Connection, live data, recording, calibration, history, perception-test runner |
-| `VibeGuard/Translate.swift` | Backend records to screen values (pure functions, unit-tested) |
-| `VibeGuard/Models.swift` | Data types, and the stand-in staircase for the perception test |
-| `VibeGuard/Theme.swift` | Colours, panels, buttons and labels from the landing page's design system |
-| `VibeGuard/Views/` | The screens |
-| `VibeGuardTests/` | Unit tests for the translation rules and the staircase |
+| `VibeGuard/SleeveLink.swift` | TCP listener on port 8765 (Network framework), NDJSON lines from the sleeve |
+| `VibeGuard/Engine/` | The on-phone processor (filters, records, EMG, vibration, tool use, score) |
+| `VibeGuard/AppModel.swift` | Connects the link, the engine, the calibrations and the screens |
+| `VibeGuard/DemoSleeve.swift` | The in-app simulated sleeve |
+| `VibeGuard/Store.swift` | Calibrations kept between launches |
+| `VibeGuard/Views/` | Dashboard, Overview, Calibrate (sheet), Settings |
+| `EngineTests/` | Linux/SwiftPM tests of the engine against the Python processor |
+| `VibeGuardTests/` | Xcode unit tests (translation rules, staircase) |
 
-The perception test drives the backend's **simulated** station controller (no motor); its results are stored and shown
-as simulated. The test sequence is a stand-in until Fahad's engine is connected to the backend.
+Limits, shown in the app: grip effort is relative to your own calibration (not force, not %MVC); the exposure
+score is experimental, in arbitrary units (not a dose, not A(8)); the bar's reference and the tool warnings are
+team settings, not legal limits; the vibration is unweighted and measured on the forearm.

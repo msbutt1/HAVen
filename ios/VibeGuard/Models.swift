@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where data came from. Every screen shows it: live device, a recording played back, or made-up data.
-enum Provenance: String {
+enum Provenance: String, Codable {
     case live, replay, simulated
 
     init(_ raw: String?) { self = Provenance(rawValue: raw ?? "") ?? .simulated }
@@ -49,9 +49,10 @@ struct Telemetry: Equatable {
     var scoreTotal: Double?          // au during the current recording
     var calibrated: Bool
     var imuClipped: Bool
+    var tool: ToolState? = nil       // tool use vs normal arm use (on-phone engine)
 }
 
-struct SessionRecord: Identifiable, Equatable {
+struct SessionRecord: Identifiable, Equatable, Codable {
     let id: String
     var deviceID: String?
     var provenance: Provenance
@@ -64,9 +65,10 @@ struct SessionRecord: Identifiable, Equatable {
     var meanActivationPct: Double?
     var peakActivationPct: Double?
     var peakVibration: Double?
+    var toolTimeS: Double? = nil      // tool time during the recording
 }
 
-struct TrialResult: Identifiable, Equatable {
+struct TrialResult: Identifiable, Equatable, Codable {
     let id: String
     var index: Int
     var setting: Int
@@ -75,13 +77,13 @@ struct TrialResult: Identifiable, Equatable {
     var rtMs: Int?
 }
 
-enum StationMode: String, CaseIterable, Identifiable {
+enum StationMode: String, CaseIterable, Identifiable, Codable {
     case preview, full
     var id: String { rawValue }
     var label: String { self == .preview ? "Short preview, 6 trials" : "Full session, 8 reversals" }
 }
 
-struct StaircaseSummary: Equatable {
+struct StaircaseSummary: Equatable, Codable {
     var reversals: [Int]
     var reversalCount: Int
     var threshold: Double?
@@ -90,7 +92,7 @@ struct StaircaseSummary: Equatable {
     var missing: Int
 }
 
-struct StationResult: Identifiable, Equatable {
+struct StationResult: Identifiable, Equatable, Codable {
     let id: String
     var provenance: Provenance
     var mode: StationMode
@@ -100,7 +102,7 @@ struct StationResult: Identifiable, Equatable {
     var summary: StaircaseSummary
 }
 
-enum HistoryItem: Identifiable, Equatable {
+enum HistoryItem: Identifiable, Equatable, Codable {
     case session(SessionRecord)
     case test(StationResult)
 

@@ -2,14 +2,14 @@ import SwiftUI
 
 @main
 struct VibeGuardApp: App {
-    @State private var backend = Backend(settings: ConnectionSettings.load())
+    @State private var model = AppModel()
 
     var body: some Scene {
         WindowGroup {
             RootView()
-                .environment(backend)
+                .environment(model)
                 .tint(Theme.primary)
-                .onAppear { backend.connect() }
+                .onAppear { model.connect() }
         }
     }
 }

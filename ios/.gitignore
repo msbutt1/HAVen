@@ -2,3 +2,8 @@ xcuserdata/
 *.xcuserstate
 build/
 DerivedData/
+
+# SwiftPM build output (cd ios && swift test)
+.build/
+.swiftpm/
+Package.resolved
