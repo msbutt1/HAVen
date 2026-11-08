@@ -469,3 +469,33 @@ main { max-width: 80rem; margin: 0 auto; padding: 1.5rem clamp(1rem, 3vw, 2rem);
 @media (prefers-reduced-motion: reduce) {
   .toast, .meter-fill { transition: none; }
 }
+
+/* ---------- daily vibration exposure (exposure.js) and the Limits page ----------
+   Unlike the Overview, colour carries meaning here: the bands are the EU/UK action and limit values. */
+.readout.exposure { margin-bottom: 1rem; }
+.exp-top { display: flex; align-items: baseline; justify-content: space-between; gap: 0.5rem 1.5rem; flex-wrap: wrap; }
+.exp-level { margin: 0.6rem 0 0; font-weight: 500; max-width: 46ch; }
+.exp-bar { position: relative; height: 0.75rem; margin: 1.6rem 0 1.4rem; border-radius: 999px; background: color-mix(in oklab, var(--foreground) 10%, transparent); }
+.exp-fill { height: 100%; width: 0; border-radius: inherit; background: var(--success); transition: width 0.3s; }
+.readout.exposure[data-level="above_eav"] .exp-fill { background: var(--warning); }
+.readout.exposure[data-level="above_limit"] .exp-fill { background: var(--destructive); }
+.readout.exposure[data-level="above_eav"] .exp-level { color: color-mix(in oklab, var(--warning) 70%, var(--foreground)); }
+.readout.exposure[data-level="above_limit"] .exp-level { color: var(--destructive); }
+.exp-mark { position: absolute; top: -0.35rem; height: 1.45rem; border-left: 2px solid var(--foreground); padding-left: 0.3rem; transform: translateX(-1px);
+  font-size: 0.75rem; line-height: 1; color: var(--muted-foreground); white-space: nowrap; padding-top: 1.6rem; }
+.exp-mark b { color: var(--foreground); font-weight: 600; }
+.exp-mark-limit { border-left: 0; border-right: 2px solid var(--destructive); padding: 1.6rem 0.3rem 0 0; transform: translateX(-100%); } /* label left of its line: never off the edge */
+.exp-facts { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+@media (max-width: 900px) { .exp-facts { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.limits p, .limits li { max-width: 75ch; line-height: 1.6; }
+.lim-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; margin: 0 0 1.5rem; }
+@media (max-width: 640px) { .lim-grid { grid-template-columns: 1fr; } }
+.lim-card { border-radius: 0.95rem; padding: 1.25rem; }
+.lim-card h3 { margin: 0; font-size: 0.9375rem; font-weight: 500; color: var(--muted-foreground); }
+.lim-num { margin: 0.5rem 0 0; font: 600 2.5rem/1 var(--sans); letter-spacing: -0.03em; }
+.lim-num span { font-size: 0.875rem; font-weight: 400; color: var(--muted-foreground); letter-spacing: 0; }
+.lim-pts { margin: 0.25rem 0 0.75rem; font-weight: 600; color: color-mix(in oklab, var(--warning) 70%, var(--foreground)); }
+.lim-limit .lim-pts { color: var(--destructive); }
+.lim-steps li { margin-bottom: 0.4rem; }
+.lim-example { padding: 0.9rem 1rem; border-radius: var(--radius); background: var(--section); }
+.lim-sources a { color: var(--primary); }

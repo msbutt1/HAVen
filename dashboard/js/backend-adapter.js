@@ -170,6 +170,7 @@
           const lat = rt.latest || {};
           if (lat.imu && lat.imu.features) this.imu = { rec: lat.imu, at: performance.now() };
           if (lat.score) this.score = lat.score;
+          if (lat.exposure && lat.exposure.type === 'exposure') this.emit('exposure', lat.exposure);
           if (lat.tool_use && lat.tool_use.type === 'tool_use') this.emit('tool', { ...lat.tool_use, saved: false });
           else if (rt.tool_use_saved && rt.tool_use_saved.record) {
             this.emit('tool', { ...rt.tool_use_saved.record, saved: true, saved_at: rt.tool_use_saved.saved_at });
@@ -203,6 +204,8 @@
         this.emit('event', { event: p.event, stream: p.stream, detail: p.detail || {}, at: new Date().toISOString() });
       } else if (p.type === 'experimental_score') {
         this.score = p;
+      } else if (p.type === 'exposure') {
+        this.emit('exposure', p); // daily exposure estimate (exposure.js renders it)
       } else if (p.type === 'stream_features' && p.stream === 'imu') {
         this.imu = { rec: p, at: performance.now() };
       } else if (p.type === 'stream_features' && p.stream === 'emg') {
