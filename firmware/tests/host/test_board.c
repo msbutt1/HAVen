@@ -62,11 +62,16 @@ static void test_board_specific(void)
         CHECK(!vg_board_station.oled.enabled && !vg_board_station.dht11.enabled);
     }
     if (strcmp(VG_TEST_BOARD, "esp32_d0wd_v3_devkit30") == 0) {
-        /* chip read with esptool on board W; peripherals still unverified */
+        /* chip read with esptool on board W. Wearable sensors ENABLED (Prompt 4):
+         * IMU verified on board W (MPU-6500, 0x68, GPIO18/19); BioAmp wired to
+         * GPIO34 from 3V3. Station IMU still not wired. */
         CHECK(vg_board_wearable.chip == VG_CHIP_ESP32);
         CHECK(vg_board_wearable.chip_status == VG_FACT_CONFIRMED);
-        CHECK(!vg_board_wearable.emg.enabled);
-        CHECK(!vg_board_wearable.imu.enabled && !vg_board_station.imu.enabled);
+        CHECK(vg_board_wearable.emg.enabled && vg_board_wearable.emg.gpio == 34 &&
+              vg_board_wearable.emg.atten == VG_ATTEN_DB_12);
+        CHECK(vg_board_wearable.imu.enabled && vg_board_wearable.imu.sda_gpio == 18 &&
+              vg_board_wearable.imu.scl_gpio == 19);
+        CHECK(!vg_board_station.imu.enabled);
         CHECK(!vg_board_station.velostat.enabled);
         CHECK(!vg_board_station.oled.enabled && !vg_board_station.dht11.enabled);
         /* GPIO12 strapping: flash voltage 3.3 V; nothing assigned there */

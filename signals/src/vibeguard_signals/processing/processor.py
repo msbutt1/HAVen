@@ -23,6 +23,7 @@ from .calibration import LABEL, LABEL_NOTE, CalContext, CalibrationManager
 from .config import ProcessingConfig, StreamConfig
 from .emg import INPUT_ASSUMPTION, EmgPipeline
 from .score import ScoreEngine
+from .tool_use import ToolUseDetector
 from .vibration import VibrationPipeline
 from .window import SampleWindow, WindowSample
 
@@ -119,13 +120,19 @@ class Processor:
         self._vib = VibrationPipeline(self.config.vibration, self.config.imu.conversion,
                                       self.config.imu.conversion_source)
         self.score = ScoreEngine(self.config.score)
+        self.tool_use = ToolUseDetector(self.config.tool_use, self.config.imu.conversion,
+                                        self.config.imu.conversion_source)
         self._pending: list[dict] = []  # score records produced while building features
         self._streams["emg"].on_reset = self._emg.reset
         # Every EMG reset (stream-level or a null sample inside a batch) reaches an active
         # capture directly, even if the next batch alone completes the filter warm-up.
         self._emg.reset_listener = self.calibration.on_signal_reset
-        self._streams["imu"].on_reset = self._vib.reset
+        self._streams["imu"].on_reset = self._imu_reset
         self._start_boot_state()
+
+    def _imu_reset(self, reason: str) -> None:
+        self._vib.reset(reason)
+        self.tool_use.reset(reason)
 
     # ------------------------------------------------------------------ API
 
@@ -164,6 +171,7 @@ class Processor:
             if previous is not None:
                 self.calibration.on_boot_change()
                 self.score.on_boot_change()
+                self.tool_use.on_boot_change()
 
         # Every rejection happens before any state is mutated: a duplicate or late
         # record must not change provenance, windows, or sequence state.
@@ -229,6 +237,10 @@ class Processor:
                       "source_seq": self._seq_last, "trigger": "end_of_input",
                       **self.score.snapshot(None)})
         out.append(final)
+        tool = self._base("tool_use")
+        tool.update({"t_us": None, "source_seq": self._seq_last, **self.tool_use.update(None)})
+        tool["state"], tool["reasons"] = "unknown", ["end_of_input"]
+        out.append(tool)
         self._event(out, "end_of_input", None, None, self._seq_last, {})
         for name, st in self._streams.items():
             if st.window is not None:
@@ -236,6 +248,15 @@ class Processor:
                 self.summary.buffer_max_occupancy[name] = max(
                     self.summary.buffer_max_occupancy.get(name, 0), st.window.max_occupancy)
         return out
+
+    # -- tool-use session (backend API: e.g. "new shift") -----------------------
+
+    def tool_use_reset_session(self) -> list[dict]:
+        """Start a new tool-time session (e.g. a new shift). Returns one event."""
+        before = {"session_tool_s": round(self.tool_use.session_tool_s, 2),
+                  "bouts": self.tool_use.bouts}
+        self.tool_use.reset_session()
+        return self._event([], "tool_session_reset", "imu", None, self._seq_last, before)
 
     # -- calibration commands (backend calibration API calls these) ------------
 
@@ -387,6 +408,7 @@ class Processor:
             self._emg.configure(st.rate, st.channels, st.units)  # type: ignore[arg-type]
         else:
             self._vib.configure(st.rate, st.channels, st.units)  # type: ignore[arg-type]
+            self.tool_use.configure(st.rate, st.channels, st.units)  # type: ignore[arg-type]
 
         if st.next_index is not None:
             if first < st.next_index:
@@ -449,6 +471,8 @@ class Processor:
         st.window.evict_older_than(times[-1])  # type: ignore[union-attr]
         pipeline = self._emg if name == "emg" else self._vib
         pipeline.process(rec["samples"], clip_list, "clipped" in flags)
+        if name == "imu":
+            self.tool_use.process(rec["samples"])
         st.batch_flags.append((times[-1], flags))
         while st.batch_flags and st.batch_flags[0][0] <= times[-1] - st.cfg.window_s * 1e6:
             st.batch_flags.popleft()
@@ -552,9 +576,14 @@ class Processor:
         if st.name == "emg":
             rec["features"]["emg_activation"] = act = self._emg_activation(t_end)
             self.score.update_activation(t_end, act["normalized"])
+            self.tool_use.update_grip(act["normalized"])
         else:
             rec["features"]["vibration"] = vib = self._vib.state()
             self.score.update_vibration(t_end, vib)
+            tool = self._base("tool_use")
+            tool.update({"t_us": None if t_end is None else round(t_end), "source_seq": seq,
+                         **self.tool_use.update(t_end)})
+            self._pending.append(tool)
         score = self._base("experimental_score")
         score.update({"t_us": None if t_end is None else round(t_end), "source_seq": seq,
                       "trigger": st.name, **self.score.snapshot(t_end)})

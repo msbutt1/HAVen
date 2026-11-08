@@ -31,8 +31,8 @@
  * SDA->D18 (GPIO18), SCL->D19 (GPIO19); AD0->GND and FSYNC->GND (grounded later the
  * same day, per PS-MPU-9250A-01). Verified: MPU-6500 at 0x68 before and after. */
 #define WEARABLE_IMU                                                           \
-    .imu = {.enabled = false, .sda_gpio = 18, .scl_gpio = 19, .address = 0x68,  \
-            .clock_hz = 100000}
+    .imu = {.enabled = true, .sda_gpio = 18, .scl_gpio = 19, .address = 0x68,   \
+            .clock_hz = 400000}
 /* Station IMU: not wired yet; proposed pins. */
 #define PROPOSED_IMU                                                           \
     .imu = {.enabled = false, .sda_gpio = 21, .scl_gpio = 22, .address = 0x68,  \
@@ -44,9 +44,11 @@ const vg_hw_config_t vg_board_wearable = {
     .role = VG_ROLE_WEARABLE,
     BOARD_W_CHIP,
     /* WIRED (reported by Salaar 2026-11-07): BioAmp OUT -> D34 (GPIO34, ADC1_CH6),
-     * BioAmp VCC -> 3V3, GND -> GND. Still disabled: BioAmp is in its default
-     * EEG/EOG jumper setting and the ADC attenuation is not chosen yet. */
-    .emg = {.enabled = false, .gpio = 34, .atten = VG_ATTEN_UNSET},
+     * BioAmp VCC -> 3V3, GND -> GND. ENABLED for live acquisition (Prompt 4):
+     * 12 dB attenuation (ESP32 datasheet effective range 150-2450 mV; the
+     * BioAmp at 3V3 cannot exceed 3.3 V). Caveat in hello: BioAmp BANDPASS
+     * jumper still in its default EEG/EOG position. */
+    .emg = {.enabled = true, .gpio = 34, .atten = VG_ATTEN_DB_12, .bitwidth = 12},
     WEARABLE_IMU,
     .motor = {.enabled = false, .gpio = VG_PIN_NONE},
     .velostat = {.enabled = false, .gpio = VG_PIN_NONE},
