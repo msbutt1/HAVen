@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VibeGuard: a wearable for hand-arm vibration awareness</title>
+  <meta name="description" content="VibeGuard is a hackathon prototype: a forearm sleeve that measures muscle effort and wrist vibration together, a fingertip vibration test, and a local dashboard. Experimental, not a medical device.">
+  <meta name="theme-color" content="#f4b000">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23f4b000'/%3E%3Cpath d='M7 8l9 17 9-17' fill='none' stroke='%231c2428' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <a class="skip" href="#main">Skip to content</a>
+
+  <header class="top">
+    <a class="brand" href="#top" aria-label="VibeGuard, top of page">VibeGuard</a>
+    <nav aria-label="Page sections">
+      <a href="#measures">What it measures</a>
+      <a href="#how">How it works</a>
+      <a href="#honest">Honest by design</a>
+      <a href="#status">Status</a>
+      <a class="btn btn-small" href="dashboard/">Open the demo</a>
+    </nav>
+  </header>
+
+  <main id="main">
+    <!-- HERO -->
+    <section class="hero" id="top">
+      <div class="tape" aria-hidden="true"></div>
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="eyebrow">Hackathon prototype · natHacks 2026</p>
+          <h1>Know how hard your hands are working.</h1>
+          <p class="lead">VibeGuard is a forearm sleeve that measures muscle effort and wrist vibration together, plus a quick fingertip test, so exposure to vibrating tools is easier to see and talk about.</p>
+          <div class="cta">
+            <a class="btn btn-primary" href="dashboard/">Open the demo</a>
+            <a class="btn" href="#how">See how it works</a>
+          </div>
+          <p class="fine">The demo plays a recorded session, labelled as a replay. It is not a medical device and shows no diagnosis.</p>
+        </div>
+        <figure class="shot">
+          <picture>
+            <source srcset="assets/dashboard-dark.png" media="(prefers-color-scheme: dark)">
+            <img src="assets/dashboard-light.png" width="1920" height="1140"
+                 alt="The VibeGuard dashboard Live screen: muscle activation 59 percent of max squeeze, wrist vibration 2.08 metres per second squared, an experimental exposure score, and three 30-second charts. A blue banner reads: Recorded replay. This is not live.">
+          </picture>
+          <figcaption>The real dashboard, replaying a recorded demo session. Not live data.</figcaption>
+        </figure>
+      </div>
+    </section>
+
+    <!-- WHY -->
+    <section class="band">
+      <div class="wrap narrow">
+        <h2>Exposure is usually a guess</h2>
+        <p>Hand-arm vibration syndrome comes from regular, long-term use of vibrating hand tools. Exposure is typically estimated from a tool’s rated vibration and the hours it was used. That says little about the person holding it.</p>
+        <p>VibeGuard explores adding what the worker’s own arm is doing: how hard the forearm muscles are working, and the vibration that actually reaches the wrist. It is an idea we are prototyping, not a validated method.</p>
+      </div>
+    </section>
+
+    <!-- MEASURES -->
+    <section id="measures">
+      <div class="wrap">
+        <h2>Three readings, kept apart on purpose</h2>
+        <p class="sub">Each number says what it is, and none is dressed up as something it is not.</p>
+        <div class="cards">
+          <article class="card">
+            <svg class="icon" viewBox="0 0 64 40" aria-hidden="true"><polyline points="2,22 10,22 14,8 18,34 22,14 26,26 30,20 36,20 40,6 44,34 48,16 52,22 62,22" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+            <h3>Muscle activation</h3>
+            <p>Forearm muscle signal (EMG), shown relative to <em>your own</em> calibration: a relaxed reading and a hard squeeze.</p>
+            <p class="not">Not force, not %MVC, not clinically validated.</p>
+          </article>
+          <article class="card">
+            <svg class="icon" viewBox="0 0 64 40" aria-hidden="true"><path d="M8 20h6M50 20h6" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><path d="M22 10c-5 6-5 14 0 20M42 10c5 6 5 14 0 20M28 3c-9 10-9 24 0 34M36 3c9 10 9 24 0 34" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>
+            <h3>Wrist vibration</h3>
+            <p>Vibration measured by a motion sensor on the wrist, reported within what that sensor can actually capture.</p>
+            <p class="not">Unweighted. Not ISO 5349 dosimetry.</p>
+          </article>
+          <article class="card card-exp">
+            <svg class="icon" viewBox="0 0 64 40" aria-hidden="true"><path d="M6 34a26 26 0 0 1 52 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="2 6"/><path d="M32 34 44 16" stroke="currentColor" stroke-width="3" stroke-linecap="round"/><circle cx="32" cy="34" r="3" fill="currentColor"/></svg>
+            <h3>Exposure score <span class="tag tag-exp">Experimental</span></h3>
+            <p>A placeholder formula that combines vibration with grip effort, in arbitrary units, so the idea can be shown end to end.</p>
+            <p class="not">Not a dose. Not a percentage of any limit.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <!-- HOW -->
+    <section class="band" id="how">
+      <div class="wrap">
+        <h2>How it works</h2>
+        <ol class="steps">
+          <li><span class="n">1</span><div><h3>Wear the sleeve</h3><p>Electrodes on the forearm and a motion sensor at the wrist, held in a tattoo-style sleeve.</p></div></li>
+          <li><span class="n">2</span><div><h3>Calibrate in six seconds</h3><p>Three seconds relaxed, three seconds squeezing. Activation is then shown against your own range.</p></div></li>
+          <li><span class="n">3</span><div><h3>Work and watch</h3><p>Live activation, vibration and score on the dashboard, about twenty updates a second. Record a session when you want to keep it.</p></div></li>
+          <li><span class="n">4</span><div><h3>Check your fingertip</h3><p>A small motor buzzes at your fingertip at different settings and you answer “felt it” or “didn’t feel it”. A missed answer is saved as missing, never as “no”.</p></div></li>
+          <li><span class="n">5</span><div><h3>Review</h3><p>Sessions and test results are stored and listed with where their data came from.</p></div></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- HONEST -->
+    <section id="honest">
+      <div class="wrap">
+        <h2>Honest by design</h2>
+        <div class="two">
+          <div>
+            <p class="sub">Every screen says where its data came from.</p>
+            <ul class="chips" aria-label="Data source labels">
+              <li><span class="tag tag-live">Live</span> from a connected device</li>
+              <li><span class="tag tag-replay">Replay</span> a recording played back</li>
+              <li><span class="tag tag-sim">Simulated</span> made up, to show how it would look</li>
+            </ul>
+            <p>The demo you can open is a replay, and its banner says so. The example 12-week history is simulated and labelled that way.</p>
+          </div>
+          <div class="isnt">
+            <h3>What VibeGuard is not</h3>
+            <ul>
+              <li>Not a medical device, and nothing here is a diagnosis.</li>
+              <li>The fingertip test does not detect nerve damage. Motor settings are drive levels, not measured vibration.</li>
+              <li>The score is not a dose and there is no safe or unsafe cut-off.</li>
+              <li>No claim of standards-compliant measurement.</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- UNDER THE HOOD -->
+    <section class="band">
+      <div class="wrap">
+        <h2>Under the hood</h2>
+        <div class="stack">
+          <div><h3>Wearable</h3><p>ESP32 firmware reads EMG and a motion sensor and sends records over USB serial in a documented, versioned format.</p></div>
+          <div><h3>Signal processing</h3><p>Calibration, vibration features and the experimental score, tested against simulated and recorded streams.</p></div>
+          <div><h3>Local backend</h3><p>Live updates, saved sessions, a labelled replay fallback, and checks that refuse mislabelled data.</p></div>
+          <div><h3>Dashboard</h3><p>Plain HTML and JavaScript, no build step. Built to run on one laptop, with no cloud account.</p></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- STATUS -->
+    <section id="status">
+      <div class="wrap narrow">
+        <h2>Where it stands</h2>
+        <p class="sub">Status as of November 2026.</p>
+        <ul class="status">
+          <li class="done"><b>Working</b> The software chain from device records to dashboard, tested end to end on simulated and recorded data.</li>
+          <li class="wip"><b>In progress</b> Bringing up the real wearable boards and checking real signals.</li>
+          <li class="wip"><b>In progress</b> The perception-test station drives a simulated motor until its hardware is connected, and its results are labelled simulated.</li>
+        </ul>
+        <div class="cta">
+          <a class="btn btn-primary" href="dashboard/">Open the demo</a>
+          <a class="btn" href="https://github.com/msbutt1/VibeGaurd">View the source</a>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <div class="tape" aria-hidden="true"></div>
+    <div class="wrap">
+      <p><strong>VibeGuard</strong> was built for natHacks 2026 by Collins (hardware), Salaar (firmware and signals), abduljabbar (backend), Ali (dashboard) and Fahad (perception-test station).</p>
+      <p class="fine">A prototype for demonstration. It is not a medical device, gives no diagnosis, and its experimental score is not a dose.</p>
+    </div>
+  </footer>
+</body>
+</html>
