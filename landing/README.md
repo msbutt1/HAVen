@@ -1,7 +1,8 @@
 # VibeGuard landing page
 
-A static page: `index.html`, `style.css` and two screenshots in `assets/`. No build step, no scripts, and no third-party
-requests (no web fonts, no analytics). Open `index.html` in a browser, or serve the folder:
+A static page in the style of livops.uz: `index.html`, `style.css`, two screenshots and self-hosted fonts (Onest and
+JetBrains Mono, SIL OFL, licences in `assets/fonts/`). No build step, no scripts, and no third-party requests (no font
+CDN, no analytics). Open `index.html` in a browser, or serve the folder:
 
 ```bash
 cd landing && python3 -m http.server 8800
