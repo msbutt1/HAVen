@@ -21,7 +21,8 @@ def test_backend_adapter_translation():
     assert o["t2"] == [None, None, None, False]                            # nothing invented before calibration / conversion
     assert o["ignoredOther"] is True
     assert o["start"] == ["accepted", "s9"] and o["total"] == 0.75         # cumulative 4.75 - 4 at the start
-    assert o["session"] == [["s9", "stopped", None, 10]]                   # uncalibrated: no score
+    assert o["session"] == [["s9", "stopped", None, 10, 42.5, 3.1]]       # uncalibrated: no score; readings from the backend
+    assert o["lateStop"] == ["accepted", True, "the replayed recording reached its end"]
     assert o["histStation"] == [["ss0", "simulated", 110, 3, 410, 1, 1]]  # finished tests only; threshold re-derived from the trials
     assert o["stStart"] == "accepted" and o["stSource"] == "simulated"     # stored as simulated, never live
     assert o["stStim"] == [[150, False], [110, False], [70, False], [0, True], [110, False], [70, False]]

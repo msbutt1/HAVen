@@ -29,7 +29,14 @@
     device_disconnected: 'The sleeve disconnected during calibration.',
     boot_change: 'The sleeve restarted during calibration.',
   };
-  const END_TEXT = { stopped_by_user: 'stopped' };
+  const END_TEXT = {
+    stopped_by_user: 'stopped',
+    end_of_input: 'the replayed recording reached its end',
+    device_changed: 'a different sleeve connected',
+    runtime_stopped: 'the backend stopped',
+    runtime_error: 'the backend hit an error',
+    backend_restart: 'the backend restarted during it',
+  };
 
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const num = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null);
@@ -283,6 +290,7 @@
 
     _sessionRecord(row) {
       const score = row.score || {};
+      const readings = (row.counters && row.counters.readings) || {};
       const at = score.at_start && score.at_start.cumulative_au;
       const end = score.at_end && score.at_end.cumulative_au;
       const started = row.started_at ? Date.parse(row.started_at) : null;
@@ -295,12 +303,14 @@
         started_at: row.started_at,
         ended_at: row.ended_at,
         duration_s: started != null && ended != null ? Math.max(0, (ended - started) / 1000) : 0,
-        ended_reason: END_TEXT[row.end_reason] || row.end_reason || 'stopped',
+        ended_reason: END_TEXT[row.end_reason] || String(row.end_reason || 'stopped').replace(/_/g, ' '),
         calibrated: !!row.calibration_id,
         score_total: row.calibration_id && num(at) != null && num(end) != null ? Math.max(0, end - at) : null,
         score_units: 'au', // arbitrary units of the experimental formula
-        peak_vib_ahv_est: null, // not computed by the backend
-        mean_activation_pct: null,
+        // what the screens showed during the recording (backend: counters.readings); null when never available
+        peak_vib_ahv_est: readings.peak_vibration_ms2 == null ? null : num(readings.peak_vibration_ms2),
+        mean_activation_pct: readings.mean_activation_pct == null ? null : num(readings.mean_activation_pct),
+        peak_activation_pct: readings.peak_activation_pct == null ? null : num(readings.peak_activation_pct),
       };
     }
 
@@ -386,7 +396,17 @@
         const sid = this.sessionId || (this.status && this.status.active_session_id);
         if (!sid) return fail('No recording is running.');
         const r = await this._http('POST', `/api/sessions/${encodeURIComponent(sid)}/stop`, { request_id: id });
-        if (!r.ok) return fail(r.error);
+        if (!r.ok) {
+          // the backend may already have ended it (the source ended, the sleeve changed): that is not a failure
+          const g = await this._http('GET', `/api/sessions/${encodeURIComponent(sid)}`);
+          if (g.ok && g.data && g.data.state && g.data.state !== 'recording') {
+            this.sessionId = null;
+            this._sessionEnded(g.data);
+            this._refresh();
+            return done({ session_id: sid, already_ended: true });
+          }
+          return fail(r.error);
+        }
         this.sessionId = null;
         this._sessionEnded(r.data);
         this._refresh();

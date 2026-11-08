@@ -49,6 +49,8 @@
 
   // ---------- helpers ----------
   const fmtNum = (v, dp) => (v == null || Number.isNaN(v) ? '—' : Number(v).toFixed(dp));
+  // small experimental-score values (arbitrary units) need more digits than "0.0" to be readable
+  const fmtScore = (v) => (v == null || Number.isNaN(v) ? '—' : Math.abs(v) < 1 ? Number(v).toFixed(3) : Number(v).toFixed(1));
   const fmtTime = (iso) => (iso ? new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—');
   const fmtDur = (ms) => {
     const s = Math.max(0, Math.round(ms / 1000));
@@ -189,7 +191,7 @@
     $('act-num').textContent = fmtNum(v && v.activation_pct, 0);
     $('vib-num').textContent = fmtNum(v && v.vib_ahv_est, 2);
     $('score-rate').textContent = fmtNum(v && v.score_rate, 2);
-    $('score-total').textContent = fmtNum(v && v.score_total, 1);
+    $('score-total').textContent = fmtScore(v && v.score_total);
     $('act-fill').style.width = v && v.activation_pct != null ? `${v.activation_pct}%` : '0%';
 
     const fr = $('freshness');
@@ -482,8 +484,9 @@
       const cells = [fmtTime(item.at), item.kind === 'session' ? 'Wearable recording' : 'Perception test', null, ''];
       if (item.kind === 'session') {
         const bits = [`${fmtDur(r.duration_s * 1000)} long`];
-        bits.push(r.score_total == null ? 'no score (not calibrated)' : `score ${fmtNum(r.score_total, 1)} ${r.score_units || 'points'} (experimental)`);
-        bits.push(`peak vibration ${fmtNum(r.peak_vib_ahv_est, 1)} m/s²`);
+        bits.push(r.score_total == null ? 'no score (not calibrated)' : `score ${fmtScore(r.score_total)} ${r.score_units || 'points'} (experimental)`);
+        if (r.mean_activation_pct != null) bits.push(`mean activation ${fmtNum(r.mean_activation_pct, 0)} %`);
+        if (r.peak_vib_ahv_est != null) bits.push(`peak vibration ${fmtNum(r.peak_vib_ahv_est, 2)} m/s²`);
         if (r.ended_reason !== 'stopped') bits.push(`ended early: ${r.ended_reason}`);
         cells[3] = bits.join(', ');
       } else {
@@ -578,6 +581,11 @@
   renderHistory();
   requestAnimationFrame(frame);
   adapter.connect();
+
+  if (SOURCE === 'backend') { // the backend's score is in arbitrary units from the first frame, not points
+    $('score-rate-unit').textContent = 'au/h';
+    $('score-total-unit').textContent = 'au';
+  }
 
   window.VG.app = { adapter, state: S }; // handy in the browser console
 })();

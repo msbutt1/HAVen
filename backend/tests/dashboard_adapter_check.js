@@ -58,9 +58,16 @@ const status = (o = {}) => ({ runtime: 'wearable', device_id: 'd1', state: 'read
   ws.onmessage({ data: JSON.stringify({ channel: 'derived', runtime: 'wearable', payload: { type: 'experimental_score', status: 'accumulating', rate: { value: 1 }, cumulative: { value: 4.75 } } }) });
   ws.onmessage({ data: JSON.stringify(emgMsg()) });
   out.total = ev.telemetry.at(-1).values.score_total;
-  routes['POST /api/sessions/s9/stop'] = { body: { session_id: 's9', state: 'completed', end_reason: 'stopped_by_user', source: 'simulated', started_at: '2026-11-07T20:00:00Z', ended_at: '2026-11-07T20:00:10Z', calibration_id: null } };
+  routes['POST /api/sessions/s9/stop'] = { body: { session_id: 's9', state: 'completed', end_reason: 'stopped_by_user', source: 'simulated', started_at: '2026-11-07T20:00:00Z', ended_at: '2026-11-07T20:00:10Z', calibration_id: null, counters: { readings: { mean_activation_pct: 42.5, peak_vibration_ms2: 3.1 } } } };
   await a.send('stop_session');
-  out.session = ev.session.map((s) => [s.session_id, s.ended_reason, s.score_total, s.duration_s]);
+  out.session = ev.session.map((s) => [s.session_id, s.ended_reason, s.score_total, s.duration_s, s.mean_activation_pct, s.peak_vib_ahv_est]);
+  // a recording the backend already ended (the replay reached its end): Stop is not an error
+  routes['POST /api/sessions'] = { body: { session_id: 's10', score: { at_start: { cumulative_au: 0 } } } };
+  await a.send('start_session');
+  routes['POST /api/sessions/s10/stop'] = { ok: false, status: 409, body: { detail: 'not recording' } };
+  routes['GET /api/sessions/s10'] = { body: { session_id: 's10', state: 'completed', end_reason: 'end_of_input', source: 'replay', started_at: '2026-11-07T20:00:00Z', ended_at: '2026-11-07T20:00:04Z' } };
+  const late = await a.send('stop_session');
+  out.lateStop = [late.status, late.already_ended, ev.session.at(-1).ended_reason];
   // perception test on the backend's per-trial API: a short preview with scripted answers
   const sev = [], calls = [];
   const b = new VG.BackendAdapter({ stationGapMs: [5, 10] });

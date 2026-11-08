@@ -4,14 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VibeGuard dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;600;700&display=swap">
+  <meta name="theme-color" content="#11151d" media="(prefers-color-scheme: dark)">
+  <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f8ff7'/%3E%3Cpath d='M5 16h5l3-7 4 14 3-9 2 2h5' fill='none' stroke='%23131826' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+  <link rel="preload" href="assets/fonts/onest-latin-600-normal.woff2" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="assets/fonts/onest-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
   <header class="topbar">
-    <h1 class="brand">VibeGuard</h1>
+    <h1 class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg></span>VibeGuard<span class="crumb">dashboard</span></h1>
     <div class="devices" aria-live="polite">
       <span class="device" id="dev-sleeve" data-state="disconnected"><span class="dot" aria-hidden="true"></span>Sleeve <b class="device-state">Disconnected</b></span>
       <span class="device" id="dev-station" data-state="disconnected"><span class="dot" aria-hidden="true"></span>Station <b class="device-state">Disconnected</b></span>
@@ -143,7 +145,7 @@
 
     <!-- HISTORY -->
     <section id="view-history" class="view" role="tabpanel" aria-labelledby="tab-history" hidden>
-      <h2 class="section-title">Saved since this page opened</h2>
+      <h2 class="section-title">Saved recordings and tests</h2>
       <p class="empty" id="hist-empty">Nothing saved yet. Record a session on the Live screen or run a perception test.</p>
       <table class="log" id="hist-table" hidden>
         <thead><tr><th scope="col">Saved</th><th scope="col">What</th><th scope="col">Data source</th><th scope="col">Summary</th></tr></thead>
