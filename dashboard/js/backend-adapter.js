@@ -322,6 +322,14 @@
       const end = score.at_end && score.at_end.cumulative_au;
       const started = row.started_at ? Date.parse(row.started_at) : null;
       const ended = row.ended_at ? Date.parse(row.ended_at) : null;
+      // The backend's own figure for the session (score.session_au: end minus start of one accumulation, counted
+      // from zero when nothing was scored before; null with a reason when it can't be attributed). Rows saved
+      // before it existed fall back to end minus start.
+      let scoreTotal = null;
+      if (row.calibration_id) {
+        if (Object.prototype.hasOwnProperty.call(score, 'session_au')) scoreTotal = num(score.session_au) == null ? null : Math.max(0, num(score.session_au));
+        else if (num(at) != null && num(end) != null) scoreTotal = Math.max(0, end - at);
+      }
       return {
         type: 'session_saved',
         session_id: row.session_id,
@@ -332,12 +340,15 @@
         duration_s: started != null && ended != null ? Math.max(0, (ended - started) / 1000) : 0,
         ended_reason: END_TEXT[row.end_reason] || String(row.end_reason || 'stopped').replace(/_/g, ' '),
         calibrated: !!row.calibration_id,
-        score_total: row.calibration_id && num(at) != null && num(end) != null ? Math.max(0, end - at) : null,
+        score_total: scoreTotal,
         score_units: 'au', // arbitrary units of the experimental formula
         // what the screens showed during the recording (backend: counters.readings); null when never available
         peak_vib_ahv_est: readings.peak_vibration_ms2 == null ? null : num(readings.peak_vibration_ms2),
         mean_activation_pct: readings.mean_activation_pct == null ? null : num(readings.mean_activation_pct),
         peak_activation_pct: readings.peak_activation_pct == null ? null : num(readings.peak_activation_pct),
+        // estimated from vibration by the processor's tool-use detector; null when it never ran
+        tool_time_s: readings.tool_time_s == null ? null : num(readings.tool_time_s),
+        tool_bouts: readings.tool_bouts == null ? null : num(readings.tool_bouts),
       };
     }
 

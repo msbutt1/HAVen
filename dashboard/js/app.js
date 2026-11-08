@@ -73,7 +73,7 @@
   }
 
   // ---------- views / tabs ----------
-  const VIEWS = ['live', 'calibrate', 'station', 'history'];
+  const VIEWS = ['live', 'overview', 'calibrate', 'station', 'history'];
   function showView(v) {
     if (!VIEWS.includes(v)) v = 'live';
     S.view = v;
@@ -85,6 +85,7 @@
     }
     if (location.hash !== `#${v}`) history.replaceState(null, '', `#${v}`);
     if (v === 'history') drawHistoryCharts();
+    if (v === 'overview' && VG.Overview) VG.Overview.render(S.saved);
   }
   document.querySelectorAll('.tabs button').forEach((b) => {
     b.addEventListener('click', () => showView(b.dataset.view));
@@ -602,9 +603,11 @@
       const cells = [fmtTime(item.at), item.kind === 'session' ? 'Wearable recording' : 'Perception test', null, ''];
       if (item.kind === 'session') {
         const bits = [`${fmtDur(r.duration_s * 1000)} long`];
-        bits.push(r.score_total == null ? 'no score (not calibrated)' : `score ${fmtScore(r.score_total)} ${r.score_units || 'points'} (experimental)`);
+        bits.push(r.score_total != null ? `score ${fmtScore(r.score_total)} ${r.score_units || 'points'} (experimental)`
+          : r.calibrated ? 'no score (the backend could not attribute one to this recording)' : 'no score (not calibrated)');
         if (r.mean_activation_pct != null) bits.push(`mean activation ${fmtNum(r.mean_activation_pct, 0)} %`);
         if (r.peak_vib_ahv_est != null) bits.push(`peak vibration ${fmtNum(r.peak_vib_ahv_est, 2)} m/s²`);
+        if (r.tool_time_s != null) bits.push(`tool time ${Math.round(r.tool_time_s)} s (estimated)`);
         if (r.ended_reason !== 'stopped') bits.push(`ended early: ${r.ended_reason}`);
         cells[3] = bits.join(', ');
       } else {
@@ -622,6 +625,7 @@
       });
       body.appendChild(tr);
     }
+    if (S.view === 'overview' && VG.Overview) VG.Overview.render(S.saved);
   }
 
   // Deterministic simulated 12-week history.

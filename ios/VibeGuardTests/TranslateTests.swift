@@ -99,6 +99,16 @@ final class TranslateTests: XCTestCase {
         XCTAssertEqual(r.provenance, .replay)
     }
 
+    func testSessionScoreUsesTheBackendsSessionFigure() {
+        // calibrated during the recording: nothing was scored before it, so at_start is null
+        let r = Translate.sessionRecord(json(#"{"session_id":"s5","calibration_id":"c5","score":{"at_start":null,"at_end":{"cumulative_au":0.06},"session_au":0.059868},"counters":{"readings":{"tool_time_s":12.45}}}"#))!
+        XCTAssertEqual(r.scoreTotal!, 0.059868, accuracy: 1e-9)
+        XCTAssertEqual(r.toolTimeS, 12.45)
+        // the backend could not attribute it (the accumulation reset): no score, even with both snapshots
+        let u = Translate.sessionRecord(json(#"{"session_id":"s6","calibration_id":"c6","score":{"at_start":{"cumulative_au":1},"at_end":{"cumulative_au":3},"session_au":null}}"#))!
+        XCTAssertNil(u.scoreTotal)
+    }
+
     func testUncalibratedSessionHasNoScoreAndUnknownReasonsAreReadable() {
         let r = Translate.sessionRecord(json(#"{"session_id":"s2","end_reason":"some_new_reason","source":"live","score":{"at_start":{"cumulative_au":1},"at_end":{"cumulative_au":3}}}"#))!
         XCTAssertNil(r.scoreTotal)

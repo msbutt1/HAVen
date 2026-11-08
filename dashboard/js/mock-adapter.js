@@ -27,6 +27,72 @@
   };
   const shortId = (p) => `${p}-${Date.now().toString(36).slice(-5)}`;
 
+  /**
+   * Made-up history for the in-browser demo: about 60 days of recordings on workdays and a weekly perception
+   * test, so the Overview and History screens have something to show. Deterministic (seeded), dated relative
+   * to `nowMs`, every record labelled provenance "simulated" and sample: true. Not data from a person.
+   */
+  VG.sampleHistory = function sampleHistory(nowMs, days = 60) {
+    let seed = 20261108;
+    const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+    const between = (a, b) => a + (b - a) * rnd();
+    const sessions = [];
+    const tests = [];
+    const day0 = new Date(nowMs);
+    day0.setHours(0, 0, 0, 0);
+    for (let d = days; d >= 1; d--) {
+      const day = new Date(day0.getTime() - d * 86400000);
+      const dow = day.getDay();
+      if (dow === 0 || dow === 6) continue;
+      const trend = (days - d) / days;                 // later days run a little busier, for visible deltas
+      const n = rnd() < 0.12 ? 0 : 1 + Math.floor(rnd() * (1.6 + trend * 1.4));
+      for (let i = 0; i < n; i++) {
+        const start = day.getTime() + (8 + i * 2.6 + between(0, 1.6)) * 3600000;
+        const dur = Math.round(between(18, 70) * 60);
+        const calibrated = rnd() > 0.1;
+        const toolShare = between(0.12, 0.5 + trend * 0.15);
+        const vib = between(2.2, 4.2) + toolShare * between(4, 8);
+        const grip = calibrated ? between(22, 48) + toolShare * 25 : null;
+        const peakGrip = grip == null ? null : Math.min(100, grip + between(25, 60));
+        const score = calibrated ? vib * toolShare * (1 + grip / 100) * (dur / 60) * 1.4 : null;
+        sessions.push({
+          type: 'session_saved', session_id: `sample-ses-${sessions.length + 1}`, device_id: 'sleeve-simulated',
+          provenance: 'simulated', sample: true,
+          started_at: new Date(start).toISOString(), ended_at: new Date(start + dur * 1000).toISOString(), duration_s: dur,
+          ended_reason: rnd() < 0.05 ? 'Lost connection to the sleeve' : 'stopped', calibrated,
+          score_total: score == null ? null : round(score, 1), score_units: 'au',
+          peak_vib_ahv_est: round(vib, 2), mean_activation_pct: grip == null ? null : round(grip, 1),
+          peak_activation_pct: peakGrip == null ? null : round(peakGrip, 1),
+          tool_time_s: round(dur * toolShare, 0), tool_bouts: Math.max(1, Math.round(dur * toolShare / 240)),
+        });
+      }
+      if (dow === 3 || (dow === 1 && rnd() < 0.4)) {        // a test most Wednesdays, sometimes a Monday too
+        const start = day.getTime() + between(13, 16) * 3600000;
+        const threshold = Math.round(58 + trend * 18 + between(-6, 6));
+        const nTrials = 18 + Math.floor(rnd() * 10);
+        const trials = [];
+        for (let k = 0; k < nTrials; k++) {
+          const isCatch = rnd() < 0.15;
+          const setting = isCatch ? 0 : Math.round(threshold + between(-25, 25));
+          const pFelt = isCatch ? 0.08 : 1 / (1 + Math.exp(-(setting - threshold) / 6));
+          const response = rnd() < 0.05 ? 'missing' : rnd() < pFelt ? 'felt' : 'not_felt';
+          trials.push({ type: 'station_trial_result', trial_id: `sample-st-${tests.length + 1}-t${k + 1}`, index: k + 1,
+            stimulus_setting: setting, is_catch: isCatch, response, rt_ms: response === 'missing' ? null : Math.round(between(320, 900)) });
+        }
+        tests.push({
+          type: 'station_complete', test_id: `sample-st-${tests.length + 1}`, device_id: 'station-simulated',
+          provenance: 'simulated', sample: true, mode: 'full',
+          started_at: new Date(start).toISOString(), completed_at: new Date(start + nTrials * 6000).toISOString(),
+          threshold_setting: threshold, catch_trials: trials.filter((t) => t.is_catch).length,
+          catch_trials_felt: trials.filter((t) => t.is_catch && t.response === 'felt').length,
+          missing_responses: trials.filter((t) => t.response === 'missing').length,
+          measured_amplitude_available: false, trials,
+        });
+      }
+    }
+    return { sessions, tests };
+  };
+
   class MockAdapter extends VG.Emitter {
     constructor() {
       super();
@@ -58,6 +124,11 @@
       this.emit('connection', { type: 'connection', connected: true });
       this._setState('sleeve', 'ready');
       this._setState('station', 'ready');
+      // made-up history for the Overview and History screens, once per page (labelled simulated and sample)
+      if (!this._historySent) {
+        this._historySent = true;
+        this.emit('history', { type: 'history', ...VG.sampleHistory(Date.now()) });
+      }
     }
 
     disconnect(reason = 'Disconnected by user') {
@@ -139,6 +210,8 @@
             peakVib: 0,
             actSum: 0,
             actN: 0,
+            actPeak: null,
+            toolS: 0,
             calibrated: !!this.cal,
           };
           this._setState('sleeve', 'recording');
@@ -189,7 +262,8 @@
       if (this.session) {
         if (scoreRate != null) this.session.total += (scoreRate * dt) / 60;
         this.session.peakVib = Math.max(this.session.peakVib, vib);
-        if (act != null) { this.session.actSum += act; this.session.actN++; }
+        // saved readings use the bar value (capped at 100 %), as the backend's counters.readings do
+        if (act != null) { const a = Math.min(100, act); this.session.actSum += a; this.session.actN++; this.session.actPeak = Math.max(this.session.actPeak || 0, a); }
       }
       if (this.calRun) this._calTick(env);
 
@@ -229,7 +303,7 @@
       if (t.state !== 'tool' && t.onFor >= 2) { t.state = 'tool'; t.bouts += 1; t.bout = 0; }
       else if (t.state === 'tool' && t.offFor >= 1.5) { t.state = 'no_tool'; }
       else if (t.state === 'unknown' && t.observed > 1) t.state = 'no_tool';
-      if (t.state === 'tool') { t.session += dt; t.bout += dt; t.longest = Math.max(t.longest, t.bout); }
+      if (t.state === 'tool') { t.session += dt; t.bout += dt; t.longest = Math.max(t.longest, t.bout); if (this.session) this.session.toolS += dt; }
       if ((t.sinceEmit += dt) >= 0.5) {
         t.sinceEmit = 0;
         const warnings = [];
@@ -318,6 +392,8 @@
         score_total: s.calibrated ? round(s.total, 2) : null,
         peak_vib_ahv_est: round(s.peakVib, 2),
         mean_activation_pct: s.actN ? round(s.actSum / s.actN, 1) : null,
+        peak_activation_pct: s.actPeak == null ? null : round(s.actPeak, 1),
+        tool_time_s: round(s.toolS, 1),
       };
       this.emit('session', rec);
       return rec;
