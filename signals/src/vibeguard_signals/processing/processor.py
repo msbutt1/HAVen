@@ -22,6 +22,7 @@ from . import features
 from .calibration import LABEL, LABEL_NOTE, CalContext, CalibrationManager
 from .config import ProcessingConfig, StreamConfig
 from .emg import INPUT_ASSUMPTION, EmgPipeline
+from .exposure import ExposureEngine
 from .score import ScoreEngine
 from .tool_use import ToolUseDetector
 from .vibration import VibrationPipeline
@@ -120,6 +121,7 @@ class Processor:
         self._vib = VibrationPipeline(self.config.vibration, self.config.imu.conversion,
                                       self.config.imu.conversion_source)
         self.score = ScoreEngine(self.config.score)
+        self.exposure = ExposureEngine(self.config.exposure)
         self.tool_use = ToolUseDetector(self.config.tool_use, self.config.imu.conversion,
                                         self.config.imu.conversion_source)
         self._pending: list[dict] = []  # score records produced while building features
@@ -171,6 +173,7 @@ class Processor:
             if previous is not None:
                 self.calibration.on_boot_change()
                 self.score.on_boot_change()
+                self.exposure.on_boot_change()
                 self.tool_use.on_boot_change()
 
         # Every rejection happens before any state is mutated: a duplicate or late
@@ -193,6 +196,9 @@ class Processor:
             self.score.reset_accumulation()  # never sum live, simulated and replayed data
             self._event(out, "score_accumulation_reset", None, None, seq,
                         {"reason": "provenance_changed", "accumulation": self.score.accumulation})
+            self.exposure.reset_accumulation()  # daily exposure never mixes live, simulated, replay
+            self._event(out, "exposure_accumulation_reset", None, None, seq,
+                        {"reason": "provenance_changed", "accumulation": self.exposure.accumulation})
             for st in self._streams.values():
                 self._invalidate(out, st, "provenance_changed", seq)
         self._remember_seq(seq)
@@ -237,6 +243,12 @@ class Processor:
                       "source_seq": self._seq_last, "trigger": "end_of_input",
                       **self.score.snapshot(None)})
         out.append(final)
+        self.exposure.flush("end_of_input")
+        exp = self._base("exposure")
+        exp.update({"t_us": None if self.exposure.newest is None else round(self.exposure.newest),
+                    "source_seq": self._seq_last, "trigger": "end_of_input",
+                    **self.exposure.snapshot(None)})
+        out.append(exp)
         tool = self._base("tool_use")
         tool.update({"t_us": None, "source_seq": self._seq_last, **self.tool_use.update(None)})
         tool["state"], tool["reasons"] = "unknown", ["end_of_input"]
@@ -255,8 +267,14 @@ class Processor:
         """Start a new tool-time session (e.g. a new shift). Returns one event."""
         before = {"session_tool_s": round(self.tool_use.session_tool_s, 2),
                   "bouts": self.tool_use.bouts}
+        before["exposure_points"] = round(self.exposure.snapshot(None)["daily"]["points"], 3)
         self.tool_use.reset_session()
+        self.exposure.reset_accumulation()  # a new shift is a new daily exposure
         return self._event([], "tool_session_reset", "imu", None, self._seq_last, before)
+
+    def set_personal_exposure_limit(self, points: float) -> None:
+        """Lower this worker's daily limit (HSE points, at most 400). See exposure.py."""
+        self.exposure.set_personal_limit(points)
 
     # -- tool calibration (still -> movement -> tool; see tool_use.py) ---------
 
@@ -604,6 +622,7 @@ class Processor:
             rec["features"]["emg_activation"] = act = self._emg_activation(t_end)
             self.score.update_activation(t_end, act["normalized"])
             self.tool_use.update_grip(act["normalized"])
+            self.exposure.update_activation(t_end, act["normalized"])
         else:
             rec["features"]["vibration"] = vib = self._vib.state()
             self.score.update_vibration(t_end, vib)
@@ -611,10 +630,16 @@ class Processor:
             tool.update({"t_us": None if t_end is None else round(t_end), "source_seq": seq,
                          **self.tool_use.update(t_end)})
             self._pending.append(tool)
+            self.exposure.update_vibration(t_end, vib)
+            self.exposure.update_tool(t_end, tool)
         score = self._base("experimental_score")
         score.update({"t_us": None if t_end is None else round(t_end), "source_seq": seq,
                       "trigger": st.name, **self.score.snapshot(t_end)})
         self._pending.append(score)
+        exp = self._base("exposure")
+        exp.update({"t_us": None if t_end is None else round(t_end), "source_seq": seq,
+                    "trigger": st.name, **self.exposure.snapshot(t_end)})
+        self._pending.append(exp)
         self.summary.feature_status[st.name][status] += 1
         return rec
 
