@@ -244,31 +244,31 @@ html[data-theme="calendar"] #alarm button { border-radius: 10px; }
 html[data-theme="calendar"] .eyeicon, html[data-theme="calendar"] .tips li::before { border: 2px solid var(--ink); }
 
 /* ---------- B. enamel lunch pail: deep enamel green body, white enamel inside, dark rolled rims on every edge ---------- */
-html[data-theme="enamel"] { --bg: #eef2ef; --page: #1d5a45; --inside: #eef2ef; --surface: #ffffff; --fg: #18211d; --muted: #56625c; --faint: #8d9893; --line: #d5ddd8; --rim: #18211d;
-  --primary: #1d5a45; --on-primary: #ffffff; --primary-soft: #dcebe3; --on-page: #ffffff; --on-page-2: rgba(255,255,255,.78);
+html[data-theme="enamel"] { --bg: #f1f6f2; --page: #cfe6d7; --track: #d6e3da; --inside: #eef2ef; --surface: #ffffff; --fg: #18211d; --muted: #56625c; --faint: #8d9893; --line: #d5ddd8; --rim: #18211d;
+  --primary: #1d5a45; --on-primary: #ffffff; --primary-soft: #dcebe3; --on-page: #18211d; --on-page-2: #45544d; --page-chip: rgba(255,255,255,.62);
   --low: #23874c; --low-soft: #e0f1e6; --mid: #c47700; --mid-soft: #fbefdc; --high: #c62f2f; --high-soft: #fae5e5; --r: 22px; }
-@media (prefers-color-scheme: dark) { html[data-theme="enamel"] { --bg: #0c2219; --page: #0e2b20; --inside: #0c2219; --surface: #143528; --fg: #eef4f0; --muted: #a6bab0; --faint: #6f877b; --line: #23493a; --rim: #04110b;
-  --primary: #5fc597; --on-primary: #06140e; --primary-soft: #173327; --on-page: #edf2ef; --on-page-2: #a3b0aa;
+@media (prefers-color-scheme: dark) { html[data-theme="enamel"] { --bg: #0c2219; --page: #0e2b20; --track: #0a1c14; --inside: #0c2219; --surface: #143528; --fg: #eef4f0; --muted: #a6bab0; --faint: #6f877b; --line: #23493a; --rim: #04110b;
+  --primary: #5fc597; --on-primary: #06140e; --primary-soft: #173327; --on-page: #edf2ef; --on-page-2: #a3b0aa; --page-chip: rgba(0,0,0,.25);
   --low: #57c787; --low-soft: #11281b; --mid: #f0a443; --mid-soft: #2c2010; --high: #ff7670; --high-soft: #331716; } }
 html[data-theme="enamel"], html[data-theme="enamel"] body { background: var(--page); }
 html[data-theme="enamel"] main .appbar, html[data-theme="enamel"] main > .pill { color: var(--on-page); }
 html[data-theme="enamel"] main .appbar .date, html[data-theme="enamel"] main > .pill span { color: var(--on-page-2); }
 html[data-theme="enamel"] .appbar .title { font-size: 36px; letter-spacing: -1px; }
-html[data-theme="enamel"] .appbar .iconbtn { background: rgba(0,0,0,.18); color: var(--on-page); border: 3px solid var(--rim); box-shadow: none; }
-html[data-theme="enamel"] main > .pill { background: rgba(0,0,0,.18); border: 2px solid rgba(255,255,255,.16); box-shadow: none; }
+html[data-theme="enamel"] .appbar .iconbtn { background: var(--page-chip); color: var(--on-page); border: 3px solid var(--rim); box-shadow: none; }
+html[data-theme="enamel"] main > .pill { background: var(--page-chip); border: 2px solid var(--rim); box-shadow: none; }
 html[data-theme="enamel"] .card, html[data-theme="enamel"] .stat { box-shadow: none; border: 3px solid var(--rim); }
-html[data-theme="enamel"] .gauge svg circle:first-child { stroke: var(--inside); }
+html[data-theme="enamel"] .gauge svg circle:first-child { stroke: var(--track); filter: url(#groove); }   /* the empty track sits pressed into the enamel */
 html[data-theme="enamel"] .gauge { border-radius: 50%; box-shadow: 0 0 0 5px var(--rim) inset; }
 html[data-theme="enamel"] .toolicon { border-radius: 50%; border: 3px solid var(--rim); }
 html[data-theme="enamel"] button { border-radius: 99px; }
 html[data-theme="enamel"] button.primary { background: var(--primary); border: 3px solid var(--rim); }
-html[data-theme="enamel"] nav { left: 14px; right: 14px; bottom: 12px; border-radius: 24px; background: var(--primary); border: 3px solid var(--rim); box-shadow: 0 6px 18px rgba(0,0,0,.25); padding: 6px; }
+html[data-theme="enamel"] nav { left: 14px; right: 14px; bottom: 12px; border-radius: 24px; background: var(--surface); border: 3px solid var(--rim); box-shadow: 0 6px 18px rgba(0,0,0,.25); padding: 6px; }
 @media (prefers-color-scheme: dark) { html[data-theme="enamel"] nav { background: #0a1d15; } }
 html[data-theme="enamel"] nav button { color: var(--on-page-2); min-height: 58px; }
 html[data-theme="enamel"] nav button .ind { height: 26px; }
-html[data-theme="enamel"] nav button.on { color: var(--primary); background: var(--surface); border-radius: 18px; }
+html[data-theme="enamel"] nav button.on { color: var(--on-primary); background: var(--primary); border-radius: 18px; }
 @media (prefers-color-scheme: dark) { html[data-theme="enamel"] nav button.on { background: var(--primary-soft); color: var(--primary); } }
-html[data-theme="enamel"] nav button.on .ind { background: none; }
+html[data-theme="enamel"] nav button.on .ind { background: none; color: inherit; }   /* the icon follows the tab's text colour */
 html[data-theme="enamel"] main { padding-bottom: 130px; }
 html[data-theme="enamel"] .seg { background: var(--inside); border: 2px solid var(--rim); border-radius: 99px; }
 html[data-theme="enamel"] .seg button { border-radius: 99px; }
@@ -321,7 +321,7 @@ html[data-theme="enamel"] #toast { border: 3px solid var(--rim); }
     <div class="label">Vibration today</div>
     <div class="gauge">
       <svg viewBox="0 0 120 120">
-        <defs><filter id="headShadow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#000" flood-opacity=".55"/></filter></defs>
+        <defs><filter id="headShadow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#000" flood-opacity=".55"/></filter><filter id="groove" x="-10%" y="-10%" width="120%" height="120%"><feComponentTransfer in="SourceAlpha"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer><feGaussianBlur stdDeviation="1.5"/><feOffset dx="-1.7" dy="0" result="sh"/><feFlood flood-color="#000" flood-opacity=".45"/><feComposite in2="sh" operator="in"/><feComposite in2="SourceAlpha" operator="in" result="inner"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="inner"/></feMerge></filter></defs>
         <g transform="rotate(-90 60 60)">
           <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="12"/>
           <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="var(--low)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 327"/>
@@ -360,7 +360,6 @@ html[data-theme="enamel"] #toast { border: 3px solid var(--rim); }
 <!-- OVERVIEW: over time (today by hour, week, month, year) -->
 <main id="tab-overview" style="display:none">
   <div class="appbar"><div><p class="title">Overview</p><div class="date" id="ovSub">Your last 7 days</div></div></div>
-  <div class="sim" id="sampleNote" style="display:none;margin-top:4px">Includes sample days for the demo, not real work</div>
 
   <div class="card">
     <div class="seg" role="tablist" aria-label="Time range">
@@ -1059,7 +1058,6 @@ function renderOverview(s, force) {
   const metric = RANGE === 'today' ? 'points' : METRIC;
   $('ovSub').textContent = R.sub;
   $('segMetric').style.display = RANGE === 'today' ? 'none' : '';
-  $('sampleNote').style.display = logged.some(x => x.e.sample) ? '' : 'none';
   const ptsLines = [{ v: 100, color: 'var(--mid)', label: '100' }, { v: limit, color: 'var(--high)', label: String(Math.round(limit)) }];
   const toolLbl = h => h < 1 ? Math.round(h * 60) + 'm' : h.toFixed(1) + 'h';
   const dayCol = e => metric === 'tool' ? 'var(--primary)' : rule(e.points, e.limit || limit)[1];
