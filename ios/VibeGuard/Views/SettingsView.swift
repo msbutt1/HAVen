@@ -1,52 +1,64 @@
 import SwiftUI
 
 struct SettingsView: View {
-    @Environment(Backend.self) private var backend
+    @Environment(AppModel.self) private var backend
     @Environment(\.dismiss) private var dismiss
-    @State private var draft = ConnectionSettings.load()
 
     var body: some View {
+        @Bindable var model = backend
         NavigationStack {
             Form {
                 Section {
-                    TextField("http://localhost:8000", text: $draft.baseURL)
-                        .keyboardType(.URL)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    TextField("wearable", text: $draft.runtime)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
+                    Picker("Data from", selection: $model.source) {
+                        ForEach(DataSource.allCases) { Text($0.label).tag($0) }
+                    }
                 } header: {
-                    Text("Backend")
+                    Text("Sleeve")
                 } footer: {
-                    Text("In the Simulator the Mac is localhost. On an iPhone, use the Mac’s address on the same Wi-Fi (for example http://192.168.1.20:8000) with the backend started with --host 0.0.0.0 and a password, or the backend’s https address.")
+                    Text(model.source == .demo
+                         ? "The in-app simulated sleeve. Every screen is labelled Simulated: these are not measurements."
+                         : "Turn on Personal Hotspot on this phone with the name and password flashed into the sleeve, keep this app open, then power the sleeve. It joins the hotspot and connects to this phone (port \(SleeveLink.port)) within a few seconds. If a laptop bridge (vg-bridge) is running on the same hotspot, the sleeve connects to the laptop instead: stop it.")
                 }
                 Section {
-                    TextField("Username", text: $draft.username)
-                        .textInputAutocapitalization(.never)
-                        .autocorrectionDisabled()
-                    SecureField("Password", text: $draft.password)
-                } header: {
-                    Text("Password (if the backend has one)")
+                    Picker("Accelerometer range", selection: $model.countsPerG) {
+                        Text("±8 g (4096 counts per g)").tag(4096.0)
+                        Text("±16 g (2048 counts per g)").tag(2048.0)
+                    }
                 } footer: {
-                    Text("The backend’s VG_BASIC_AUTH. The password is kept in this device’s Keychain.")
+                    Text("Must match the sleeve firmware. Board W is flashed with ±8 g (MPU-6500, 4096 LSB/g per the TDK datasheet). A wrong value scales every vibration reading.")
                 }
                 Section {
-                    Text("The sleeve plugs into the computer running the backend; this app shows what that backend reports. Recordings stay on that computer. VibeGuard is a prototype, not a medical device, and the exposure score is experimental, not a dose.")
+                    Stepper(value: $model.exposureReference, in: 10...500, step: 5) {
+                        LabeledContent("Shift reference", value: "\(Int(model.exposureReference)) au")
+                    }
+                } header: {
+                    Text("Exposure bar")
+                } footer: {
+                    Text("The bar is full when this shift's score reaches the reference. Default 75 au (8 h at 2.5 m/s² with 50 % grip, by the score's formula). A team setting, not a legal limit.")
+                }
+                Section {
+                    LabeledContent("Status", value: model.linkDetail.isEmpty ? "Stopped" : model.linkDetail)
+                    LabeledContent("Device", value: model.snapshot.deviceID ?? "—")
+                    LabeledContent("Firmware", value: model.snapshot.firmware ?? "—")
+                    LabeledContent("Records", value: "\(model.snapshot.records)")
+                    LabeledContent("Lost records", value: "\(model.snapshot.missingRecords)")
+                } header: {
+                    Text("Connection")
+                }
+                Section {
+                    ForEach(model.events.reversed(), id: \.self) { Text($0).font(.caption.monospaced()) }
+                } header: {
+                    Text("Recent events")
+                }
+                Section {
+                    Text("Everything is computed on this phone: muscle activation from the EMG, vibration, tool use and the experimental exposure score. Recordings and calibrations stay on this phone. VibeGuard is a prototype, not a medical device. Activation is relative to your own calibration (not force, not %MVC); the exposure score is experimental (not a dose, not A(8)); tool warnings are team settings, not regulatory limits.")
                         .font(.footnote).foregroundStyle(Theme.muted)
                 }
             }
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button("Connect") {
-                        backend.apply(draft)
-                        dismiss()
-                    }
-                    .disabled(draft.url(path: "/") == nil)
-                }
+                ToolbarItem(placement: .confirmationAction) { Button("Done") { dismiss() } }
             }
         }
     }

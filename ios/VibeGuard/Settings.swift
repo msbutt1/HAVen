@@ -9,7 +9,7 @@ struct ConnectionSettings: Equatable {
     var username: String
     var password: String
 
-    static let defaultURL = "http://localhost:8000"
+    static let defaultURL = "http://localhost:8765"
 
     static func load() -> ConnectionSettings {
         let d = UserDefaults.standard

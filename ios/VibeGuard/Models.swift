@@ -1,7 +1,7 @@
 import Foundation
 
 /// Where data came from. Every screen shows it: live device, a recording played back, or made-up data.
-enum Provenance: String {
+enum Provenance: String, Codable {
     case live, replay, simulated
 
     init(_ raw: String?) { self = Provenance(rawValue: raw ?? "") ?? .simulated }
@@ -43,49 +43,16 @@ struct Telemetry: Equatable {
     var provenance: Provenance
     var recordingID: String?
     var emgEnvelope: Double?
-    var activationPct: Double?       // grip effort, % of this wearer's calibrated maximum squeeze; may exceed 100
-    var activationBarPct: Double?    // the same, clamped to 0...100 for bars
-    var aboveMax = false
-    var belowRest = false
-    var degraded = false             // some samples clipped
+    var activationPct: Double?       // 0...100, relative to this wearer's calibration
     var vibration: Double?           // m/s^2, measured and unweighted; nil until the IMU could be converted
     var scoreRate: Double?           // au/h, experimental
     var scoreTotal: Double?          // au during the current recording
     var calibrated: Bool
     var imuClipped: Bool
+    var tool: ToolState? = nil       // tool use vs normal arm use (on-phone engine)
 }
 
-/// Tool use, estimated from vibration (signals' ToolUseDetector). Thresholds are provisional team choices.
-struct ToolUse: Equatable {
-    var state: String                // tool | no_tool | unknown
-    var status: String               // ok | unavailable
-    var sessionToolS: Double?
-    var bouts: Int?
-    var longestBoutS: Double?
-    var dominantHz: Double?
-    var warnings: [String]
-    var saved = false                // last known before a backend restart, not live
-    var savedAt: Date?
-
-    var stateText: String {
-        guard !saved, status == "ok" else { return "—" }
-        switch state {
-        case "tool": return "Tool in use"
-        case "no_tool": return "No tool"
-        default: return "—"
-        }
-    }
-}
-
-struct DeviceEvent: Identifiable, Equatable {
-    let id: Int
-    var event: String
-    var text: String
-    var at: Date
-    var isWarning: Bool
-}
-
-struct SessionRecord: Identifiable, Equatable {
+struct SessionRecord: Identifiable, Equatable, Codable {
     let id: String
     var deviceID: String?
     var provenance: Provenance
@@ -98,10 +65,10 @@ struct SessionRecord: Identifiable, Equatable {
     var meanActivationPct: Double?
     var peakActivationPct: Double?
     var peakVibration: Double?
-    var toolTimeS: Double?
+    var toolTimeS: Double? = nil      // tool time during the recording
 }
 
-struct TrialResult: Identifiable, Equatable {
+struct TrialResult: Identifiable, Equatable, Codable {
     let id: String
     var index: Int
     var setting: Int
@@ -110,13 +77,13 @@ struct TrialResult: Identifiable, Equatable {
     var rtMs: Int?
 }
 
-enum StationMode: String, CaseIterable, Identifiable {
+enum StationMode: String, CaseIterable, Identifiable, Codable {
     case preview, full
     var id: String { rawValue }
     var label: String { self == .preview ? "Short preview, 6 trials" : "Full session, 8 reversals" }
 }
 
-struct StaircaseSummary: Equatable {
+struct StaircaseSummary: Equatable, Codable {
     var reversals: [Int]
     var reversalCount: Int
     var threshold: Double?
@@ -125,7 +92,7 @@ struct StaircaseSummary: Equatable {
     var missing: Int
 }
 
-struct StationResult: Identifiable, Equatable {
+struct StationResult: Identifiable, Equatable, Codable {
     let id: String
     var provenance: Provenance
     var mode: StationMode
@@ -135,7 +102,7 @@ struct StationResult: Identifiable, Equatable {
     var summary: StaircaseSummary
 }
 
-enum HistoryItem: Identifiable, Equatable {
+enum HistoryItem: Identifiable, Equatable, Codable {
     case session(SessionRecord)
     case test(StationResult)
 

@@ -1,49 +1,26 @@
 import SwiftUI
 
-/// Which tab is showing; screens use it to send the user to another tab ("Calibrate now").
-@MainActor
-@Observable
-final class AppNav {
-    enum Screen: Hashable { case live, summary, calibrate, test, history }
-    var tab: Screen = .live
-}
-
 struct RootView: View {
-    @Environment(Backend.self) private var backend
-    @State private var nav = AppNav()
+    @Environment(AppModel.self) private var backend
     @State private var showSettings = false
-    @State private var showConnect = false
+    @State private var tab: Screen = .dashboard
+
+    enum Screen: Hashable { case dashboard, overview }
 
     var body: some View {
-        @Bindable var nav = nav
-        TabView(selection: $nav.tab) {
-            screen { LiveView() }
-                .tabItem { Label("Live", systemImage: "waveform.path.ecg") }
-                .tag(AppNav.Screen.live)
-            screen { SummaryView() }
-                .tabItem { Label("Summary", systemImage: "chart.bar.xaxis") }
-                .tag(AppNav.Screen.summary)
-            screen { CalibrateView() }
-                .tabItem { Label("Calibrate", systemImage: "gauge.with.dots.needle.33percent") }
-                .tag(AppNav.Screen.calibrate)
-            screen { StationView() }
-                .tabItem { Label("Touch test", systemImage: "iphone.radiowaves.left.and.right") }
-                .tag(AppNav.Screen.test)
-            screen { HistoryView() }
-                .tabItem { Label("History", systemImage: "clock.arrow.circlepath") }
-                .tag(AppNav.Screen.history)
+        TabView(selection: $tab) {
+            screen("Dashboard") { DashboardView() }
+                .tabItem { Label("Dashboard", systemImage: "gauge.with.dots.needle.67percent") }
+                .tag(Screen.dashboard)
+            screen("Exposure score") { OverviewView() }
+                .tabItem { Label("Overview", systemImage: "info.circle") }
+                .tag(Screen.overview)
         }
-        .environment(nav)
         .sheet(isPresented: $showSettings) { SettingsView() }
-        // Until the first connection the connect screen covers everything; later, the Laptop button opens it.
-        .fullScreenCover(isPresented: Binding(get: { !backend.everConnected || showConnect },
-                                              set: { if !$0 { showConnect = false } })) {
-            ConnectView(canClose: backend.everConnected)
-        }
         .overlay(alignment: .bottom) { ToastView() }
     }
 
-    private func screen<Content: View>(@ViewBuilder _ content: () -> Content) -> some View {
+    private func screen<Content: View>(_ title: String, @ViewBuilder _ content: () -> Content) -> some View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -56,11 +33,12 @@ struct RootView: View {
                 .frame(maxWidth: .infinity)
             }
             .background(Theme.background)
+            .navigationTitle(title)
             .toolbar {
-                // no Disconnect button to tap by mistake: this opens the connect screen instead
                 ToolbarItem(placement: .topBarLeading) {
-                    Button { showConnect = true } label: { Label("Laptop", systemImage: "laptopcomputer").labelStyle(.titleAndIcon) }
-                        .accessibilityLabel("Change laptop")
+                    Button(backend.running ? "Stop" : "Start") {
+                        backend.running ? backend.disconnect() : backend.connect()
+                    }
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button { showSettings = true } label: { Image(systemName: "gearshape") }
@@ -73,9 +51,9 @@ struct RootView: View {
     }
 }
 
-/// Always visible: where the data comes from, and the state of the sleeve and the station.
+/// Always visible: where the data comes from, and the state of the sleeve.
 struct ConnectionHeader: View {
-    @Environment(Backend.self) private var backend
+    @Environment(AppModel.self) private var backend
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -83,7 +61,6 @@ struct ConnectionHeader: View {
             HStack(spacing: 8) {
                 LogoMark(size: 30)
                 StatusChip(title: "Sleeve", state: backend.sleeve)
-                StatusChip(title: "Station", state: backend.station)
                 Spacer(minLength: 0)
             }
             if let message = backend.connectionMessage {
@@ -91,23 +68,13 @@ struct ConnectionHeader: View {
                     .font(.footnote)
                     .foregroundStyle(Theme.destructive)
             }
-            if backend.sleeve.kind == .error || backend.station.kind == .error {
-                Text([backend.sleeve.kind == .error ? "Sleeve error: \(backend.sleeve.detail)" : nil,
-                      backend.station.kind == .error ? "Station error: \(backend.station.detail)" : nil]
-                        .compactMap { $0 }.joined(separator: " "))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white)
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(RoundedRectangle(cornerRadius: 10).fill(Theme.destructive))
-            }
         }
         .padding(.top, 8)
     }
 }
 
 struct SourceBanner: View {
-    @Environment(Backend.self) private var backend
+    @Environment(AppModel.self) private var backend
 
     var body: some View {
         let t = backend.latest
@@ -123,8 +90,8 @@ struct SourceBanner: View {
         } else {
             source = nil
             text = backend.connected ? "Connected. Waiting for the first reading."
-                : backend.connecting ? "Connecting to \(backend.settings.baseURL)…"
-                : "Not connected. Tap Laptop (top left) to connect."
+                : backend.connecting ? backend.linkDetail
+                : "Stopped. Press Start to read the sleeve."
         }
         return Text(text)
             .font(.subheadline.weight(.medium))
@@ -176,7 +143,7 @@ struct StatusChip: View {
 }
 
 struct ToastView: View {
-    @Environment(Backend.self) private var backend
+    @Environment(AppModel.self) private var backend
 
     var body: some View {
         if let text = backend.toast {

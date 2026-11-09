@@ -2,19 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<!-- The backend runs on a laptop on the same network (or localhost in the Simulator), usually over plain http.
-	     Local networking is allowed; anything on the internet still needs https. -->
+	<!-- The sleeve joins this phone's Personal Hotspot and connects to the app on TCP port 8765 (local network). -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>VibeGuard finds and connects to the laptop running VibeGuard on your Wi-Fi. The laptop reads the sleeve.</string>
-	<!-- the laptop announces itself as _vibeguard._tcp (backend/src/vibeguard_backend/bonjour.py) -->
-	<key>NSBonjourServices</key>
-	<array>
-		<string>_vibeguard._tcp</string>
-	</array>
+	<string>VibeGuard receives the sleeve's measurements over your phone's hotspot.</string>
 </dict>
 </plist>
