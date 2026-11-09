@@ -68,6 +68,9 @@ final class Sleeve {
     // flows
     private String gripFlow, gripMessage;        // null | relaxed | squeeze; message after the last attempt
     private boolean gripDone;
+    // bumped by every grip/tool capture command: the page ignores results until it sees its own attempt, so the
+    // previous attempt's result (e.g. an old failure) is never shown for a new one
+    private int gripAttempt, toolAttempt;
     private String gripResult;                   // relaxed_done | calibrated | failed (the last finished step)
     private String toolPhase, toolMessage;
     private final Set<String> toolDone = new HashSet<>();
@@ -511,8 +514,9 @@ final class Sleeve {
         if (c.equals("start")) startOnEngine();
         else if (c.equals("stop")) stopOnEngine();
         else if (c.equals("grip:relaxed") || c.equals("grip:squeeze")) {
-            if (!connected) { showToast("Connect the sleeve first."); return; }
             String phase = c.substring(5);
+            gripAttempt++;
+            if (!connected) { gripResult = "failed"; gripMessage = "The sleeve is not sending. Switch it on and wait until it connects, then try again."; return; }
             gripMessage = null; gripResult = null;
             if (phase.equals("relaxed")) gripDone = false;
             proc.gripCalibration(phase);
@@ -528,7 +532,9 @@ final class Sleeve {
                 showToast("Tool thresholds back to the defaults");
                 return;
             }
-            if (!connected || toolPhase != null) return;
+            if (toolPhase != null) return;
+            toolAttempt++;
+            if (!connected) { toolFailed = true; toolMessage = "The sleeve is not sending. Switch it on and wait until it connects, then try again."; return; }
             if (ph.equals("still")) toolDone.clear();
             toolMessage = null; toolFailed = false;
             proc.toolCalibration(ph);
@@ -637,6 +643,8 @@ final class Sleeve {
         o.put("records", s.records).put("lost", s.missingRecords).put("boot", s.bootId == null ? JSONObject.NULL : s.bootId);
         o.put("activation", actOk && s.activation != null ? s.activation : JSONObject.NULL);
         o.put("gripState", s.calibrationState).put("gripFlow", gripFlow == null ? JSONObject.NULL : gripFlow);
+        o.put("gripReason", s.calibrationReason == null ? JSONObject.NULL : s.calibrationReason).put("gripAttempt", gripAttempt);
+        o.put("emgSaturation", s.emgSaturation).put("envelope", fresh && s.envelope != null ? s.envelope : JSONObject.NULL);
         o.put("vibration", vibOk && s.vibration != null ? s.vibration : JSONObject.NULL);
         o.put("tool", fresh ? s.tool.state : "unknown").put("toolHz", nz(s.tool.dominantHz));
         o.put("t", t);
@@ -668,7 +676,9 @@ final class Sleeve {
                 .put("total", s.calibrationDurationS)
                 .put("done", gripDone).put("message", gripMessage == null ? JSONObject.NULL : gripMessage)
                 .put("result", gripResult == null ? JSONObject.NULL : gripResult)
-                .put("relaxed", g == null ? JSONObject.NULL : g.relaxed).put("squeeze", g == null ? JSONObject.NULL : g.squeeze));
+                .put("relaxed", g == null ? JSONObject.NULL : g.relaxed).put("squeeze", g == null ? JSONObject.NULL : g.squeeze)
+                .put("attempt", gripAttempt).put("reason", s.calibrationReason == null ? JSONObject.NULL : s.calibrationReason)
+                .put("saturation", fresh ? s.emgSaturation : JSONObject.NULL));
         // vibration
         boolean vibOk = fresh && (s.vibrationStatus.equals("ok") || s.vibrationStatus.equals("degraded"));
         o.put("vibration", vibOk && s.vibration != null ? s.vibration : JSONObject.NULL).put("vibrationClipped", s.vibrationClipped);
@@ -684,7 +694,7 @@ final class Sleeve {
         tj.put("warnings", warn);
         o.put("tool", tj);
         JSONObject tc = new JSONObject();
-        tc.put("phase", toolPhase == null ? JSONObject.NULL : toolPhase)
+        tc.put("attempt", toolAttempt).put("phase", toolPhase == null ? JSONObject.NULL : toolPhase)
                 .put("left", tl.captureLeftS == null ? JSONObject.NULL : tl.captureLeftS)
                 .put("total", toolPhase == null ? 1 : proc.toolCaptureDuration(toolPhase))
                 .put("done", new JSONArray(toolDone)).put("failed", toolFailed)

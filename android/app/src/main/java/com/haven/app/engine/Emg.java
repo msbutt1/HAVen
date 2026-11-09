@@ -41,6 +41,9 @@ public final class Emg {
         private String configError;
         long samplesTotal, clippedTotal;
         ResetListener onReset;
+        /** Share of recent samples at the input's limits (0.5 s time constant); setup waits until it is low. */
+        public double saturation;
+        private double satAlpha = 0.998;
 
         void configure(double rate) {
             if (this.rate != null && this.rate == rate) return;
@@ -50,6 +53,7 @@ public final class Emg {
             nEnv = Math.max(1, Filters.roundHalfEven(WINDOW * rate));
             nSettle = Filters.roundHalfEven(SETTLE * rate);
             alpha = Math.exp(-1 / (rate * TAU));
+            satAlpha = Math.exp(-1 / (rate * 0.5));
             reset("configured");
         }
 
@@ -71,6 +75,7 @@ public final class Emg {
                 double x = v;
                 samplesTotal++;
                 if (clipped[i]) clippedTotal++;
+                saturation = satAlpha * saturation + (1 - satAlpha) * (clipped[i] ? 1 : 0);
                 double m = ema == null ? x : alpha * ema + (1 - alpha) * x;
                 ema = m;
                 double y = filter.step(x - m, 0);
@@ -121,6 +126,9 @@ public final class Emg {
         double relaxedS = 3, squeezeS = 3, discardS = 0.5;
         int minUpdates = 10;
         double maxClippedFraction = 0.10, minRatio = 2.0, minSeparation = 1.0;
+        static final double MAX_PAUSE_S = 1.0;
+        static final java.util.Set<String> PAUSABLE = new java.util.HashSet<>(java.util.Arrays.asList(
+                "gap", "timing_discontinuity", "missing_values"));
 
         String state = "uncalibrated", reason;
         GripCalibration active;
@@ -163,7 +171,9 @@ public final class Emg {
 
         void onSignalReset(String why) {
             if (why.equals("no_data") || why.equals("configured")) return;
-            if (capPhase != null && tFirst != null) fail("interrupted_" + why, null);
+            // a short Wi-Fi gap or timing break re-warms the envelope (~0.2 s): the capture pauses (observe), it
+            // does not fail; it fails only if the signal stays unusable for longer than MAX_PAUSE_S
+            if (capPhase != null && tFirst != null && !PAUSABLE.contains(why)) fail("interrupted_" + why, null);
         }
 
         void onBootChange() {
@@ -186,7 +196,8 @@ public final class Emg {
             if (capPhase == null) return;
             if (boot == null || !boot.equals(capBoot)) { fail("interrupted_processing_change", null); return; }
             if (!env.usable() || t == null || env.value == null) {
-                if (tFirst != null) fail("interrupted_" + (env.reasons.isEmpty() ? env.status : env.reasons.get(env.reasons.size() - 1)), null);
+                if (tFirst != null && t != null && lastT != null && (t - lastT) / 1e6 > MAX_PAUSE_S)
+                    fail("interrupted_" + (env.reasons.isEmpty() ? env.status : env.reasons.get(env.reasons.size() - 1)), null);
                 return;
             }
             if (lastT != null && t <= lastT) return;

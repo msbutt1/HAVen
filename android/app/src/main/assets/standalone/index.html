@@ -630,6 +630,7 @@ const DONE = { relaxed: 'Relax done', squeeze: 'Grip done', still: 'Still done',
 const FLOW = { grip: ['relaxed', 'squeeze'], tool: ['still', 'movement', 'tool'] };
 const nextOf = c => { const f = FLOW[W.mode], i = f.indexOf(c); return i >= 0 && i < f.length - 1 ? f[i + 1] : null; };
 const prevOf = c => { const f = FLOW[W.mode], i = f.indexOf(c); return i > 0 ? f[i - 1] : null; };
+const SETTLED = 0.02;   // at most 2 % of recent EMG samples at the input's limits before a grip capture starts
 let W = { open: false, screen: null, shown: null, cap: null, sent: false, seen: false, t0: 0, dur: 1, readyAt: 0, msg: '', retry: null, raf: 0 };
 
 function openWizard(mode) {
@@ -643,7 +644,7 @@ function closeWizard() {
   W.open = false; cancelAnimationFrame(W.raf); $('wizard').classList.remove('open');
 }
 function show(name) { W.screen = name; renderWizard(); }
-function getReady(cap) { W.cap = cap; W.readyAt = performance.now(); W.sent = false; W.seen = false; show('ready'); }
+function getReady(cap) { W.cap = cap; W.readyAt = performance.now(); W.waitSince = 0; W.sent = false; W.seen = false; show('ready'); }
 function stepIndex() {
   const f = FLOW[W.mode];
   if (W.screen === 'intro') return 0;
@@ -674,7 +675,7 @@ function screenHTML(name) {
       <div class="wfoot"><button class="primary wide" ${off ? 'disabled' : ''} onclick="getReady('${c}')">Start</button>${need}</div>`;
   }
   if (name === 'ready') return `<div class="wbody"><p style="font-size:20px;color:var(--fg);font-weight:600">Get ready</p><div class="ready" id="readyN">3</div>
-      <p>${CAP[W.cap].title}</p></div><div class="wfoot"><button class="wide" onclick="cancelStep()">Cancel</button></div>`;
+      <p>${CAP[W.cap].title}</p><p class="muted" id="readyMsg" style="min-height:3em"></p></div><div class="wfoot"><button class="wide" onclick="cancelStep()">Cancel</button></div>`;
   if (name === 'capture') { const c = CAP[W.cap];
     return `<div class="wbody"><div class="${c.pulse ? 'pulse' : ''}">${ringHTML(c.color)}</div><h1>${c.title}</h1><p>${c.text}</p></div>
       <div class="wfoot"><button class="wide" onclick="cancelStep()">Stop</button></div>`; }
@@ -698,13 +699,15 @@ function advance() {
   if (W.screen !== 'capture') return;
   const c = W.cap, g = S.grip || {}, tc = S.toolCal || {};
   if (CAP[c].kind === 'grip') {
+    // the state the page holds can still be the PREVIOUS attempt's (its result, e.g. an old failure): read nothing
+    // until the phone has taken this command (its attempt number moved past the one before the command was sent)
+    if ((g.attempt || 0) <= W.attempt0) return;
     if (g.flow === c) { if (!W.seen) { W.seen = true; W.t0 = performance.now() - 1000 * (CAP[c].secs - (g.left ?? CAP[c].secs)); } else sync(g.left); return; }
-    if (!W.seen && !g.result) return;                       // the command has not been picked up yet
     if (g.result === 'failed') return fail(g.message, 'intro:relaxed');
     if ((c === 'relaxed' && g.result === 'relaxed_done') || (c === 'squeeze' && g.result === 'calibrated')) { W.justDone = true; const n = nextOf(c); return show(n ? 'intro:' + n : 'allDone'); }
   } else {
+    if ((tc.attempt || 0) <= W.attempt0) return;
     if (tc.phase === c) { if (!W.seen) { W.seen = true; W.t0 = performance.now() - 1000 * (CAP[c].secs - (tc.left ?? CAP[c].secs)); } else sync(tc.left); return; }
-    if (!W.seen) return;
     if (new Set(tc.done || []).has(c) && !tc.failed) { W.justDone = true; const n = nextOf(c); return show(n ? 'intro:' + n : 'allDone'); }
     return fail(tc.message, c === 'tool' ? 'intro:movement' : 'intro:' + c);
   }
@@ -723,10 +726,28 @@ function loop() {
   const cur = $('wstage').querySelector('.wscreen.cur') || $('wstage').lastElementChild;
   const now = performance.now();
   if (W.screen === 'ready') {
+    // After a hard squeeze or a knock the amplifier can sit at its limit for seconds. A capture started then measures
+    // the saturated amplifier, not the muscle, and fails. Hold the countdown until the signal is off its limits.
+    const grip = CAP[W.cap].kind === 'grip', sat = S.grip ? S.grip.saturation : null;
+    const msg = cur && cur.querySelector('#readyMsg');
+    if (grip && sat != null && sat > SETTLED) {
+      if (!W.waitSince) W.waitSince = now;
+      W.readyAt = now;                                       // the countdown starts again once it is settled
+      if (msg) msg.textContent = 'Waiting for the muscle signal to settle. Keep your hand loose and still.';
+      if (now - W.waitSince > 20000) {
+        W.waitSince = 0;
+        fail('The muscle signal stayed at its limit. Check that all three pads are stuck to your skin and the cable clips are on, rest your arm for a moment, then try again.', 'intro:' + W.cap);
+        W.raf = requestAnimationFrame(loop); return;
+      }
+    } else if (msg && msg.textContent) msg.textContent = '';
     const left = 3 - (now - W.readyAt) / 1000;
     const el = cur && cur.querySelector('#readyN');
     if (left <= 0) {
-      if (!W.sent) { W.sent = true; cmd(CAP[W.cap].kind === 'grip' ? 'grip:' + W.cap : 'tool:' + W.cap); W.seen = false; W.t0 = now; show('capture'); }
+      if (!W.sent) {
+        W.sent = true;
+        W.attempt0 = grip ? ((S.grip && S.grip.attempt) || 0) : ((S.toolCal && S.toolCal.attempt) || 0);
+        cmd(grip ? 'grip:' + W.cap : 'tool:' + W.cap); W.seen = false; W.t0 = now; show('capture');
+      }
     } else if (el) {
       const n = String(Math.ceil(left));
       if (el.textContent !== n) { el.textContent = n; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
