@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "cramped-padding",
+        "value": "*",
+        "files": [
+          "dashboard/tv.html"
+        ],
+        "createdAt": "2026-11-09T07:07:52.974Z",
+        "reason": "Claude: both hits are false positives - .m-track is an edge-to-edge LED meter (its overlay text is padded) and .badge has max(10px,1.2vh) max(16px,2.2vh) padding the detector does not resolve"
+      }
+    ]
+  }
+}

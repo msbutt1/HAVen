@@ -1,0 +1,132 @@
+/* HAVen TV meters: always dark (a TV in a lit room), sized in vh so it reads from across the room. */
+
+@font-face { font-family: "Onest"; font-weight: 400; font-display: swap; src: url("../assets/fonts/onest-latin-400-normal.woff2") format("woff2"); }
+@font-face { font-family: "Onest"; font-weight: 600; font-display: swap; src: url("../assets/fonts/onest-latin-600-normal.woff2") format("woff2"); }
+@font-face { font-family: "JetBrains Mono"; font-weight: 500; font-display: swap; src: url("../assets/fonts/jetbrains-mono-latin-500-normal.woff2") format("woff2"); }
+
+:root {
+  color-scheme: dark;
+  --bg: oklch(13% 0.012 265);
+  --panel: oklch(18% 0.016 265);
+  --rim: oklch(100% 0 0 / 0.12);
+  --ink: oklch(96% 0.005 265);
+  --ink-2: oklch(70% 0.02 265);
+  --track: oklch(22% 0.014 265);
+  --green: oklch(78% 0.2 145);
+  --yellow: oklch(88% 0.18 100);
+  --orange: oklch(74% 0.19 55);
+  --red: oklch(63% 0.25 27);
+  --live: oklch(76% 0.2 145);
+  --sim: oklch(66% 0.2 320);
+  --replay: oklch(70% 0.15 250);
+  --bad: oklch(66% 0.23 27);
+  --sans: "Onest", ui-sans-serif, system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --segs: 20;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body {
+  background: radial-gradient(120vh 80vh at 50% 110%, oklch(20% 0.03 265), var(--bg));
+  color: var(--ink);
+  font-family: var(--sans);
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  overflow: hidden;
+}
+
+.top { display: flex; align-items: center; justify-content: space-between; padding: 2.4vh 3vw 0; }
+.brand { display: flex; align-items: center; gap: 1vh; font-weight: 600; font-size: 3.2vh; letter-spacing: -0.01em; }
+.mark { display: grid; place-items: center; width: 4.4vh; height: 4.4vh; border-radius: 1vh; background: oklch(68% 0.19 258); color: oklch(16% 0.03 258); }
+.mark svg { width: 3vh; height: 3vh; }
+
+.badge {
+  display: flex; align-items: center; gap: 1.2vh;
+  font: 600 2.6vh/1 var(--sans); letter-spacing: 0.08em; text-transform: uppercase;
+  padding: max(10px, 1.2vh) max(16px, 2.2vh); border-radius: 99px; border: 2px solid currentColor; color: var(--ink-2);
+}
+.pulse { width: 1.6vh; height: 1.6vh; border-radius: 50%; background: currentColor; }
+body[data-source="live"] .badge { color: var(--live); background: oklch(76% 0.2 145 / 0.12); }
+body[data-source="live"] .pulse { animation: pulse 1.2s ease-out infinite; }
+body[data-source="simulated"] .badge { color: var(--sim); background: oklch(66% 0.2 320 / 0.14); }
+body[data-source="replay"] .badge, body[data-source="stream"] .badge { color: var(--replay); background: oklch(70% 0.15 250 / 0.14); }
+body[data-source="stale"] .badge, body[data-source="none"] .badge { color: var(--bad); background: oklch(66% 0.23 27 / 0.12); }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 oklch(76% 0.2 145 / 0.7); } 100% { box-shadow: 0 0 0 1.6vh oklch(76% 0.2 145 / 0); } }
+
+/* ---------- meters ---------- */
+.meters { display: flex; justify-content: center; align-items: stretch; gap: 10vw; padding: 2vh 3vw 1vh; min-height: 0; }
+.meter { display: grid; grid-template-rows: auto auto 1fr auto auto; justify-items: center; min-height: 0; width: min(44vh, 42vw); }
+.m-name { margin: 0; font-size: 5.6vh; font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+.m-sensor { margin: 0.4vh 0 1.8vh; font-size: 2vh; color: var(--ink-2); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.m-track {
+  position: relative; width: min(24vh, 36vw); min-height: 0; height: 100%;
+  border-radius: 1.6vh; overflow: hidden;
+  background: var(--track);
+  border: 2px solid var(--rim);
+  box-shadow: inset 0 0 3vh oklch(0% 0 0 / 0.6);
+}
+/* The fill is the whole gradient, clipped from the top: the colour at a height is always the same, like an LED stack. */
+.m-fill {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, var(--green) 0%, var(--green) 35%, var(--yellow) 60%, var(--orange) 78%, var(--red) 92%);
+  clip-path: inset(calc(100% - var(--level, 0%)) 0 0 0);
+  filter: drop-shadow(0 0 2vh oklch(80% 0.2 120 / 0.35));
+}
+/* segment gaps drawn over the fill */
+.m-segs {
+  position: absolute; inset: 0; pointer-events: none;
+  background: repeating-linear-gradient(to top, transparent 0, transparent calc(100% / var(--segs) - 0.45vh), var(--track) calc(100% / var(--segs) - 0.45vh), var(--track) calc(100% / var(--segs)));
+}
+.m-peak {
+  position: absolute; left: 6%; right: 6%; height: 0.7vh; border-radius: 0.4vh;
+  bottom: var(--peak, 0%); background: var(--ink); opacity: 0.9;
+  box-shadow: 0 0 1.2vh oklch(100% 0 0 / 0.6);
+  transition: bottom 120ms linear;
+}
+.m-overlay {
+  position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1vh; text-align: center; padding: max(12px, 2vh) max(12px, 1.6vh);
+  font-size: 3vh; font-weight: 600; color: var(--ink); background: oklch(13% 0.012 265 / 0.72);
+}
+.m-overlay small { font-size: 1.8vh; font-weight: 400; color: var(--ink-2); }
+.m-overlay[hidden] { display: none; }
+
+.m-pct { margin-top: 1.6vh; font: 500 9vh/1 var(--mono); font-variant-numeric: tabular-nums; letter-spacing: -0.04em; }
+.pct-sign { font-size: 4.4vh; color: var(--ink-2); margin-left: 0.4vh; }
+.m-detail { margin: 0.8vh 0 0; font-size: 2.2vh; color: var(--ink-2); font-family: var(--mono); }
+
+/* ---------- proof strip ---------- */
+.proof {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 1vh 3vw;
+  padding: 1.6vh 3vw 2.4vh; font-size: 1.9vh; color: var(--ink-2);
+}
+.proof b { color: var(--ink); font: 500 1.9vh var(--mono); font-variant-numeric: tabular-nums; }
+.cal-btns { display: flex; gap: 1vh; }
+.btn {
+  font: 600 1.8vh var(--sans); color: var(--ink); background: var(--panel);
+  border: 1px solid var(--rim); border-radius: 0.8vh; padding: max(8px, 0.9vh) max(14px, 1.6vh); cursor: pointer;
+}
+.btn:hover { border-color: oklch(100% 0 0 / 0.3); }
+.btn:focus-visible { outline: 2px solid oklch(68% 0.19 258); outline-offset: 2px; }
+.btn:disabled { opacity: 0.45; cursor: default; }
+
+.toast {
+  position: fixed; left: 50%; bottom: 9vh; transform: translateX(-50%);
+  background: var(--panel); border: 1px solid var(--rim); border-radius: 1vh;
+  padding: max(12px, 1.4vh) max(16px, 2.4vh); font-size: 2.2vh; box-shadow: 0 1vh 4vh oklch(0% 0 0 / 0.5);
+}
+.toast[hidden] { display: none; }
+
+/* phones / narrow windows: still usable, meters side by side */
+@media (max-width: 640px) {
+  .meters { gap: 8vw; padding-inline: 16px; }
+  .meter { width: 42vw; }
+  .m-track { width: 30vw; }
+  .m-name { font-size: 4vh; }
+  .proof { padding-inline: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pulse { animation: none !important; }
+  .m-peak { transition: none; }
+}

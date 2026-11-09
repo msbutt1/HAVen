@@ -43,6 +43,27 @@ Below 640 px wide (a phone, or the Android app) the dashboard switches to a layo
 The technical details (tool bouts and frequency, raw calibration signal, trial log, notes on what each number is and
 is not) stay on the phone too, lower down. The desktop layout is unchanged.
 
+## TV meters (`tv.html`)
+
+A full-screen view for a TV at the demo: two tall meters (Grip, Vibration) that fill from the bottom, green to red,
+with a peak-hold marker, the sensor name on top and the percentage underneath. It reads the backend's live
+WebSocket (raw telemetry + derived features), so open it from the backend:
+
+```
+cd backend && uv run vg-backend serve --device wifi --host 0.0.0.0
+# then on the TV's browser: http://<laptop>:8000/dashboard/tv.html   (F = full screen)
+```
+
+- **Grip** is % of the wearer's max squeeze. Calibrate on the page: **R** (relax 3 s), then **S** (squeeze 3 s).
+- **Vibration** is measured wrist vibration (unweighted RMS, m/s²) as a % of a full scale, 10 m/s² by default
+  (`?vibmax=15` to change). The m/s² value is shown under the percentage.
+- The badge says **LIVE · FROM THE SLEEVE** only when the device is the real wearable (Wi-Fi or serial), its records
+  say provenance `live`, and the last one arrived under 1.5 s ago. The simulator shows **SIMULATED**, a backup
+  **REPLAY**, `--device stream` **RECORDED STREAM**, and a silent sleeve **NO SIGNAL**.
+- The strip at the bottom is the proof: the board's device id (from its MAC), EMG and IMU samples per second measured
+  as they arrive (about 1000 and 500 from the real board), missing samples counted from the board's own sample
+  counter, and the age of the last packet. Sensor names come from the board's hello record.
+
 ## Overview
 
 KPI tiles (with the change against the previous period) and nine charts over the saved recordings and perception
