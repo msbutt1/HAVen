@@ -55,7 +55,7 @@ final class Sleeve {
     private volatile String tvState = "{}";      // the small snapshot the TV view streams (TvServer)
 
     // link
-    private Thread serverThread;
+    private volatile Thread serverThread;
     private ServerSocket server;
     private volatile Socket current;
     private String linkDetail = "", linkError;
@@ -101,7 +101,9 @@ final class Sleeve {
     private String historyJson = "[]";
 
     // alarms: each level fires once a day; the screen shows it until the wearer taps OK
-    interface Listener { void alert(String kind, String title, String text); void silence(); }
+    interface Listener { void alert(String kind, String title, String text, boolean sound); void silence(); }
+    /** The app's look (index.html data-theme); also the alarm notification's accent colour. */
+    volatile String theme = "standard";
     volatile Listener listener;
     private boolean firedAction, firedLimit;
     private String alarm;                         // null | action | limit (shown on the screen until acknowledged)
@@ -124,6 +126,7 @@ final class Sleeve {
         // a light hold on a massage gun is often under 10 % of a hard squeeze, so for the demo points count
         // whenever the tool is detected (exposure.py's tool_on total); the grip rule is a Developer option
         gripGate = prefs.getBoolean("gripGate", false);
+        theme = prefs.getString("theme", "standard");
         proc = newProcessor();
         loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);   // the page reads the state 10x a second
@@ -320,6 +323,7 @@ final class Sleeve {
         try { if (server != null) server.close(); } catch (Exception ignored) {}
         try { if (current != null) current.close(); } catch (Exception ignored) {}
         server = null;
+        serverThread = null;                 // its accept() now fails with "Socket closed": that is not an error
         linkDetail = "";
     }
 
@@ -341,9 +345,12 @@ final class Sleeve {
                 reader.start();
             }
         } catch (Exception e) {
-            if (running) {
+            // only the CURRENT listener may report a failure: a listener closed by stop/restart (source change, reset)
+            // fails here with "Socket closed" after the new run has started, and must not switch that run off
+            Thread me = Thread.currentThread();
+            if (running && me == serverThread) {
                 String why = e.getMessage();
-                ex.execute(() -> { linkError = "Could not listen on port " + PORT + ": " + why; running = false; });
+                ex.execute(() -> { if (me == serverThread) { linkError = "Could not listen on port " + PORT + ": " + why; running = false; } });
             }
         }
     }
@@ -485,7 +492,7 @@ final class Sleeve {
 
     private void raise(String kind, String title, String text) {
         Listener l = listener;
-        if (l != null) l.alert(kind, title, text);
+        if (l != null) l.alert(kind, title, text, true);
         note(title);
     }
 
@@ -539,6 +546,17 @@ final class Sleeve {
             toolMessage = null; toolFailed = false;
             proc.toolCalibration(ph);
             if (proc.toolCalState().equals("capturing_" + ph)) toolPhase = ph;
+        } else if (c.startsWith("theme:")) {
+            theme = c.substring(6);
+            prefs.edit().putString("theme", theme).apply();
+        } else if (c.equals("alarm:preview:action") || c.equals("alarm:preview:limit")) {
+            // developer: show the real alarm (screen + notification) without the siren, to check how it looks
+            boolean limit = c.endsWith("limit");
+            alarm = limit ? "limit" : "action"; alarmId++;
+            Listener l = listener;
+            if (l != null) l.alert(alarm, limit ? "Daily limit reached" : "Action level reached",
+                    limit ? "You have reached " + Math.round(personalLimit) + " points. Stop using vibrating tools for the rest of the day."
+                          : "100 points. Your employer has to cut your vibration today: other tasks, other tools or more breaks.", false);
         } else if (c.startsWith("source:")) {
             setting(() -> { source = c.substring(7); prefs.edit().putString("source", source).apply(); });
         } else if (c.startsWith("cpg:")) {
@@ -719,7 +737,7 @@ final class Sleeve {
                 .put("demoMinutesToLimit", x.aHvNow == null || x.aHvNow <= 0 ? JSONObject.NULL
                         : (x.personalLimit - Math.min(points, x.personalLimit)) / (2 * x.aHvNow * x.aHvNow) * 60 / demoSpeed));
         o.put("alarm", alarm == null ? JSONObject.NULL : alarm).put("alarmId", alarmId);
-        o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit)
+        o.put("settings", new JSONObject().put("theme", theme).put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit)
                 .put("demoSpeed", demoSpeed).put("gripGate", gripGate));
         o.put("events", new JSONArray(log));
         // "history" (the day log, newest first) is added by tick() from the cached copy
