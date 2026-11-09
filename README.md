@@ -129,13 +129,6 @@ tools/build.sh wearable esp32_d0wd_v3_devkit30
 
 Host tests run without ESP-IDF, see [Testing](#testing).
 
-### 5. Build the pitch deck
-
-```bash
-cd presentation
-npm install
-node build.js          # writes HAVen_Pitch_Deck.pptx
-```
 
 ---
 
