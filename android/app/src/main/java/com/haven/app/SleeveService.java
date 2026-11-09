@@ -54,7 +54,7 @@ public class SleeveService extends Service {
         wake.acquire();
         sleeve = Sleeve.get(this);
         sleeve.listener = new Sleeve.Listener() {
-            @Override public void alert(String kind, String title, String text) { main.post(() -> SleeveService.this.alert(kind, title, text)); }
+            @Override public void alert(String kind, String title, String text, boolean sound) { main.post(() -> SleeveService.this.alert(kind, title, text, sound)); }
             @Override public void silence() { main.post(SleeveService.this::stopSiren); }
         };
         sleeve.start();
@@ -99,8 +99,9 @@ public class SleeveService extends Service {
                 .build();
     }
 
-    private void alert(String kind, String title, String text) {
+    private void alert(String kind, String title, String text, boolean sound) {
         Notification n = new Notification.Builder(this, CH_ALARM)
+                .setColor(accent(sleeve.theme))
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(title)
                 .setContentText(text)
@@ -111,7 +112,16 @@ public class SleeveService extends Service {
                 .setFullScreenIntent(openApp(), true)
                 .build();
         getSystemService(NotificationManager.class).notify(alarmId++, n);
-        siren(60_000);
+        if (sound) siren(60_000);
+    }
+
+    /** The look's accent, for the notification's icon and title tint (index.html themes). */
+    static int accent(String theme) {
+        switch (theme == null ? "" : theme) {
+            case "calendar": return 0xFF2B4A8B;
+            case "enamel": return 0xFF1D5A45;
+            default: return 0xFF2563EB;
+        }
     }
 
     // ---- the audible alarm: loud enough to hear next to a running tool ----
