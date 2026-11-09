@@ -1,4 +1,4 @@
-// VibeGuard station controller: portable protocol core (REFERENCE, not yet run on hardware).
+// HAVen station controller: portable protocol core (REFERENCE, not yet run on hardware).
 //
 // Offered to Salaar (firmware) and Collins (wiring) as a starting point; adopt or replace it.
 // This file has no Arduino dependency: it is compiled and tested on a PC (tests/test_firmware_core.py)

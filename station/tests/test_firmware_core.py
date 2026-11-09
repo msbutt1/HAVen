@@ -12,9 +12,9 @@ from pathlib import Path
 
 import pytest
 
-from vibeguard_station import StationConfig, StationEngine, VirtualClock
-from vibeguard_station.contract import validate_command, validate_link_message
-from vibeguard_station.link import LinkStationAdapter
+from haven_station import StationConfig, StationEngine, VirtualClock
+from haven_station.contract import validate_command, validate_link_message
+from haven_station.link import LinkStationAdapter
 
 FW = Path(__file__).resolve().parents[1] / "firmware"
 CXX = shutil.which("g++") or shutil.which("clang++")

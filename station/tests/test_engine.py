@@ -7,12 +7,12 @@ perception measurement or any real hardware.
 
 import pytest
 
-from vibeguard_station import (AdapterError, ResultStore, ScriptedResponder, SimResponse,
+from haven_station import (AdapterError, ResultStore, ScriptedResponder, SimResponse,
                                SimulatedStationAdapter, SimulatedSubject, StationConfig, StationEngine,
                                StationStateError, VirtualClock, run_simulated)
-from vibeguard_station.adapters import AdapterEvent
-from vibeguard_station.staircase import Staircase
-from vibeguard_station.store import result_json
+from haven_station.adapters import AdapterEvent
+from haven_station.staircase import Staircase
+from haven_station.store import result_json
 
 # start 50, step 10: these responses visit 50,40,30,40,30,40,30,40,30,40 -> 8 reversals, threshold 35
 EIGHT = ["felt", "felt", "not_felt", "felt", "not_felt", "felt", "not_felt", "felt", "not_felt", "felt"]

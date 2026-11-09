@@ -7,11 +7,11 @@ import json
 
 import pytest
 
-from vibeguard_station import (ResultStore, ScriptedResponder, SimulatedStationAdapter, StationConfig,
+from haven_station import (ResultStore, ScriptedResponder, SimulatedStationAdapter, StationConfig,
                                StationEngine, VirtualClock, run_simulated)
-from vibeguard_station.cli import main
-from vibeguard_station.link import LinkStationAdapter, SimulatedController
-from vibeguard_station.store import AlreadySavedError
+from haven_station.cli import main
+from haven_station.link import LinkStationAdapter, SimulatedController
+from haven_station.store import AlreadySavedError
 
 EIGHT = ["felt", "felt", "not_felt", "felt", "not_felt", "felt", "not_felt", "felt", "not_felt", "felt"]
 CFG = StationConfig.full(start_setting=50, step=10, catch_probability=0.0)

@@ -8,13 +8,13 @@ import json
 
 import pytest
 
-from vibeguard_station import (AdapterError, ScriptedResponder, SimResponse, SimulatedStationAdapter,
+from haven_station import (AdapterError, ScriptedResponder, SimResponse, SimulatedStationAdapter,
                                StationConfig, StationEngine, VirtualClock, run_simulated)
-from vibeguard_station.cli import main
-from vibeguard_station.link import LinkStationAdapter, SimulatedController
-from vibeguard_station.live import run_live
-from vibeguard_station.selftest import selftest
-from vibeguard_station.serial_transport import SerialTransport
+from haven_station.cli import main
+from haven_station.link import LinkStationAdapter, SimulatedController
+from haven_station.live import run_live
+from haven_station.selftest import selftest
+from haven_station.serial_transport import SerialTransport
 
 EIGHT = ["felt", "felt", "not_felt", "felt", "not_felt", "felt", "not_felt", "felt", "not_felt", "felt"]
 

@@ -6,8 +6,8 @@ about real perception.
 
 import pytest
 
-from vibeguard_station.config import StationConfig
-from vibeguard_station.staircase import Staircase
+from haven_station.config import StationConfig
+from haven_station.staircase import Staircase
 
 # start 50, step 10: felt/not-felt sequence below visits 50,40,30,40,30,40,30,40,30,40
 CFG = StationConfig.full(start_setting=50, step=10, catch_probability=0.0)

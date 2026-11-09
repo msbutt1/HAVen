@@ -2,7 +2,7 @@
 
 import json
 
-from vibeguard_station.cli import main
+from haven_station.cli import main
 
 
 def test_run_saves_once_and_reports_simulated(tmp_path, capsys):

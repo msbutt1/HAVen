@@ -7,10 +7,10 @@ adapter, and that link failures end the session visibly.
 
 import json
 
-from vibeguard_station import (ScriptedResponder, SimulatedStationAdapter, StationConfig, StationEngine,
+from haven_station import (ScriptedResponder, SimulatedStationAdapter, StationConfig, StationEngine,
                                VirtualClock, drive, run_simulated)
-from vibeguard_station.contract import validate_command
-from vibeguard_station.link import LinkStationAdapter, SimulatedController
+from haven_station.contract import validate_command
+from haven_station.link import LinkStationAdapter, SimulatedController
 
 EIGHT = ["felt", "felt", "not_felt", "felt", "not_felt", "felt", "not_felt", "felt", "not_felt", "felt"]
 CFG = StationConfig.full(start_setting=50, step=10, catch_probability=0.0)

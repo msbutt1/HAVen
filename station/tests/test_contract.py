@@ -10,12 +10,12 @@ from pathlib import Path
 
 import pytest
 
-from vibeguard_station import contract
-from vibeguard_station.adapters import SimulatedSubject
-from vibeguard_station.config import StationConfig
-from vibeguard_station.examples import build_examples, classify
-from vibeguard_station.simulation import run_simulated
-from vibeguard_station.store import result_json
+from haven_station import contract
+from haven_station.adapters import SimulatedSubject
+from haven_station.config import StationConfig
+from haven_station.examples import build_examples, classify
+from haven_station.simulation import run_simulated
+from haven_station.store import result_json
 
 EXAMPLES = Path(__file__).resolve().parents[1] / "contract" / "examples"
 VALIDATORS = {"result": contract.validate_result, "event": contract.validate_event,

@@ -1,4 +1,4 @@
-// VibeGuard station controller: ESP32 reference sketch (UNCOMPILED AND UNTESTED ON HARDWARE).
+// HAVen station controller: ESP32 reference sketch (UNCOMPILED AND UNTESTED ON HARDWARE).
 //
 // Written without an ESP32 toolchain, so only station_core.h (the protocol) is tested, on a PC.
 // This file is the thin board layer: PWM motor, two buttons, USB serial. Offered to Salaar and

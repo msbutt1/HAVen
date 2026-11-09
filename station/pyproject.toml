@@ -1,7 +1,7 @@
 [project]
-name = "vibeguard-station"
+name = "haven-station"
 version = "0.1.0"
-description = "VibeGuard station: vibration-perception staircase test engine, simulated adapter, and result records (Fahad-owned)."
+description = "HAVen station: vibration-perception staircase test engine, simulated adapter, and result records (Fahad-owned)."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
@@ -9,7 +9,7 @@ dependencies = [
 ]
 
 [project.scripts]
-vg-station = "vibeguard_station.cli:main"
+vg-station = "haven_station.cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12.0"]

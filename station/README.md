@@ -1,6 +1,6 @@
-# vibeguard-station
+# haven-station
 
-Fahad-owned station test engine for VibeGuard: a vibration-perception staircase test that runs
+Fahad-owned station test engine for HAVen: a vibration-perception staircase test that runs
 independently of any UI or hardware, through adapters. Everything run so far is **simulated**.
 It is a prototype: the stimulus is a motor setting (not a measured amplitude) and the result is
 not a diagnosis.

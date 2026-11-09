@@ -1,9 +1,9 @@
-"""VibeGuard station: vibration-perception staircase test engine (Fahad-owned).
+"""HAVen station: vibration-perception staircase test engine (Fahad-owned).
 
 A prototype. The stimulus is a *motor setting*, not a measured amplitude, and the
 result is not a diagnosis. See ``contract/STATION_CONTRACT.md``.
 
-    from vibeguard_station import StationConfig, StationEngine, ResultStore
+    from haven_station import StationConfig, StationEngine, ResultStore
 """
 
 from .adapters import (AdapterError, AdapterEvent, ScriptedResponder, SimResponse,

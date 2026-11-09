@@ -16,8 +16,8 @@ a tunnel route would replace that record.
 
 ```bash
 cloudflared tunnel login                       # opens a browser: pick the livops.uz zone
-cloudflared tunnel create vibeguard
-cloudflared tunnel route dns vibeguard vibeguard.livops.uz
+cloudflared tunnel create haven
+cloudflared tunnel route dns haven vibeguard.livops.uz
 ```
 
 ## Run

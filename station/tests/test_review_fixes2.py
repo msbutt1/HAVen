@@ -8,8 +8,8 @@ import json
 
 import pytest
 
-from vibeguard_station import AdapterError, StationConfig, StationEngine, VirtualClock
-from vibeguard_station.link import LinkStationAdapter
+from haven_station import AdapterError, StationConfig, StationEngine, VirtualClock
+from haven_station.link import LinkStationAdapter
 
 from test_firmware_core import CXX, Core, CoreTransport, cmd, core, deliver, exe  # noqa: F401  (fixtures)
 

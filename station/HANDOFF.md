@@ -1,4 +1,4 @@
-# VibeGuard station — status and handoff
+# HAVen station — status and handoff
 
 > **FOR TEAMMATES (Ali, Abduljabbar, Salaar, Collins).** This is Fahad's handoff for the
 > station test engine. Find your section under "For teammates" below, and note the
