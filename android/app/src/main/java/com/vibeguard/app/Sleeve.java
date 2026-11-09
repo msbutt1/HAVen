@@ -69,7 +69,11 @@ final class Sleeve {
     private String toolPhase, toolMessage;
     private final Set<String> toolDone = new HashSet<>();
     private boolean toolFailed;
-    private long shiftStart = System.currentTimeMillis();
+    // the day's log: exposure counts only while a tool is in use; everything rolls over at midnight
+    private String day;
+    private double dayExposure, dayToolBase;
+    private Double lastScoreTotal;
+    private double lastSaved;
     private final ArrayDeque<String> log = new ArrayDeque<>();
     private final Set<String> shownWarnings = new HashSet<>();
     private String toast;
@@ -81,7 +85,68 @@ final class Sleeve {
         countsPerG = prefs.getFloat("countsPerG", 4096);
         reference = prefs.getFloat("reference", 75);
         proc = newProcessor();
+        loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);
+    }
+
+    // ---- daily log ----
+
+    private static String today() {
+        return new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(new Date());
+    }
+
+    private void loadDay() {
+        day = today();
+        try {
+            JSONObject t = new JSONObject(prefs.getString("today", "{}"));
+            if (day.equals(t.optString("date"))) {
+                dayExposure = t.optDouble("exposure", 0);
+                dayToolBase = t.optDouble("tool", 0);
+            } else if (t.has("date")) {
+                archive(t.optString("date"), t.optDouble("exposure", 0), t.optDouble("tool", 0));
+            }
+        } catch (Exception ignored) {}
+    }
+
+    private double toolToday() { return dayToolBase + proc.snapshot.tool.sessionToolS; }
+
+    private void saveDay() {
+        try {
+            prefs.edit().putString("today", new JSONObject().put("date", day).put("exposure", dayExposure)
+                    .put("tool", toolToday()).toString()).apply();
+        } catch (Exception ignored) {}
+    }
+
+    private void archive(String date, double exposure, double tool) {
+        try {
+            JSONObject days = new JSONObject(prefs.getString("days", "{}"));
+            days.put(date, new JSONObject().put("exposure", exposure).put("tool", tool).put("reference", reference));
+            // keep the last 30 days
+            java.util.List<String> keys = new java.util.ArrayList<>();
+            for (java.util.Iterator<String> it = days.keys(); it.hasNext(); ) keys.add(it.next());
+            java.util.Collections.sort(keys);
+            while (keys.size() > 30) days.remove(keys.remove(0));
+            prefs.edit().putString("days", days.toString()).apply();
+        } catch (Exception ignored) {}
+    }
+
+    /** Called every tick: exposure grows only while a tool is in use; a new date starts a new day. */
+    private void logDay(double t) {
+        Processor.Snapshot s = proc.snapshot;
+        String now = today();
+        if (!now.equals(day)) {
+            archive(day, dayExposure, toolToday());
+            day = now;
+            dayExposure = 0;
+            dayToolBase = 0;
+            proc.resetToolSession();
+            shownWarnings.clear();
+            note("New day started");
+        }
+        double total = s.scoreTotal;
+        if (lastScoreTotal != null && total > lastScoreTotal && "tool".equals(s.tool.state)) dayExposure += total - lastScoreTotal;
+        lastScoreTotal = total;
+        if (t - lastSaved > 10) { saveDay(); lastSaved = t; }
     }
 
     private Processor newProcessor() {
@@ -189,6 +254,7 @@ final class Sleeve {
             if (t - rateWindowStart >= 1) { linesPerS = lineCount / (t - rateWindowStart); lineCount = 0; rateWindowStart = t; }
             if (connected && t - lastLineAt > 3) { connected = false; note("Sleeve stopped sending"); }
             flows();
+            logDay(t);
             Processor.Snapshot s = proc.snapshot;
             for (String w : s.tool.warnings) if (shownWarnings.add(w)) showToast(warningText(w));
             state = build(s, t).toString();
@@ -319,12 +385,6 @@ final class Sleeve {
             toolMessage = null; toolFailed = false;
             proc.toolCalibration(ph);
             if (proc.toolCalState().equals("capturing_" + ph)) toolPhase = ph;
-        } else if (c.equals("newshift")) {
-            proc.resetToolSession();
-            proc.resetScore();
-            shownWarnings.clear();
-            shiftStart = System.currentTimeMillis();
-            showToast("New shift: exposure and tool time reset");
         } else if (c.startsWith("source:")) {
             setting(() -> { source = c.substring(7); prefs.edit().putString("source", source).apply(); });
         } else if (c.startsWith("cpg:")) {
@@ -347,6 +407,8 @@ final class Sleeve {
         boolean was = running;
         stopOnEngine();
         change.run();
+        dayToolBase = toolToday();          // keep today's tool time across the new processor
+        lastScoreTotal = null;
         proc = newProcessor();
         gripFlow = null; gripDone = false; toolPhase = null;
         if (was) startOnEngine();
@@ -385,7 +447,7 @@ final class Sleeve {
         JSONObject tj = new JSONObject();
         tj.put("state", fresh ? tl.state : "unknown").put("band", nz(tl.toolBand)).put("arm", nz(tl.motionBand))
                 .put("hz", nz(tl.dominantHz)).put("periodicity", nz(tl.concentration))
-                .put("toolTime", tl.sessionToolS).put("bout", tl.boutS).put("bouts", tl.bouts).put("longest", tl.longestBoutS)
+                .put("toolTime", toolToday()).put("bout", tl.boutS).put("bouts", tl.bouts).put("longest", tl.longestBoutS)
                 .put("calibrated", tl.calibrationSource.equals("calibrated"));
         JSONArray warn = new JSONArray();
         for (String w : tl.warnings) warn.put(warningText(w));
@@ -400,14 +462,23 @@ final class Sleeve {
                 .put("result", proc.toolCalResult() == null ? JSONObject.NULL : proc.toolCalResult().toJson());
         o.put("toolCal", tc);
         // exposure
-        o.put("exposure", new JSONObject().put("total", s.scoreTotal).put("reference", reference)
-                .put("fraction", s.scoreTotal / Math.max(reference, 1e-9))
+        o.put("exposure", new JSONObject().put("total", dayExposure).put("reference", reference)
+                .put("fraction", dayExposure / Math.max(reference, 1e-9))
                 .put("rate", fresh && s.scoreRate != null ? s.scoreRate : JSONObject.NULL)
+                .put("counting", fresh && s.scoreRate != null && "tool".equals(s.tool.state))
                 .put("paused", s.scorePausedReason == null ? JSONObject.NULL : s.scorePausedReason)
-                .put("since", shiftStart)
                 .put("activationForScore", s.activation == null || !fresh ? JSONObject.NULL : Math.min(2, Math.max(0, s.activation))));
         o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("reference", reference));
         o.put("events", new JSONArray(log));
+        JSONArray hist = new JSONArray();
+        try {
+            JSONObject days = new JSONObject(prefs.getString("days", "{}"));
+            java.util.List<String> keys = new java.util.ArrayList<>();
+            for (java.util.Iterator<String> it = days.keys(); it.hasNext(); ) keys.add(it.next());
+            java.util.Collections.sort(keys, java.util.Collections.reverseOrder());
+            for (String k : keys) hist.put(new JSONObject(days.getJSONObject(k).toString()).put("date", k));
+        } catch (Exception ignored) {}
+        o.put("history", hist).put("day", day);
         o.put("toast", toast == null ? JSONObject.NULL : toast).put("toastId", toastId);
         return o;
     }

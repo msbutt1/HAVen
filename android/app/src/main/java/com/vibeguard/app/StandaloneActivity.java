@@ -37,6 +37,7 @@ public class StandaloneActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setAllowFileAccess(false);
         web.setWebViewClient(new WebViewClient());      // stay in the app
+        web.setWebChromeClient(new android.webkit.WebChromeClient());   // shows the page's confirm() dialogs
         web.addJavascriptInterface(new Bridge(), "VG");
         web.loadUrl("file:///android_asset/standalone/index.html");
         sleeve.start();

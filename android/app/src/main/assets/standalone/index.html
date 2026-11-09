@@ -10,223 +10,256 @@
 @font-face { font-family: "Onest"; font-weight: 600; src: url("../assets/fonts/onest-latin-600-normal.woff2") format("woff2"); }
 @font-face { font-family: "JetBrains Mono"; font-weight: 400; src: url("../assets/fonts/jetbrains-mono-latin-400-normal.woff2") format("woff2"); }
 :root {
-  --bg: #ffffff; --fg: #0b0f19; --card: #fafbfc; --section: #f3f4f7; --muted: #666d7c; --border: #dfe2e8;
-  --primary: #006ae6; --on-primary: #fbfcfd; --success: #008140; --on-success: #fbfdfc; --warning: #e4960e;
-  --danger: #e30008; --sim: #7a4aba; --sim2: #673ba2; --act: #006ae6; --vib: #cc6600;
+  --bg: #f4f5f8; --surface: #ffffff; --fg: #0b0f19; --muted: #5b6270; --faint: #8b919d; --line: #e3e6ec;
+  --primary: #006ae6; --on-primary: #ffffff; --primary-soft: #e6f0fd;
+  --low: #12804a; --low-soft: #e5f4ec; --mid: #b86e00; --mid-soft: #fdf1df; --high: #c8102e; --high-soft: #fbe7ea;
+  --sim: #7a4aba; --sim2: #673ba2;
   --sans: "Onest", system-ui, Roboto, sans-serif; --mono: "JetBrains Mono", ui-monospace, monospace;
+  --r: 22px;
 }
 @media (prefers-color-scheme: dark) {
-  :root { --bg: #0c0f15; --fg: #eef0f4; --card: #151921; --section: #10141a; --muted: #99a0af;
-    --border: rgba(255,255,255,.11); --primary: #4495ff; --on-primary: #060d1a; --success: #3eb268;
-    --on-success: #041107; --warning: #eda839; --danger: #ff6468; --sim: #8962c5; --sim2: #714ca6; --act: #4495ff; --vib: #f59740; }
+  :root { --bg: #0b0d12; --surface: #161a22; --fg: #eef0f4; --muted: #a3a9b6; --faint: #737a87; --line: #252a34;
+    --primary: #5aa2ff; --on-primary: #06101f; --primary-soft: #14243b;
+    --low: #45c07a; --low-soft: #12291d; --mid: #f0ad42; --mid-soft: #2e2311; --high: #ff6b7d; --high-soft: #331419;
+    --sim: #8962c5; --sim2: #714ca6; }
 }
-* { box-sizing: border-box; }
-html, body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.45 var(--sans); -webkit-text-size-adjust: 100%; }
-main { padding: 12px 16px 96px; max-width: 760px; margin: 0 auto; }
-h1 { font-size: 1.35rem; margin: 2px 0 6px; font-weight: 600; }
-h2 { font-size: 1.05rem; margin: 0 0 8px; font-weight: 600; }
-p { margin: 6px 0; }
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--fg); font: 17px/1.5 var(--sans); -webkit-text-size-adjust: 100%; }
+main { padding: 8px 20px 120px; max-width: 560px; margin: 0 auto; }
+.appbar { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 0 8px; }
+.title { font-size: 30px; font-weight: 600; letter-spacing: -.5px; line-height: 1.15; margin: 0; }
+.date { color: var(--muted); font-size: 15px; margin-top: 2px; }
+.iconbtn { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--surface); color: var(--fg); display: grid; place-items: center; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.pill { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 99px; padding: 8px 14px; font-size: 15px; font-weight: 500; margin: 4px 0 8px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--faint); flex: none; }
+.card { background: var(--surface); border-radius: var(--r); padding: 24px; margin: 16px 0; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04); }
+.label { color: var(--muted); font-size: 15px; font-weight: 500; }
+.gauge { position: relative; width: 240px; height: 240px; margin: 12px auto 4px; }
+.gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.gauge .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+.word { font-size: 34px; font-weight: 600; letter-spacing: -.5px; line-height: 1.1; }
+.sub { color: var(--muted); font-size: 15px; margin-top: 6px; }
+.note { text-align: center; color: var(--muted); font-size: 15px; margin: 8px 0 0; }
+.toolrow { display: flex; align-items: center; gap: 16px; }
+.toolicon { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: var(--bg); color: var(--muted); flex: none; transition: background .3s, color .3s; }
+.tooltitle { font-size: 22px; font-weight: 600; line-height: 1.2; }
+.alert { display: flex; gap: 14px; align-items: flex-start; border-radius: var(--r); padding: 18px 20px; margin: 16px 0; font-weight: 500; }
+.alert b { display: block; font-size: 18px; }
+.setup { display: flex; gap: 16px; align-items: center; }
+.setup .grow { flex: 1; }
+.list .item { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--line); }
+.list .item:first-of-type { border-top: none; }
+.list .item .left { display: flex; align-items: center; gap: 12px; }
+.chev { color: var(--faint); }
+button { font: inherit; font-weight: 600; border-radius: 16px; min-height: 52px; padding: 0 22px; border: none; background: var(--bg); color: var(--fg); }
+button.primary { background: var(--primary); color: var(--on-primary); }
+button.wide { width: 100%; }
+button.text { background: none; color: var(--primary); min-height: 48px; padding: 0; font-weight: 500; }
+button:disabled { opacity: .4; }
+.rowbtn { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; padding: 0; min-height: 52px; font-weight: 500; border-radius: 0; }
+nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--surface); box-shadow: 0 -1px 0 var(--line); padding: 8px 12px 10px; }
+nav button { flex: 1; background: none; min-height: 60px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; font-weight: 500; color: var(--muted); }
+nav button .ind { width: 64px; height: 32px; border-radius: 16px; display: grid; place-items: center; transition: background .2s; }
+nav button.on { color: var(--fg); font-weight: 600; }
+nav button.on .ind { background: var(--primary-soft); color: var(--primary); }
+.sheet { position: fixed; inset: 0; background: var(--bg); overflow-y: auto; z-index: 10; transform: translateY(100%); transition: transform .28s cubic-bezier(.2,.8,.2,1); visibility: hidden; }
+.sheet.open { transform: none; visibility: visible; }
+.sheet .bar { position: sticky; top: 0; background: var(--bg); display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; z-index: 1; }
+.sheet .bar h2 { font-size: 20px; margin: 0; font-weight: 600; }
+h1 { font-size: 30px; font-weight: 600; letter-spacing: -.5px; line-height: 1.15; margin: 16px 0 8px; }
+h2 { font-size: 19px; font-weight: 600; margin: 0 0 8px; line-height: 1.3; }
+p { margin: 8px 0; }
 .muted { color: var(--muted); }
-.small { font-size: .86rem; }
-.mono { font-family: var(--mono); font-size: .8rem; }
-.panel { background: var(--card); border: 1px solid var(--border); border-radius: 15px; padding: 16px; margin: 12px 0; }
-.panel.dashed { border-style: dashed; }
-.row { display: flex; align-items: center; gap: 10px; }
-.between { justify-content: space-between; }
-.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
-.big { font-size: 3.2rem; font-weight: 600; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; line-height: 1.05; }
-.mid { font-size: 2rem; font-weight: 600; line-height: 1.1; }
-.label { color: var(--muted); font-size: .9rem; font-weight: 500; }
-.tag { font-size: .72rem; color: var(--muted); border: 1px dashed var(--muted); border-radius: 99px; padding: 1px 7px; }
-.tag.solid { border-style: solid; border-color: var(--border); }
-.banner { border-radius: 10px; padding: 9px 12px; text-align: center; font-weight: 500; font-size: .92rem; margin-top: 8px; }
-.banner.live { background: var(--success); color: var(--on-success); }
-.banner.sim { color: #fff; background: repeating-linear-gradient(135deg, var(--sim) 0 12px, var(--sim2) 12px 24px); }
-.banner.none { background: var(--section); color: var(--muted); border: 1px solid var(--border); }
-.chip { display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--border); border-radius: 99px; padding: 3px 10px; font-size: .82rem; }
-.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); display: inline-block; flex: none; }
-.bar { height: 22px; border-radius: 99px; background: var(--section); border: 1px solid var(--border); overflow: hidden; position: relative; }
-.bar > i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 99px; transition: width .4s ease-out; }
-.bar > b { position: absolute; left: 50%; top: 0; bottom: 0; width: 1.5px; background: var(--fg); opacity: .35; }
-.thin { height: 8px; } .thin > i { background: var(--act); }
-button { font: inherit; font-weight: 500; border-radius: 10px; min-height: 44px; padding: 0 16px; border: 1px solid var(--border); background: var(--section); color: var(--fg); }
-button.primary { background: var(--primary); color: var(--on-primary); border-color: transparent; }
-button.link { background: none; border: none; color: var(--primary); min-height: 32px; padding: 0 4px; }
-button:disabled { opacity: .45; }
-.warn { background: color-mix(in srgb, var(--warning) 18%, transparent); border-radius: 10px; padding: 10px; font-weight: 500; margin-top: 8px; }
-.err { color: var(--danger); }
-.step { border: 1px solid var(--border); border-radius: 10px; padding: 12px; margin: 8px 0; display: flex; gap: 12px; align-items: flex-start; }
-.step.active { border-color: color-mix(in srgb, var(--primary) 50%, transparent); background: color-mix(in srgb, var(--primary) 10%, transparent); }
-.num { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: color-mix(in srgb, var(--fg) 10%, transparent); font-size: .8rem; font-weight: 600; flex: none; }
-.num.done { background: var(--success); color: var(--on-success); }
+.step { display: flex; gap: 16px; padding: 16px 0; border-top: 1px solid var(--line); }
+.step:first-of-type { border-top: none; }
+.num { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); font-weight: 600; flex: none; }
 .num.on { background: var(--primary); color: var(--on-primary); }
-.grow { flex: 1; min-width: 0; }
-.formula { font-family: var(--mono); background: var(--section); border-radius: 8px; padding: 10px; margin: 8px 0; font-size: .92rem; }
-table { border-collapse: collapse; width: 100%; font-variant-numeric: tabular-nums; }
-td, th { text-align: left; padding: 3px 6px 3px 0; font-size: .8rem; }
-th { color: var(--muted); font-weight: 500; }
-nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--bg); border-top: 1px solid var(--border); padding-bottom: env(safe-area-inset-bottom); }
-nav button { flex: 1; border: none; border-radius: 0; background: none; min-height: 58px; color: var(--muted); }
-nav button.on { color: var(--primary); font-weight: 600; }
-.sheet { position: fixed; inset: 0; background: var(--bg); overflow-y: auto; z-index: 10; display: none; }
-.sheet.open { display: block; }
-.sheet header { position: sticky; top: 0; background: var(--bg); display: flex; justify-content: space-between; align-items: center; padding: 10px 16px; border-bottom: 1px solid var(--border); z-index: 1; }
-#toast { position: fixed; left: 24px; right: 24px; bottom: 76px; background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.25); font-weight: 500; display: none; z-index: 20; text-align: center; }
-select { font: inherit; min-height: 40px; border-radius: 8px; border: 1px solid var(--border); background: var(--section); color: var(--fg); padding: 0 8px; max-width: 100%; }
-.kv { display: flex; justify-content: space-between; gap: 12px; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: .9rem; }
+.num.done { background: var(--low); color: #fff; }
+.step .grow { flex: 1; min-width: 0; }
+.say { font-size: 22px; font-weight: 600; line-height: 1.25; margin: 4px 0; }
+.count { font-size: 64px; font-weight: 600; line-height: 1; margin: 12px 0; font-variant-numeric: tabular-nums; color: var(--primary); }
+.progress { height: 10px; border-radius: 99px; background: var(--bg); overflow: hidden; margin: 8px 0 4px; }
+.progress i { display: block; height: 100%; background: var(--primary); border-radius: 99px; transition: width .25s linear; }
+.ok { color: var(--low); font-weight: 600; }
+.err { color: var(--high); font-weight: 500; }
+.sim { color: #fff; background: repeating-linear-gradient(135deg, var(--sim) 0 12px, var(--sim2) 12px 24px); border-radius: 14px; padding: 10px 14px; font-weight: 500; text-align: center; font-size: 15px; }
+.ov { display: flex; gap: 16px; align-items: flex-start; }
+.ov .ic { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; flex: none; }
+ul { padding-left: 20px; margin: 8px 0; } li { margin: 6px 0; }
+.swatch { width: 14px; height: 14px; border-radius: 50%; flex: none; margin-top: 6px; }
+.legend { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0; }
+#toast { position: fixed; left: 20px; right: 20px; bottom: 100px; background: var(--fg); color: var(--bg); border-radius: 16px; padding: 14px 18px; font-weight: 500; display: none; z-index: 20; text-align: center; }
+select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); padding: 0 10px; width: 100%; }
+.kv { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
 .kv span:last-child { text-align: right; color: var(--muted); overflow-wrap: anywhere; }
-.toggle.on { background: color-mix(in srgb, var(--primary) 25%, transparent); border-color: var(--primary); }
+.mono { font-family: var(--mono); font-size: 12px; }
+.stepper { display: flex; align-items: center; gap: 16px; }
+.toggle.on { background: var(--primary-soft); color: var(--primary); }
 </style>
 </head>
 <body>
-<main>
-  <div class="row between">
-    <div class="row"><svg width="30" height="30" viewBox="0 0 30 30" aria-hidden="true"><rect width="30" height="30" rx="8" fill="var(--primary)"/><path d="M5 16h5l2-6 3 11 3-8 2 3h5" fill="none" stroke="var(--on-primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-      <span class="chip"><i class="dot" id="sleeveDot"></i><span class="muted">Sleeve</span> <b id="sleeveState">—</b></span></div>
-    <div class="row"><button class="link" id="runBtn" onclick="cmd(S.running ? 'stop' : 'start')">Stop</button>
-      <button class="link" onclick="openSheet('settings')" aria-label="Settings">Settings</button></div>
+
+<!-- TODAY -->
+<main id="tab-today">
+  <div class="appbar">
+    <div><p class="title">Today</p><div class="date" id="date"></div></div>
+    <button class="iconbtn" onclick="openSheet('settings')" aria-label="Settings">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    </button>
   </div>
-  <div class="banner none" id="banner">Starting…</div>
-  <div class="err small" id="linkError"></div>
+  <div class="pill"><i class="dot" id="dot"></i><span id="conn">Starting…</span></div>
+  <div class="sim" id="simBanner" style="display:none">Practice mode: made-up data, not a real sleeve</div>
 
-  <!-- DASHBOARD -->
-  <section id="tab-dashboard">
-    <p class="small muted" id="fresh"></p>
+  <div class="alert" id="alert" style="display:none"></div>
 
-    <div class="panel dashed" id="exposure">
-      <div class="row between"><div class="row"><span class="label">Exposure this shift</span><span class="tag">experimental</span></div>
-        <button class="link small" onclick="cmd('newshift')">New shift</button></div>
-      <div class="row" style="align-items:baseline"><span class="big" id="expPct">0</span><span class="muted small">% of the shift reference</span></div>
-      <div class="bar" style="margin:10px 0"><i id="expBar"></i><b></b></div>
-      <div class="row between small"><span id="expAu"></span><span id="expRate"></span></div>
-      <p class="small muted" id="expNote"></p>
-    </div>
-
-    <div class="panel" id="toolCard">
-      <div class="row between"><div class="row"><span class="label">Tool use</span><span class="tag solid" id="toolCalTag"></span></div></div>
-      <div class="row" style="margin:6px 0"><i class="dot" id="toolDot" style="width:12px;height:12px"></i><span class="mid" id="toolState">—</span></div>
-      <div class="grid">
-        <div><div class="label small">Tool time this shift</div><div class="mid" style="font-size:1.25rem" id="toolTime">—</div></div>
-        <div><div class="label small">Current bout</div><div class="mid" style="font-size:1.25rem" id="toolBout">—</div></div>
-        <div><div class="label small">Bouts</div><div class="mid" style="font-size:1.25rem" id="toolBouts">—</div></div>
-        <div><div class="label small">Longest bout</div><div class="mid" style="font-size:1.25rem" id="toolLongest">—</div></div>
+  <div class="card" id="setup" style="display:none">
+    <div class="setup">
+      <div class="toolicon" style="background:var(--primary-soft);color:var(--primary)">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3.4 16.9a2 2 0 0 1 2.9-2.8L8 16"/></svg>
       </div>
-      <div id="toolWarnings"></div>
-      <p class="mono muted" id="toolDetail"></p>
-      <p class="small muted">Estimated from vibration: steady, repeating vibration counts as a tool; handshakes, waving and knocks do not. Warnings are team settings, not regulatory limits.</p>
+      <div class="grow"><b style="font-size:19px">Set up the sleeve</b><div class="muted" style="font-size:15px">About a minute. Needed to start counting.</div></div>
     </div>
+    <button class="primary wide" style="margin-top:20px" onclick="openSheet('calibrate')">Set up now</button>
+  </div>
 
-    <div class="grid">
-      <div class="panel"><div class="label">Grip effort</div>
-        <div class="row" style="align-items:baseline"><span class="big" id="grip">—</span><span class="muted small">% of max squeeze</span></div>
-        <div class="bar thin" style="margin:8px 0"><i id="gripBar"></i></div>
-        <p class="small muted" id="gripNote"></p></div>
-      <div class="panel"><div class="label">Vibration</div>
-        <div class="row" style="align-items:baseline"><span class="big" id="vib">—</span><span class="muted small">m/s²</span></div>
-        <p class="small muted" id="vibNote"></p></div>
+  <div class="card">
+    <div class="label">Vibration today</div>
+    <div class="gauge">
+      <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="12"/>
+        <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="var(--low)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 327" style="transition: stroke-dasharray .6s ease-out, stroke .4s"/></svg>
+      <div class="center"><div class="word" id="word">—</div><div class="sub" id="pct"></div></div>
     </div>
+    <p class="note" id="note"></p>
+  </div>
 
-    <div class="panel row between">
-      <div><div class="label">Calibration</div><div id="calGrip"></div><div id="calTool"></div></div>
-      <button class="primary" id="calBtn" onclick="openSheet('calibrate')">Calibrate</button>
-    </div>
-
-    <div class="panel" id="demoPanel" style="display:none">
-      <div class="label">Simulated sleeve controls</div>
-      <div class="row" style="flex-wrap:wrap;margin-top:8px">
-        <button id="dSqueeze" ontouchstart="demo('squeeze',1)" ontouchend="demo('squeeze',0)" onmousedown="demo('squeeze',1)" onmouseup="demo('squeeze',0)">Hold to squeeze</button>
-        <button class="toggle" id="dTool" onclick="demoToggle('tool',this)">Tool running</button>
-        <button class="toggle" id="dArm" onclick="demoToggle('arm',this)">Arm moving</button>
+  <div class="card">
+    <div class="toolrow">
+      <div class="toolicon" id="toolIcon">
+        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></svg>
       </div>
+      <div><div class="tooltitle" id="toolTitle">—</div><div class="muted" style="font-size:15px" id="toolTime"></div></div>
     </div>
-  </section>
+  </div>
 
-  <!-- OVERVIEW -->
-  <section id="tab-overview" style="display:none">
-    <h1>The exposure score</h1>
-    <p class="muted">A running total, for this shift, of how much vibration reached your forearm and how hard you were gripping while it did. It is experimental: a way to compare tasks and shifts for the same person, not a medical or legal measure.</p>
+  <div class="card list" id="days" style="display:none">
+    <div class="label" style="margin-bottom:4px">Earlier days</div>
+    <div id="dayList"></div>
+  </div>
 
-    <div class="panel"><h2>How it is calculated</h2>
-      <p>Every moment the sleeve measures two things:</p>
-      <p><b>Vibration, V:</b> from the accelerometer on the forearm: the strength (RMS) of all shaking faster than 5 Hz over the last second, in m/s². Gravity and slow arm movement are filtered out.</p>
-      <p><b>Grip effort, a:</b> from the muscle sensor (EMG) on the forearm: 0 is your relaxed arm, 1 is your hardest squeeze from calibration.</p>
-      <p>They are combined into a rate, and the rate is added up over time:</p>
-      <div class="formula">rate (au per hour) = V² × (1 + a)</div>
-      <div class="formula">score (au) = rate × hours</div>
-      <p class="small muted">V is in m/s². a is capped at 2 so a single spike cannot dominate. au means arbitrary units.</p>
-      <div class="step"><div class="grow"><div class="label small">Right now</div><div id="liveFormula" class="small"></div></div></div>
-      <p class="small muted">Why squared: doubling the vibration counts four times as much, by analogy with vibration energy. Why grip: a tighter grip couples more of the tool's vibration into the hand and arm. Both are design choices of this prototype, not validated science.</p>
-      <p class="small muted">The score only counts while both signals are valid and fresh. When the sleeve is off, the data pauses, or grip is not calibrated, the score pauses: that time is never counted, and never guessed.</p>
+  <div class="card list" id="again" style="display:none;padding:4px 24px">
+    <button class="rowbtn" onclick="openSheet('calibrate')"><span>Set up the sleeve again</span><span class="chev">›</span></button>
+  </div>
+
+  <div class="card" id="demoPanel" style="display:none">
+    <div class="label" style="margin-bottom:12px">Practice controls</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button ontouchstart="demo('squeeze',1)" ontouchend="demo('squeeze',0)" onmousedown="demo('squeeze',1)" onmouseup="demo('squeeze',0)">Hold to grip</button>
+      <button class="toggle" onclick="demoToggle('tool',this)">Tool on</button>
+      <button class="toggle" onclick="demoToggle('arm',this)">Wave arm</button>
     </div>
+  </div>
+</main>
 
-    <div class="panel"><h2>The bar</h2>
-      <p id="refText"></p>
-      <div class="row small" style="flex-wrap:wrap;gap:14px">
-        <span class="row" style="gap:6px"><i class="dot" style="background:var(--success)"></i>under 50 %</span>
-        <span class="row" style="gap:6px"><i class="dot" style="background:var(--warning)"></i>50–100 %</span>
-        <span class="row" style="gap:6px"><i class="dot" style="background:var(--danger)"></i>over 100 %</span></div>
-      <p class="small muted">The reference is a team setting for the prototype. It is not a legal limit, and 100 % does not mean harm. New shift sets the score and tool time back to zero.</p>
-    </div>
+<!-- HOW IT WORKS -->
+<main id="tab-how" style="display:none">
+  <h1>How it works</h1>
+  <p class="muted">What the vibration bar means, in plain words.</p>
 
-    <div class="panel"><h2>What it means</h2>
-      <p><b>Higher means more:</b> more vibration, for longer, with a harder grip. A task that fills the bar faster is the one to look at first.</p>
-      <p><b>Compare like with like:</b> the same person, the same sleeve placement and the same calibration: grip effort is relative to your own squeeze.</p>
-      <p><b>What it is not:</b> not a vibration dose, not A(8) or any standard exposure value, not a percentage of a legal limit, and not a diagnosis. The vibration is unweighted and measured by a hobby-grade sensor on the forearm, not at the hand as standards require.</p>
-    </div>
+  <div class="card"><div class="ov">
+    <div class="ic" style="background:var(--high-soft);color:var(--high)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+    <div><h2>Why it matters</h2><p>Using shaking tools like drills, grinders and breakers for a long time, day after day, can hurt your hands and arms. It can cause tingling, numb fingers, white fingers in the cold, and a weaker grip. It builds up slowly, so it is easy to miss.</p></div>
+  </div></div>
 
-    <div class="panel"><h2>Tool use</h2>
-      <p>Separately, the dashboard shows whether a power tool is in use, and the tool time this shift. A tool counts only when the vibration is fast (20 Hz and up), strong compared with arm movement, periodic, and steady for 2 seconds, so handshakes, waving and knocks do not count. Calibrating with your own tool sets these thresholds for you. Warnings after 20 minutes of continuous use and at 2 hours a shift are team settings, not regulatory limits.</p>
-    </div>
-    <p class="small muted">Everything is calculated on this phone, live, from the sleeve's raw signals.</p>
-  </section>
+  <div class="card"><div class="ov">
+    <div class="ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12h3l3-8 4 16 3-8h7"/></svg></div>
+    <div><h2>What the sleeve feels</h2>
+      <p>Two things on your forearm, while you use a tool:</p>
+      <ul><li><b>How much your arm shakes.</b></li><li><b>How hard you grip.</b> A tight grip lets more shaking into your hand.</li></ul>
+      <p>The bar only fills while you are using a tool. It fills faster when the shaking is stronger, when you grip harder, and the longer you keep going.</p></div>
+  </div></div>
+
+  <div class="card">
+    <h2>The colours</h2>
+    <div class="legend"><i class="swatch" style="background:var(--low)"></i><div><b>Low.</b> Under half of today's guide.</div></div>
+    <div class="legend"><i class="swatch" style="background:var(--mid)"></i><div><b>Getting high.</b> Over half. Plan breaks and other tasks.</div></div>
+    <div class="legend"><i class="swatch" style="background:var(--high)"></i><div><b>Over today's guide.</b> Talk to your supervisor about the rest of the day.</div></div>
+    <p class="muted" style="font-size:15px">Today's guide is a level your team chose for this project. It is not a legal limit, and a full bar does not mean you are hurt.</p>
+  </div>
+
+  <div class="card"><div class="ov">
+    <div class="ic" style="background:var(--mid-soft);color:var(--mid)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div>
+    <div><h2>Tool time</h2><p>The phone knows when you are using a power tool and counts your tool time. Normal moving, like shaking hands or waving, does not count. After 20 minutes of tool use without a break, it reminds you to take one.</p></div>
+  </div></div>
+
+  <div class="card"><div class="ov">
+    <div class="ic" style="background:var(--low-soft);color:var(--low)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+    <div><h2>Simple tips</h2><ul>
+      <li>Take short breaks from the tool.</li>
+      <li>Let the tool do the work. Do not grip harder than you need to.</li>
+      <li>Keep your hands warm and dry.</li>
+      <li>Tell your supervisor if your fingers tingle, go numb or turn white.</li></ul></div>
+  </div></div>
+
+  <div class="card">
+    <h2>Good to know</h2>
+    <p>Each day is saved by itself and starts again at midnight. Set up the sleeve each time you put it on, so it knows your own grip.</p>
+    <p class="muted" style="font-size:15px">This is a test version, not a medical device. It cannot tell you if you are injured.</p>
+  </div>
 </main>
 
 <nav>
-  <button id="nav-dashboard" class="on" onclick="tab('dashboard')">Dashboard</button>
-  <button id="nav-overview" onclick="tab('overview')">Overview</button>
+  <button id="nav-today" class="on" onclick="tab('today')"><span class="ind"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l4-4"/></svg></span>Today</button>
+  <button id="nav-how" onclick="tab('how')"><span class="ind"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg></span>How it works</button>
 </nav>
 
-<!-- CALIBRATE -->
+<!-- SET UP -->
 <div class="sheet" id="sheet-calibrate">
-  <header><b>Calibrate</b><button class="link" onclick="closeSheet()">Done</button></header>
-  <main style="padding-bottom:32px">
-    <div class="panel">
-      <h2>Grip: relax, then squeeze</h2>
-      <p class="small muted">Grip effort is shown against your own relaxed reading and hardest squeeze, for this electrode placement. Needed for the exposure score.</p>
-      <div class="step" id="gStep"><div class="grow"><b id="gPrompt"></b><div class="big" id="gCount" style="font-size:2.6rem"></div>
-        <div class="bar thin"><i id="gBar" style="background:var(--primary)"></i></div></div></div>
-      <div class="row"><button class="primary" id="gBtn" onclick="cmd(S.grip&&S.grip.flow?'grip:cancel':'grip:start')">Start</button><span class="small err" id="gMsg"></span></div>
-      <p class="small muted" id="gResult"></p>
+  <div class="bar"><h2>Set up the sleeve</h2><button class="text" onclick="closeSheet()">Done</button></div>
+  <main style="padding-bottom:40px">
+    <div class="card">
+      <div class="label">Part 1 of 2</div>
+      <h2 style="font-size:22px;margin-top:4px">Your grip</h2>
+      <p class="muted">Sit down and rest your arm on a table.</p>
+      <div class="say" id="gSay" style="margin-top:16px"></div>
+      <div class="count" id="gCount"></div>
+      <div class="progress" id="gProg" style="visibility:hidden"><i id="gBar"></i></div>
+      <button class="primary wide" style="margin-top:16px" id="gBtn" onclick="cmd(S.grip && S.grip.flow ? 'grip:cancel' : 'grip:start')">Start</button>
+      <p class="err" id="gMsg"></p>
     </div>
-    <div class="panel">
-      <h2>Tool: vibration vs normal movement</h2>
-      <p class="small muted">Three short steps. The app sets the tool thresholds between your normal movement and the tool, then checks that none of your movement would have counted as tool use.</p>
+    <div class="card">
+      <div class="label">Part 2 of 2</div>
+      <h2 style="font-size:22px;margin-top:4px">Your tool</h2>
+      <p class="muted">So the phone can tell your tool apart from normal moving.</p>
       <div id="tSteps"></div>
-      <p class="small err" id="tMsg"></p>
-      <div id="tResult"></div>
-      <div class="row between"><span class="small muted" id="tSource"></span><button class="link small" id="tReset" onclick="cmd('tool:reset')">Reset to defaults</button></div>
+      <p class="err" id="tMsg"></p>
+      <p class="ok" id="tDone"></p>
     </div>
   </main>
 </div>
 
 <!-- SETTINGS -->
 <div class="sheet" id="sheet-settings">
-  <header><b>Settings</b><button class="link" onclick="closeSheet()">Done</button></header>
-  <main style="padding-bottom:32px">
-    <div class="panel"><div class="label">Data from</div>
-      <select id="sSource" onchange="cmd('source:'+this.value)"><option value="sleeve">Sleeve (phone hotspot)</option><option value="demo">Simulated sleeve (demo)</option></select>
-      <p class="small muted" id="sSourceNote"></p></div>
-    <div class="panel"><div class="label">Accelerometer range</div>
-      <select id="sCpg" onchange="cmd('cpg:'+this.value)"><option value="4096">±8 g (4096 counts per g)</option><option value="2048">±16 g (2048 counts per g)</option></select>
-      <p class="small muted">Must match the sleeve firmware. Board W is flashed with ±8 g (MPU-6500, 4096 LSB/g per the TDK datasheet). A wrong value scales every vibration reading.</p></div>
-    <div class="panel"><div class="label">Exposure bar: shift reference</div>
-      <div class="row"><button onclick="cmd('reference:'+(S.settings.reference-5))">−</button><b id="sRef" style="min-width:70px;text-align:center"></b><button onclick="cmd('reference:'+(S.settings.reference+5))">+</button></div>
-      <p class="small muted">The bar is full when this shift's score reaches the reference. Default 75 au (8 h at 2.5 m/s² with 50 % grip, by the score's formula). A team setting, not a legal limit.</p></div>
-    <div class="panel"><div class="label">Connection</div><div id="sConn"></div></div>
-    <div class="panel"><div class="label">Recent events</div><div class="mono" id="sEvents"></div></div>
-    <div class="panel"><button onclick="cmd('laptop')">Use a laptop instead</button>
-      <p class="small muted">Opens the laptop dashboard (vg-backend serve --device wifi): the laptop then reads the sleeve and this phone only shows it.</p></div>
-    <p class="small muted">Everything is computed on this phone: muscle activation from the EMG, vibration, tool use and the experimental exposure score. VibeGuard is a prototype, not a medical device. Activation is relative to your own calibration (not force, not %MVC); the exposure score is experimental (not a dose, not A(8)); tool warnings are team settings, not regulatory limits.</p>
+  <div class="bar"><h2>Settings</h2><button class="text" onclick="closeSheet()">Done</button></div>
+  <main style="padding-bottom:40px">
+    <div class="card">
+      <h2>Connecting the sleeve</h2>
+      <ol style="padding-left:20px;margin:8px 0 16px"><li>Turn on this phone's hotspot.</li><li>Keep this app open.</li><li>Switch on the sleeve. It connects by itself.</li></ol>
+      <button class="wide" id="runBtn" onclick="cmd(S.running ? 'stop' : 'start')">Stop</button>
+      <p class="err" id="linkError"></p>
+    </div>
+    <div class="card"><h2>Practice mode</h2>
+      <select id="sSource" onchange="cmd('source:'+this.value)"><option value="sleeve">Off: use the real sleeve</option><option value="demo">On: made-up data</option></select></div>
+    <div class="card"><h2>Today's guide</h2>
+      <div class="stepper"><button onclick="cmd('reference:'+(S.settings.reference-5))" aria-label="Lower">−</button><b id="sRef" style="min-width:80px;text-align:center;font-size:20px"></b><button onclick="cmd('reference:'+(S.settings.reference+5))" aria-label="Higher">+</button></div>
+      <p class="muted" style="font-size:15px">Set by your team. A higher guide fills the bar more slowly.</p></div>
+    <div class="card"><h2>Details for the team</h2>
+      <p class="muted" style="font-size:15px">Technical readings for the people setting up and checking the system.</p>
+      <div id="tech"></div>
+      <p style="margin-top:16px"><label class="label">Accelerometer range</label><select id="sCpg" onchange="cmd('cpg:'+this.value)"><option value="4096">±8 g (4096 counts per g)</option><option value="2048">±16 g (2048 counts per g)</option></select></p>
+      <p class="muted" style="font-size:13px">Score rate (au per hour) = V² × (1 + a), V = vibration RMS above 5 Hz in m/s², a = grip effort (0 relaxed, 1 calibrated squeeze, capped at 2). Today's total adds the score only while a tool is detected. Experimental, arbitrary units: not A(8), not a dose. Default guide 75 au = 8 h at 2.5 m/s² with 50 % grip.</p>
+      <div class="mono muted" id="sEvents"></div>
+      <button class="wide" onclick="cmd('laptop')" style="margin-top:16px">Use a laptop instead</button>
+    </div>
   </main>
 </div>
 
@@ -237,140 +270,115 @@ select { font: inherit; min-height: 40px; border-radius: 8px; border: 1px solid 
 const $ = id => document.getElementById(id);
 const VGB = window.VG || { state: () => JSON.stringify({ running: false, linkDetail: "Open this page inside the VibeGuard app." }), command: () => {} };
 let S = {}, sheet = null, lastToast = 0;
+const ARC = 2 * Math.PI * 52;
 function cmd(c) { VGB.command(c); setTimeout(tick, 60); }
 function demo(k, on) { cmd('demo:' + k + '=' + on); }
 function demoToggle(k, el) { const on = !el.classList.contains('on'); el.classList.toggle('on', on); demo(k, on ? 1 : 0); }
-function tab(t) { for (const n of ['dashboard', 'overview']) { $('tab-' + n).style.display = n === t ? '' : 'none'; $('nav-' + n).classList.toggle('on', n === t); } scrollTo(0, 0); }
+function tab(t) { for (const n of ['today', 'how']) { $('tab-' + n).style.display = n === t ? '' : 'none'; $('nav-' + n).classList.toggle('on', n === t); } scrollTo(0, 0); }
 function openSheet(n) { closeSheet(); sheet = n; $('sheet-' + n).classList.add('open'); }
 function closeSheet() { if (sheet) $('sheet-' + sheet).classList.remove('open'); sheet = null; }
 window.vgBack = () => { if (sheet) { closeSheet(); return true; } return false; };
 const f = (v, d) => v == null || !isFinite(v) ? '—' : Number(v).toFixed(d);
-const score = v => v == null ? '—' : Math.abs(v) < 1 ? v.toFixed(3) : v.toFixed(1);
-function dur(s) { if (s == null) return '—'; s = Math.floor(s); const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60;
-  return h ? `${h}:${String(m).padStart(2, '0')}:${String(x).padStart(2, '0')}` : `${m}:${String(x).padStart(2, '0')}`; }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-
-function pausedText(e) {
-  const at = new Date(e.since).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const since = 'Since ' + at + (at.endsWith('.') ? '' : '.');
-  const w = e.paused;
-  if (!w) return since + ' Counting: vibration weighted by grip effort. The reference is a team setting, not a legal limit.';
-  let t = 'Paused: waiting for data.';
-  if (w.startsWith('activation_uncalibrated') || w === 'activation_no_data') t = 'Paused: calibrate grip to start counting.';
-  else if (w === 'activation_stale') t = 'Paused: no recent muscle signal.';
-  else if (w.startsWith('vibration_warming_up')) t = 'Starting: the motion sensor is warming up.';
-  else if (w.startsWith('vibration')) t = 'Paused: no usable motion data.';
-  else if (w === 'boot_change') t = 'Paused: the sleeve restarted.';
-  return since + ' ' + t + ' Paused time is never counted.';
-}
+function minutes(s) { if (s == null) return '—'; const m = Math.floor(s / 60); if (m < 1) return 'under a minute'; const h = Math.floor(m / 60); return h ? `${h} h ${m % 60} min` : `${m} min`; }
+function level(frac) { return frac >= 1 ? ['Over today\'s guide', 'var(--high)', 'var(--high-soft)'] : frac >= 0.5 ? ['Getting high', 'var(--mid)', 'var(--mid-soft)'] : ['Low', 'var(--low)', 'var(--low-soft)']; }
+$('date').textContent = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
 
 function render() {
   const s = S;
-  // header
-  const live = s.connected && s.dataSource === 'live', sim = s.connected && s.dataSource === 'simulated';
-  const b = $('banner');
-  b.className = 'banner ' + (live ? 'live' : sim ? 'sim' : 'none');
-  b.textContent = live ? 'Live data from ' + (s.device || 'the sleeve') : sim ? 'Simulated data. These are not real measurements.'
-    : s.running ? (s.linkDetail || 'Waiting for the sleeve.') : 'Stopped. Press Start to read the sleeve.';
+  $('simBanner').style.display = s.source === 'demo' ? '' : 'none';
+  const busy = (s.grip && s.grip.flow) || (s.toolCal && s.toolCal.phase);
+  $('conn').textContent = !s.running ? 'Sleeve switched off in the app' : !s.connected ? 'Looking for your sleeve…' : !s.fresh ? 'Reconnecting…' : busy ? 'Setting up…' : 'Sleeve connected';
+  $('dot').style.background = s.connected && s.fresh ? 'var(--low)' : s.connected ? 'var(--mid)' : 'var(--faint)';
+  $('runBtn').textContent = s.running ? 'Stop reading the sleeve' : 'Start reading the sleeve';
   $('linkError').textContent = s.linkError || '';
-  $('runBtn').textContent = s.running ? 'Stop' : 'Start';
-  const calibrating = (s.grip && s.grip.flow) || (s.toolCal && s.toolCal.phase);
-  const st = !s.connected ? ['Disconnected', 'var(--muted)'] : calibrating ? ['Calibrating', 'var(--warning)'] : ['Ready', 'var(--success)'];
-  $('sleeveState').textContent = st[0]; $('sleeveDot').style.background = st[1];
-  $('fresh').textContent = !s.connected ? (s.running ? 'No data yet.' : 'No data. Press Start, and power the sleeve.')
-    : s.fresh ? `Updating ${Math.round(s.linesPerS || 0)} times a second.` : `No new reading for ${f(s.age, 1)} s. Values are hidden until data resumes.`;
   if (!s.exposure) return;
-  // exposure
-  const e = s.exposure, frac = e.fraction || 0;
-  $('expPct').textContent = Math.round(frac * 100);
-  const bar = $('expBar'); bar.style.width = Math.max(0, Math.min(1, frac)) * 100 + '%';
-  bar.style.background = frac >= 1 ? 'var(--danger)' : frac >= 0.5 ? 'var(--warning)' : 'var(--success)';
-  $('expAu').textContent = `${score(e.total)} of ${f(e.reference, 0)} au`;
-  $('expRate').textContent = e.rate != null ? `now ${score(e.rate)} au/h` : 'paused';
-  $('expNote').textContent = pausedText(e);
-  // tool
-  const t = s.tool;
-  const inUse = t.state === 'tool';
-  $('toolState').textContent = t.state === 'tool' ? 'Tool in use' : t.state === 'no_tool' ? 'No tool' : '—';
-  $('toolDot').style.background = inUse ? 'var(--warning)' : t.state === 'no_tool' ? 'var(--success)' : 'var(--muted)';
-  $('toolCalTag').textContent = t.calibrated ? 'calibrated for this tool' : 'default thresholds';
-  $('toolTime').textContent = dur(t.toolTime); $('toolBout').textContent = inUse ? dur(t.bout) : '—';
-  $('toolBouts').textContent = t.bouts; $('toolLongest').textContent = dur(t.longest);
-  $('toolWarnings').innerHTML = (t.warnings || []).map(w => `<div class="warn">⚠ ${esc(w)}</div>`).join('');
-  $('toolDetail').textContent = t.state === 'unknown' ? 'Waiting for motion data.'
-    : `tool band ${f(t.band, 2)} m/s² @ ${f(t.hz, 0)} Hz · arm ${f(t.arm, 2)} m/s² · periodicity ${f(t.periodicity, 2)}`;
-  // grip + vibration
-  const pct = s.activation == null ? null : Math.min(1, Math.max(0, s.activation)) * 100;
-  $('grip').textContent = f(pct, 0); $('gripBar').style.width = (pct || 0) + '%';
-  $('gripNote').textContent = s.gripCalibrated ? 'Muscle activity relative to your calibrated squeeze. Not force.' : 'Not calibrated. Calibrate to see grip effort.';
-  $('vib').textContent = f(s.vibration, 2);
-  $('vibNote').textContent = s.vibrationClipped ? 'The motion sensor clipped: vibration is at least this, possibly more.' : 'Measured at the forearm, unweighted. Not a standards-grade measurement.';
-  // calibration status
-  const ok = (on, text) => `<div class="small" style="color:${on ? 'var(--success)' : 'var(--fg)'}">${on ? '✓' : '○'} ${text}</div>`;
-  $('calGrip').innerHTML = ok(s.gripCalibrated, s.gripCalibrated ? 'Grip calibrated' : 'Grip not calibrated (needed for the exposure score)');
-  $('calTool').innerHTML = ok(t.calibrated, t.calibrated ? 'Tool calibrated for this tool' : 'Tool detection on default thresholds');
-  $('calBtn').textContent = s.gripCalibrated && t.calibrated ? 'Recalibrate' : 'Calibrate';
-  $('calBtn').disabled = !s.connected;
+
+  const e = s.exposure, frac = Math.max(0, e.fraction || 0), lv = level(frac);
+  $('word').textContent = lv[0]; $('word').style.color = lv[1];
+  $('arc').setAttribute('stroke-dasharray', `${Math.max(0.001, Math.min(1, frac)) * ARC} ${ARC}`);
+  $('arc').setAttribute('stroke', lv[1]);
+  $('pct').textContent = `${Math.round(frac * 100)}% of today's guide`;
+  const t = s.tool, using = s.fresh && t.state === 'tool';
+  $('note').textContent = !s.gripCalibrated ? 'Not counting yet. Set up the sleeve first.'
+    : !s.connected || !s.fresh ? 'Not counting. No signal from the sleeve.'
+    : e.counting ? 'Counting while you use the tool.' : 'Counts only while you use a tool.';
+
+  $('toolTitle').textContent = !s.fresh ? 'Tool: no signal' : using ? 'Using a tool' : 'Not using a tool';
+  $('toolTime').textContent = 'Tool time today: ' + minutes(t.toolTime);
+  $('toolIcon').style.background = using ? 'var(--mid-soft)' : '';
+  $('toolIcon').style.color = using ? 'var(--mid)' : '';
+
+  const a = $('alert'), w = (t.warnings || [])[0];
+  if (w) { a.style.display = 'flex'; a.style.background = 'var(--high-soft)'; a.style.color = 'var(--high)';
+    a.innerHTML = w.startsWith('Tool in use for over 20') ? '<div><b>Time for a break</b>You have used the tool for over 20 minutes without one.</div>' : `<div><b>Heads up</b>${esc(w)}</div>`; }
+  else if (s.running && s.connected && !s.fresh) { a.style.display = 'flex'; a.style.background = 'var(--mid-soft)'; a.style.color = 'var(--mid)';
+    a.innerHTML = '<div><b>Lost the sleeve\'s signal</b>Stay close to your phone.</div>'; }
+  else a.style.display = 'none';
+
+  $('setup').style.display = s.connected && !s.gripCalibrated ? '' : 'none';
+  $('again').style.display = s.connected && s.gripCalibrated ? '' : 'none';
   $('demoPanel').style.display = s.source === 'demo' ? '' : 'none';
-  // overview live formula
-  if (s.vibration != null && e.activationForScore != null && e.rate != null) {
-    $('liveFormula').textContent = `${f(s.vibration, 2)}² × (1 + ${f(e.activationForScore, 2)}) = ${score(e.rate)} au per hour. At this rate one hour adds ${score(e.rate)} au, ${f(e.rate / e.reference * 100, 1)} % of the shift reference.`;
-  } else {
-    $('liveFormula').textContent = !s.fresh ? 'No live data. Start the sleeve to see the formula with your numbers.' : 'Calibrate grip on the dashboard to see the formula with your numbers.';
-  }
-  $('refText').textContent = `The dashboard bar shows this shift's score against a reference of ${f(e.reference, 0)} au per shift. That is what the formula gives for 8 hours at a vibration of 2.5 m/s² with 50 % grip effort (6.25 × 1.5 × 8 = 75).`;
-  renderCalibrate(s); renderSettings(s);
+  const h = (s.history || []).slice(0, 7);
+  $('days').style.display = h.length ? '' : 'none';
+  $('dayList').innerHTML = h.map(d => {
+    const fr = d.exposure / Math.max(d.reference || e.reference, 1e-9), l = level(fr);
+    const label = new Date(d.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+    return `<div class="item"><div class="left"><i class="dot" style="background:${l[1]}"></i><span>${label}</span></div><span class="muted">${l[0]} · tool ${minutes(d.tool)}</span></div>`;
+  }).join('');
+  renderSetup(s); renderSettings(s);
   if (s.toast && s.toastId !== lastToast) { lastToast = s.toastId; const el = $('toast'); el.textContent = s.toast; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 2600); }
 }
 
-function renderCalibrate(s) {
+function renderSetup(s) {
   const g = s.grip;
-  const capturing = g.state.startsWith('capturing');
-  $('gStep').classList.toggle('active', !!g.flow);
-  $('gPrompt').textContent = g.flow === 'relaxed' ? 'Relax your forearm completely.' : g.flow === 'squeeze' ? 'Squeeze as hard as you can and hold it.'
-    : g.done ? 'Calibrated. Grip effort now shows as a percentage of that squeeze.' : 'Put the sleeve on, rest your arm on the table, then start.';
+  $('gSay').textContent = g.flow === 'relaxed' ? 'Relax your arm and keep it still' : g.flow === 'squeeze' ? 'Now squeeze your fist hard!'
+    : s.gripCalibrated ? '✓ Grip is set up' : 'First relax for 3 seconds, then squeeze hard for 3 seconds.';
+  $('gSay').style.color = s.gripCalibrated && !g.flow ? 'var(--low)' : '';
   $('gCount').textContent = g.flow && g.left != null ? Math.ceil(g.left) : '';
-  $('gBar').style.width = g.flow && g.left != null ? (100 * (1 - g.left / Math.max(g.total, .1))) + '%' : (g.done ? '100%' : '0%');
-  $('gBtn').textContent = g.flow ? 'Cancel' : s.gripCalibrated ? 'Recalibrate' : 'Start';
+  $('gCount').style.display = g.flow ? '' : 'none';
+  $('gProg').style.visibility = g.flow ? 'visible' : 'hidden';
+  $('gProg').style.display = g.flow ? '' : 'none';
+  $('gBar').style.width = g.flow && g.left != null ? (100 * (1 - g.left / Math.max(g.total, .1))) + '%' : '0%';
+  $('gBtn').textContent = g.flow ? 'Stop' : s.gripCalibrated ? 'Do it again' : 'Start';
+  $('gBtn').className = g.flow ? 'wide' : 'primary wide';
   $('gBtn').disabled = !s.connected;
-  $('gMsg').textContent = g.message || (s.connected ? '' : 'Connect the sleeve first.');
-  $('gResult').textContent = g.relaxed != null ? `Rest level ${f(g.relaxed, 1)} · max squeeze level ${f(g.squeeze, 1)} (EMG envelope, ADC counts)` : '';
+  $('gMsg').textContent = g.message ? 'That did not work. ' + g.message : (s.connected ? '' : 'Switch on the sleeve first.');
+
   const tc = s.toolCal, done = new Set(tc.done);
-  const steps = [['still', 'Still', '5 s', 'Arm resting, tool off.'],
-    ['movement', 'Normal movement', '12 s', 'Tool OFF. Shake hands, wave, swing the arm, tap the table, the whole time.'],
-    ['tool', 'Tool on', '10 s', 'Hold the running tool by its handle, as you would at work, the whole time.']];
-  $('tSteps').innerHTML = steps.map(([id, title, secs, how], i) => {
+  const steps = [['still', 'Keep still', 'Rest your arm, tool off.', 5],
+    ['movement', 'Move like normal', 'Tool off. Shake hands, wave, swing your arm.', 12],
+    ['tool', 'Use your tool', 'Hold the running tool like you do at work.', 10]];
+  $('tSteps').innerHTML = steps.map(([id, title, how, secs], i) => {
     const active = tc.phase === id, d = done.has(id);
-    const dis = !s.connected || (tc.phase && !active) || (id === 'tool' && !done.has('movement'));
-    const left = active && tc.left != null ? `<div class="mid">${Math.ceil(tc.left)} s left</div><div class="bar thin"><i style="width:${100 * (1 - tc.left / Math.max(tc.total, .1))}%"></i></div>` : '';
-    return `<div class="step ${active ? 'active' : ''}"><div class="num ${d ? 'done' : active ? 'on' : ''}">${d ? '✓' : i + 1}</div>
-      <div class="grow"><b>${title} (${secs})</b><div class="small muted">${how}</div>${left}</div>
-      <button ${dis ? 'disabled' : ''} onclick="cmd('tool:${active ? 'cancel' : id}')">${active ? 'Cancel' : d ? 'Redo' : 'Start'}</button></div>`;
+    const dis = !s.connected || (tc.phase && !active) || (i > 0 && !done.has(steps[i - 1][0]));
+    const live = active && tc.left != null ? `<div class="count">${Math.ceil(tc.left)}</div><div class="progress"><i style="width:${100 * (1 - tc.left / Math.max(tc.total, .1))}%"></i></div>` : '';
+    return `<div class="step"><div class="num ${active ? 'on' : d ? 'done' : ''}">${d && !active ? '✓' : i + 1}</div>
+      <div class="grow"><div style="font-weight:600;font-size:18px">${title}</div><div class="muted" style="font-size:15px">${how} ${secs} seconds.</div>${live}
+      <button class="${active || d ? '' : 'primary'}" style="margin-top:12px;min-height:44px" ${dis ? 'disabled' : ''} onclick="cmd('tool:${active ? 'cancel' : id}')">${active ? 'Stop' : d ? 'Again' : 'Start'}</button></div></div>`;
   }).join('');
-  $('tMsg').textContent = tc.message || '';
-  const r = tc.result;
-  if (r && r.summaries && Object.keys(r.summaries).length) {
-    const accepted = s.tool.calibrated && !tc.failed;
-    const row = k => r.summaries[k] ? `<tr><td>${k}</td><td>${f(r.summaries[k].tool_band, 2)}</td><td>${f(r.summaries[k].motion_band, 2)}</td><td>${f(r.summaries[k].ratio, 2)}</td><td>${f(r.summaries[k].concentration, 2)}</td></tr>` : '';
-    const th = r.thresholds || {};
-    $('tResult').innerHTML = `<div class="step" style="display:block"><b style="color:${accepted ? 'var(--success)' : 'var(--danger)'}">${accepted ? 'Calibrated' : 'Not applied'}</b>
-      <table><tr><th>median</th><th>tool band</th><th>arm</th><th>tool/arm</th><th>periodicity</th></tr>${row('still')}${row('movement')}${row('tool')}</table>
-      <div class="small muted">Tool windows accepted ${f(r.tool_windows_accepted * 100, 0)} % · movement windows accepted ${f(r.movement_windows_accepted * 100, 0)} % · false tool bouts during movement ${r.movement_false_bouts}</div>
-      ${th.on_threshold_ms2 != null ? `<div class="small muted">${accepted ? 'Thresholds' : 'Proposed thresholds'}: tool band ≥ ${f(th.on_threshold_ms2, 2)} m/s², tool/arm ≥ ${f(th.tool_to_motion_min, 2)}, periodicity ≥ ${f(th.concentration_min, 2)}, steady for 2 s</div>` : ''}</div>`;
-  } else $('tResult').innerHTML = '';
-  $('tSource').textContent = s.tool.calibrated ? 'Using thresholds calibrated on this phone.' : 'Using the default (provisional) thresholds.';
-  $('tReset').style.display = s.tool.calibrated ? '' : 'none';
+  $('tMsg').textContent = tc.message ? 'That did not work. ' + tc.message : '';
+  $('tDone').textContent = s.tool.calibrated && !tc.failed ? '✓ Your tool is set up.' : '';
 }
 
 function renderSettings(s) {
   if (document.activeElement !== $('sSource')) $('sSource').value = s.settings.source;
   if (document.activeElement !== $('sCpg')) $('sCpg').value = String(Math.round(s.settings.countsPerG));
   $('sRef').textContent = Math.round(s.settings.reference) + ' au';
-  $('sSourceNote').textContent = s.settings.source === 'demo' ? 'The in-app simulated sleeve. Every screen is labelled Simulated: these are not measurements.'
-    : 'Turn on this phone\'s hotspot with the name and password flashed into the sleeve, keep this app open, then power the sleeve. It joins the hotspot and connects to this phone (port 8765) within a few seconds. If a laptop bridge (vg-bridge or vg-backend) is running on the same hotspot, the sleeve connects to the laptop instead: stop it.';
   const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${esc(v)}</span></div>`;
-  $('sConn').innerHTML = kv('Status', s.linkDetail || 'Stopped') + kv('Device', s.device || '—') + kv('Firmware', s.firmware || '—') + kv('Records', s.records) + kv('Lost records', s.lost);
-  $('sEvents').innerHTML = (s.events || []).slice().reverse().map(esc).join('<br>') || '—';
+  const t = s.tool, e = s.exposure, r = s.toolCal.result, th = r && r.thresholds || {};
+  $('tech').innerHTML =
+    kv('Link', s.linkDetail || 'stopped') + kv('Device', s.device || '—') + kv('Firmware', s.firmware || '—') +
+    kv('Records per second', f(s.linesPerS, 0)) + kv('Lost records', s.lost) +
+    kv('Today (tool time only)', `${f(e.total, 3)} of ${f(e.reference, 0)} au`) + kv('Score rate now', e.rate == null ? 'paused (' + (e.paused || '—') + ')' : f(e.rate, 2) + ' au/h') +
+    kv('Grip effort', s.activation == null ? '—' : f(Math.max(0, s.activation) * 100, 0) + ' % of calibrated squeeze') +
+    kv('EMG envelope', f(s.envelope, 1) + ' counts') + kv('Grip calibration', s.grip.relaxed == null ? '—' : `rest ${f(s.grip.relaxed, 1)}, squeeze ${f(s.grip.squeeze, 1)} counts`) +
+    kv('Vibration', f(s.vibration, 2) + ' m/s²' + (s.vibrationClipped ? ' (sensor clipped)' : '')) +
+    kv('Tool band', `${f(t.band, 2)} m/s² @ ${f(t.hz, 0)} Hz, arm ${f(t.arm, 2)} m/s², periodicity ${f(t.periodicity, 2)}`) +
+    kv('Tool state', `${t.state}, ${t.bouts} bouts, longest ${minutes(t.longest)}`) +
+    kv('Tool thresholds', t.calibrated ? `≥ ${f(th.on_threshold_ms2, 2)} m/s², tool/arm ≥ ${f(th.tool_to_motion_min, 2)}, periodicity ≥ ${f(th.concentration_min, 2)}` : 'defaults (provisional)') +
+    (r ? kv('Tool calibration check', `tool windows accepted ${f(r.tool_windows_accepted * 100, 0)} %, movement ${f(r.movement_windows_accepted * 100, 0)} %, false bouts ${r.movement_false_bouts}`) : '');
+  $('sEvents').innerHTML = (s.events || []).slice(-12).reverse().map(esc).join('<br>');
 }
 
 function tick() { try { S = JSON.parse(VGB.state()); if (S.error) { $('linkError').textContent = S.error; return; } render(); } catch (e) { $('linkError').textContent = String(e); } }
