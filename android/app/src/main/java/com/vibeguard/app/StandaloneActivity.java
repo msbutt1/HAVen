@@ -1,7 +1,10 @@
 package com.vibeguard.app;
 
 import android.annotation.SuppressLint;
+import android.Manifest;
 import android.app.Activity;
+import android.content.pm.PackageManager;
+import android.os.Build;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.WindowManager;
@@ -40,7 +43,11 @@ public class StandaloneActivity extends Activity {
         web.setWebChromeClient(new android.webkit.WebChromeClient());   // shows the page's confirm() dialogs
         web.addJavascriptInterface(new Bridge(), "VG");
         web.loadUrl("file:///android_asset/standalone/index.html");
-        sleeve.start();
+        // alarms are notifications: ask once (Android 13+); then keep reading the sleeve in the background
+        if (Build.VERSION.SDK_INT >= 33 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, 1);
+        }
+        SleeveService.start(this);
     }
 
     @Override

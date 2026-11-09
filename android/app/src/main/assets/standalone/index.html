@@ -142,6 +142,16 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 .tips li::before { content: counter(t); width: 28px; height: 28px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
 .sec.last { padding-bottom: 8px; }
 .demo { background: var(--primary-soft); color: var(--primary); border-radius: 14px; padding: 10px 14px; font-weight: 500; text-align: center; font-size: 15px; margin-top: 4px; }
+#alarm { position: fixed; inset: 0; z-index: 50; display: none; flex-direction: column; justify-content: space-between; padding: 48px 28px 40px; color: #fff; text-align: center; }
+#alarm.on { display: flex; animation: flash 1.2s ease-in-out 3; }
+#alarm.limit { background: #b0001e; } #alarm.action { background: #9a5a00; }
+@keyframes flash { 50% { filter: brightness(1.35); } }
+#alarm .abody { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+#alarm .abadge { width: 132px; height: 132px; border-radius: 50%; background: rgba(255,255,255,.18); display: grid; place-items: center; animation: pop .5s cubic-bezier(.2,1.6,.4,1), ring 1.6s ease-out .5s infinite; }
+@keyframes ring { 0% { box-shadow: 0 0 0 0 rgba(255,255,255,.45); } 100% { box-shadow: 0 0 0 36px rgba(255,255,255,0); } }
+#alarm h1 { font-size: 34px; margin: 28px 0 10px; color: #fff; }
+#alarm p { font-size: 20px; line-height: 1.45; max-width: 360px; opacity: .95; }
+#alarm button { background: #fff; color: #111; font-size: 19px; min-height: 60px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--low-soft); color: var(--low); border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: 15px; margin-bottom: 8px; animation: pop .4s cubic-bezier(.2,1.6,.4,1); }
 .ready { font-size: 96px; font-weight: 600; color: var(--primary); animation: beat 1s ease-out infinite; }
 @keyframes beat { 0% { transform: scale(1.25); opacity: .4; } 30% { transform: scale(1); opacity: 1; } }
@@ -316,8 +326,10 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   <main style="padding-bottom:40px">
     <div class="card"><h2>Demo speed</h2>
       <select id="dSpeed" onchange="cmd('speed:'+this.value)">
-        <option value="1">Off: real time</option><option value="30">1 minute of tool use = 30 minutes</option>
-        <option value="60">1 minute of tool use = 1 hour</option><option value="120">1 minute of tool use = 2 hours</option></select>
+        <option value="1">Off: real time</option><option value="60">1 minute of tool use = 1 hour</option>
+        <option value="120">1 minute of tool use = 2 hours</option><option value="240">1 minute of tool use = 4 hours</option>
+        <option value="480">1 minute of tool use = 8 hours (a full shift)</option><option value="960">1 minute of tool use = 16 hours</option></select>
+      <p style="font-weight:600;margin-top:12px" id="dEta"></p>
       <p class="muted" style="font-size:15px">For short demos with the massage gun. The vibration reading and the formula are unchanged; only the clock runs faster for points and tool time. The Today screen says so while it is on.</p>
       <button class="wide" onclick="if (confirm('Clear today\'s points and tool time?')) cmd('day:clear')">Clear today's points</button></div>
     <div class="card"><h2>Tool calibration (IMU)</h2>
@@ -332,6 +344,16 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
     <div class="card"><button class="wide" onclick="cmd('laptop')">Use a laptop instead</button>
       <p class="muted" style="font-size:13px">Opens the laptop mode (vg-backend serve --device wifi): the laptop reads the sleeve, this phone shows it.</p></div>
   </main>
+</div>
+
+<!-- ALARM: full screen, until the wearer taps OK -->
+<div id="alarm" role="alertdialog" aria-live="assertive">
+  <div class="abody">
+    <div class="abadge" id="aBadge"><svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+    <h1 id="aTitle"></h1>
+    <p id="aText"></p>
+  </div>
+  <button class="wide" id="aOk" onclick="cmd('alarm:ack')">OK</button>
 </div>
 
 <div id="toast"></div>
@@ -371,7 +393,7 @@ function render() {
   $('simBanner').style.display = s.source === 'demo' ? '' : 'none';
   const sp = s.settings ? s.settings.demoSpeed : 1;
   $('demoBanner').style.display = sp > 1 ? '' : 'none';
-  $('demoBanner').textContent = sp >= 60 ? `Demo: 1 minute of tool use counts as ${sp / 60 === 1 ? '1 hour' : sp / 60 + ' hours'}` : `Demo: 1 minute of tool use counts as ${sp} minutes`;
+  $('demoBanner').textContent = sp >= 60 ? `Demo: 1 minute of tool use counts as ${sp / 60 === 1 ? '1 hour' : Math.round(sp / 60) + ' hours'}` : `Demo: 1 minute of tool use counts as ${sp} minutes`;
   const busy = (s.grip && s.grip.flow) || (s.toolCal && s.toolCal.phase) || W.open;
   $('conn').textContent = !s.running ? 'Sleeve switched off in the app' : !s.connected ? 'Looking for your sleeve…' : !s.fresh ? 'Reconnecting…' : busy ? 'Setting up…' : 'Sleeve connected';
   $('dot').style.background = s.connected && s.fresh ? 'var(--low)' : s.connected ? 'var(--mid)' : 'var(--faint)';
@@ -420,7 +442,7 @@ function render() {
     const label = new Date(d.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
     return `<div class="item"><div class="left"><i class="dot" style="background:${l[1]}"></i><span>${label}</span></div><span class="muted">${Math.round(d.points)} points · tool ${minutes(d.tool)}</span></div>`;
   }).join('');
-  renderSettings(s); renderWizard();
+  renderSettings(s); renderWizard(); renderAlarm(s);
   if (s.toast && s.toastId !== lastToast) { lastToast = s.toastId; const el = $('toast'); el.textContent = s.toast; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 2600); }
 }
 
@@ -594,6 +616,9 @@ function renderSettings(s) {
   if (document.activeElement !== $('dSpeed')) $('dSpeed').value = String(Math.round(s.settings.demoSpeed));
   $('tcStatus').textContent = s.tool.calibrated ? 'Calibrated for the tool used during calibration.' : 'Using the default (provisional) thresholds. Calibrate with the tool you will use.';
   $('tcReset').style.display = s.tool.calibrated ? '' : 'none';
+  const m = s.exposure.demoMinutesToLimit;
+  $('dEta').textContent = m == null ? 'Run the tool to see how long the demo takes to reach the limit.'
+    : `At the vibration measured now: the limit is reached after ${m < 1 ? Math.round(m * 60) + ' s' : f(m, 1) + ' min'} of tool use.`;
   $('sLimit').textContent = Math.round(s.settings.limit) + ' points';
   const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${esc(v)}</span></div>`;
   const t = s.tool, e = s.exposure, r = s.toolCal.result, th = r && r.thresholds || {};
@@ -611,6 +636,19 @@ function renderSettings(s) {
     kv('Tool thresholds', t.calibrated ? `≥ ${f(th.on_threshold_ms2, 2)} m/s², tool/arm ≥ ${f(th.tool_to_motion_min, 2)}, periodicity ≥ ${f(th.concentration_min, 2)}` : 'defaults (provisional)') +
     (r ? kv('Tool calibration check', `tool windows accepted ${f(r.tool_windows_accepted * 100, 0)} %, movement ${f(r.movement_windows_accepted * 100, 0)} %, false bouts ${r.movement_false_bouts}`) : '');
   $('sEvents').innerHTML = (s.events || []).slice(-12).reverse().map(esc).join('<br>');
+}
+
+let shownAlarm = 0;
+function renderAlarm(s) {
+  const el = $('alarm');
+  if (!s.alarm) { el.className = ''; return; }
+  if (el.classList.contains('on') && shownAlarm === s.alarmId) return;
+  shownAlarm = s.alarmId;
+  const lim = s.alarm === 'limit';
+  $('aTitle').textContent = lim ? 'Daily limit reached' : 'Action level reached';
+  $('aText').textContent = lim ? `You have reached ${Math.round(s.exposure.limit)} points. Stop using vibrating tools for the rest of the day.`
+    : '100 points. Your employer has to cut your vibration today: other tasks, other tools or more breaks.';
+  el.className = 'on ' + (lim ? 'limit' : 'action');
 }
 
 function tick() { try { S = JSON.parse(VGB.state()); if (S.error) { $('linkError').textContent = S.error; return; } render(); } catch (e) { $('linkError').textContent = String(e); } }

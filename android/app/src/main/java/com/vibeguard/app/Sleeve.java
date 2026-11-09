@@ -81,6 +81,13 @@ final class Sleeve {
     // clock runs faster: each real second of tool use counts as `demoSpeed` seconds (60 = a minute counts as
     // an hour). Shown on the Today screen while it is on.
     private double demoSpeed;
+
+    // alarms: each level fires once a day; the screen shows it until the wearer taps OK
+    interface Listener { void alert(String kind, String title, String text); }
+    volatile Listener listener;
+    private boolean firedAction, firedLimit;
+    private String alarm;                         // null | action | limit (shown on the screen until acknowledged)
+    private long alarmId;
     private final ArrayDeque<String> log = new ArrayDeque<>();
     private final Set<String> shownWarnings = new HashSet<>();
     private String toast;
@@ -91,7 +98,7 @@ final class Sleeve {
         source = prefs.getString("source", "sleeve");
         countsPerG = prefs.getFloat("countsPerG", 4096);
         personalLimit = prefs.getFloat("personalLimit", 400);
-        demoSpeed = prefs.getFloat("demoSpeed", 60);
+        demoSpeed = prefs.getFloat("demoSpeed", 480);
         proc = newProcessor();
         loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);   // the page reads the state 10x a second
@@ -111,6 +118,8 @@ final class Sleeve {
                 dayEnergy = t.optDouble("energy", 0);
                 dayContact = t.optDouble("contact", 0);
                 dayTool = t.optDouble("tool", 0);
+                firedAction = t.optBoolean("firedAction");
+                firedLimit = t.optBoolean("firedLimit");
             } else if (t.has("date")) {
                 archive(t.optString("date"), t.optDouble("energy", 0), t.optDouble("tool", 0));
             }
@@ -124,7 +133,8 @@ final class Sleeve {
     private void saveDay() {
         try {
             prefs.edit().putString("today", new JSONObject().put("date", day).put("energy", energyToday())
-                    .put("contact", contactToday()).put("tool", toolToday()).toString()).apply();
+                    .put("contact", contactToday()).put("tool", toolToday())
+                    .put("firedAction", firedAction).put("firedLimit", firedLimit).toString()).apply();
         } catch (Exception ignored) {}
     }
 
@@ -149,6 +159,7 @@ final class Sleeve {
             archive(day, energyToday(), toolToday());
             day = now;
             dayEnergy = 0; dayContact = 0; dayTool = 0;
+            firedAction = false; firedLimit = false; alarm = null;
             shownWarnings.clear();
             note("New day started");
         }
@@ -161,7 +172,22 @@ final class Sleeve {
             dayTool += Math.max(0, tt - lastTool) * demoSpeed;
         }
         lastE = e; lastC = c; lastTool = tt;
+        checkAlarms();
         if (t - lastSaved > 10) { saveDay(); lastSaved = t; }
+    }
+
+    private void checkAlarms() {
+        double pts = Exposure.pointsFromEnergy(dayEnergy), limit = personalLimit;   // the setting, never the not-yet-filled snapshot
+        if (pts <= 0) return;
+        if (!firedLimit && pts >= limit) {
+            firedLimit = true; firedAction = true; alarm = "limit"; alarmId++;
+            raise("limit", "Daily limit reached", "You have reached " + Math.round(limit) + " points. Stop using vibrating tools for the rest of the day.");
+            saveDay();
+        } else if (!firedAction && pts >= Exposure.EAV_POINTS) {
+            firedAction = true; alarm = "action"; alarmId++;
+            raise("action", "Action level reached", "100 points. Your employer has to cut your vibration today: other tasks, other tools or more breaks.");
+            saveDay();
+        }
     }
 
     private Processor newProcessor() {
@@ -272,7 +298,10 @@ final class Sleeve {
             flows();
             logDay(t);
             Processor.Snapshot s = proc.snapshot;
-            for (String w : warnings(s)) if (shownWarnings.add(w)) showToast(warningText(w));
+            for (String w : warnings(s)) if (shownWarnings.add(w)) {
+                showToast(warningText(w));
+                if (w.equals("continuous_tool_use_long")) raise("break", "Time for a break", "You have used the tool for over 20 minutes without one.");
+            }
             state = build(s, t).toString();
         } catch (Exception e) {
             state = "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
@@ -368,6 +397,20 @@ final class Sleeve {
 
     private void showToast(String s) { toast = s; toastId++; }
 
+    private void raise(String kind, String title, String text) {
+        Listener l = listener;
+        if (l != null) l.alert(kind, title, text);
+        note(title);
+    }
+
+    /** One line for the ongoing notification. */
+    String summary() {
+        double pts = Exposure.pointsFromEnergy(dayEnergy);
+        String tool = dayTool < 60 ? "under a minute" : (dayTool >= 3600 ? (int) (dayTool / 3600) + " h " : "") + (int) (dayTool / 60 % 60) + " min";
+        return (connected ? "" : "Waiting for the sleeve. ") + "Today: " + Math.round(pts) + " points, tool time " + tool
+                + (demoSpeed > 1 ? " (demo speed)" : "");
+    }
+
     // ---- commands from the screen ----
 
     void command(String c) {
@@ -410,12 +453,15 @@ final class Sleeve {
             setting(() -> { source = c.substring(7); prefs.edit().putString("source", source).apply(); });
         } else if (c.startsWith("cpg:")) {
             setting(() -> { countsPerG = Double.parseDouble(c.substring(4)); prefs.edit().putFloat("countsPerG", (float) countsPerG).apply(); });
+        } else if (c.equals("alarm:ack")) {
+            alarm = null;
         } else if (c.equals("day:clear")) {           // developer: start the demo again from zero
             dayEnergy = 0; dayContact = 0; dayTool = 0; shownWarnings.clear();
+            firedAction = false; firedLimit = false; alarm = null;
             saveDay();
             showToast("Today's points cleared");
         } else if (c.startsWith("speed:")) {
-            demoSpeed = Math.max(1, Math.min(240, Double.parseDouble(c.substring(6))));
+            demoSpeed = Math.max(1, Math.min(960, Double.parseDouble(c.substring(6))));
             prefs.edit().putFloat("demoSpeed", (float) demoSpeed).apply();
             showToast(demoSpeed > 1 ? "Demo: 1 minute of tool use counts as " + Math.round(demoSpeed) + " minutes" : "Demo speed off: real time");
         } else if (c.startsWith("limit:")) {
@@ -497,14 +543,18 @@ final class Sleeve {
         double energy = energyToday(), points = Exposure.pointsFromEnergy(energy);
         Double aNow = fresh && Boolean.TRUE.equals(x.counting) ? x.aHvNow : null;
         o.put("exposure", new JSONObject().put("points", points).put("a8", Exposure.a8FromEnergy(energy, 8 * 3600))
-                .put("contact", contactToday()).put("limit", x.personalLimit).put("action", Exposure.EAV_POINTS)
+                .put("contact", contactToday()).put("limit", personalLimit).put("action", Exposure.EAV_POINTS)
                 .put("counting", aNow != null)
                 .put("pointsPerHour", aNow == null ? JSONObject.NULL : 2 * aNow * aNow)
                 // real time left on the phone's clock (demo: divided by the speed)
                 .put("hoursToAction", nz(scaled(Exposure.hoursUntil(points, Exposure.EAV_POINTS, aNow), demoSpeed)))
                 .put("hoursToLimit", nz(scaled(Exposure.hoursUntil(points, x.personalLimit, aNow), demoSpeed)))
                 .put("status", x.status).put("reasons", new JSONArray(x.reasons))
-                .put("gripUnknown", x.gripUnknownS));
+                .put("gripUnknown", x.gripUnknownS)
+                // developer: minutes of tool use at the vibration measured now until the limit, at the demo speed
+                .put("demoMinutesToLimit", x.aHvNow == null || x.aHvNow <= 0 ? JSONObject.NULL
+                        : (x.personalLimit - Math.min(points, x.personalLimit)) / (2 * x.aHvNow * x.aHvNow) * 60 / demoSpeed));
+        o.put("alarm", alarm == null ? JSONObject.NULL : alarm).put("alarmId", alarmId);
         o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit)
                 .put("demoSpeed", demoSpeed));
         o.put("events", new JSONArray(log));
