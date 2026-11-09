@@ -141,6 +141,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 .tips li { counter-increment: t; display: flex; gap: 14px; align-items: flex-start; margin: 12px 0; font-size: 17px; }
 .tips li::before { content: counter(t); width: 28px; height: 28px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
 .sec.last { padding-bottom: 8px; }
+.demo { background: var(--primary-soft); color: var(--primary); border-radius: 14px; padding: 10px 14px; font-weight: 500; text-align: center; font-size: 15px; margin-top: 4px; }
 .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--low-soft); color: var(--low); border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: 15px; margin-bottom: 8px; animation: pop .4s cubic-bezier(.2,1.6,.4,1); }
 .ready { font-size: 96px; font-weight: 600; color: var(--primary); animation: beat 1s ease-out infinite; }
 @keyframes beat { 0% { transform: scale(1.25); opacity: .4; } 30% { transform: scale(1); opacity: 1; } }
@@ -158,6 +159,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   </div>
   <div class="pill"><i class="dot" id="dot"></i><span id="conn">Starting…</span></div>
   <div class="sim" id="simBanner" style="display:none">Practice mode: made-up data, not a real sleeve</div>
+  <div class="demo" id="demoBanner" style="display:none"></div>
 
   <div class="alert" id="alert" style="display:none"></div>
 
@@ -168,7 +170,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
       </div>
       <div><b style="font-size:19px">Set up the sleeve</b><div class="muted" style="font-size:15px">About a minute, each time you put it on.</div></div>
     </div>
-    <button class="primary wide" style="margin-top:20px" onclick="openWizard()">Start setup</button>
+    <button class="primary wide" style="margin-top:20px" onclick="openWizard('grip')">Start setup</button>
   </div>
 
   <div class="card">
@@ -201,7 +203,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   </div>
 
   <div class="card list" id="again" style="display:none;padding:4px 24px">
-    <button class="rowbtn" onclick="openWizard()"><span>Set up the sleeve again</span><span class="muted">›</span></button>
+    <button class="rowbtn" onclick="openWizard('grip')"><span>Set up the sleeve again</span><span class="muted">›</span></button>
   </div>
 
   <div class="card" id="demoPanel" style="display:none">
@@ -284,7 +286,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   <div class="wstage" id="wstage"></div>
 </div>
 
-<!-- SETTINGS -->
+<!-- SETTINGS (for the wearer) -->
 <div class="sheet" id="sheet">
   <div class="bar"><h2>Settings</h2><button class="text" onclick="closeSheet()">Done</button></div>
   <main style="padding-bottom:40px">
@@ -294,19 +296,41 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
       <button class="wide" id="runBtn" onclick="cmd(S.running ? 'stop' : 'start')">Stop</button>
       <p style="color:var(--high)" id="linkError"></p>
     </div>
+    <div class="card"><h2>Set up the sleeve</h2>
+      <p class="muted" style="font-size:15px">Do this each time you put the sleeve on.</p>
+      <button class="primary wide" onclick="closeSheet(); openWizard('grip')">Start setup</button></div>
     <div class="card"><h2>Practice mode</h2>
       <select id="sSource" onchange="cmd('source:'+this.value)"><option value="sleeve">Off: use the real sleeve</option><option value="demo">On: made-up data</option></select></div>
     <div class="card"><h2>Daily limit</h2>
       <div class="stepper"><button onclick="cmd('limit:'+(S.settings.limit-25))" aria-label="Lower">−</button><b id="sLimit" style="min-width:110px;text-align:center;font-size:20px"></b><button onclick="cmd('limit:'+(S.settings.limit+25))" aria-label="Higher">+</button></div>
       <p class="muted" style="font-size:15px">400 points is the legal daily limit. A supervisor or health adviser can set a lower limit for one person. It cannot go above 400.</p></div>
-    <div class="card"><h2>Details for the team</h2>
-      <p class="muted" style="font-size:15px">Technical readings for the people setting up and checking the system.</p>
+    <div class="card list" style="padding:4px 24px">
+      <button class="rowbtn" onclick="openDev()"><span>Developer options</span><span class="muted">›</span></button>
+    </div>
+  </main>
+</div>
+
+<!-- DEVELOPER OPTIONS (for the team) -->
+<div class="sheet" id="dev">
+  <div class="bar"><h2>Developer options</h2><button class="text" onclick="closeDev()">Back</button></div>
+  <main style="padding-bottom:40px">
+    <div class="card"><h2>Demo speed</h2>
+      <select id="dSpeed" onchange="cmd('speed:'+this.value)">
+        <option value="1">Off: real time</option><option value="30">1 minute of tool use = 30 minutes</option>
+        <option value="60">1 minute of tool use = 1 hour</option><option value="120">1 minute of tool use = 2 hours</option></select>
+      <p class="muted" style="font-size:15px">For short demos with the massage gun. The vibration reading and the formula are unchanged; only the clock runs faster for points and tool time. The Today screen says so while it is on.</p>
+      <button class="wide" onclick="if (confirm('Clear today\'s points and tool time?')) cmd('day:clear')">Clear today's points</button></div>
+    <div class="card"><h2>Tool calibration (IMU)</h2>
+      <p class="muted" style="font-size:15px" id="tcStatus"></p>
+      <button class="primary wide" onclick="closeDev(); closeSheet(); openWizard('tool')">Calibrate the tool</button>
+      <button class="wide" id="tcReset" style="margin-top:10px" onclick="cmd('tool:reset')">Reset to default thresholds</button></div>
+    <div class="card"><h2>Readings</h2>
       <div id="tech"></div>
       <p style="margin-top:16px"><label class="label">Accelerometer range</label><select id="sCpg" onchange="cmd('cpg:'+this.value)"><option value="4096">±8 g (4096 counts per g)</option><option value="2048">±16 g (2048 counts per g)</option></select></p>
-      <p class="muted" style="font-size:13px">Daily exposure estimate (signals exposure.py): A(8) = √(Σ a_hv² Δt / 8 h), points = 2 · a_hv² · hours = 100 · (A(8)/2.5)². Counted only while the tool detector says tool and the wearer is not known to be relaxed (grip &lt; 0.10). EU 2002/44/EC and UK CVWR 2005: action value 2.5 m/s² (100 points), limit value 5.0 m/s² (400 points). Wrist-worn, unweighted IMU estimate (monitoring, not ISO 5349-2).</p>
-      <div class="mono muted" id="sEvents"></div>
-      <button class="wide" onclick="cmd('laptop')" style="margin-top:16px">Use a laptop instead</button>
-    </div>
+      <p class="muted" style="font-size:13px">Daily exposure estimate (signals exposure.py): A(8) = √(Σ a_hv² Δt / 8 h), points = 2 · a_hv² · hours = 100 · (A(8)/2.5)². Counted only while the tool detector says tool and the wearer is not known to be relaxed (grip &lt; 0.10). EU 2002/44/EC and UK CVWR 2005: action value 2.5 m/s² (100 points), limit value 5.0 m/s² (400 points). Wrist-worn, unweighted IMU estimate (monitoring, not ISO 5349-2).</p></div>
+    <div class="card"><h2>Events</h2><div class="mono muted" id="sEvents"></div></div>
+    <div class="card"><button class="wide" onclick="cmd('laptop')">Use a laptop instead</button>
+      <p class="muted" style="font-size:13px">Opens the laptop mode (vg-backend serve --device wifi): the laptop reads the sleeve, this phone shows it.</p></div>
   </main>
 </div>
 
@@ -324,8 +348,11 @@ function demoToggle(k, el) { const on = !el.classList.contains('on'); el.classLi
 function tab(t) { for (const n of ['today', 'how']) { $('tab-' + n).style.display = n === t ? '' : 'none'; $('nav-' + n).classList.toggle('on', n === t); } scrollTo(0, 0); }
 function openSheet() { $('sheet').classList.add('open'); }
 function closeSheet() { $('sheet').classList.remove('open'); }
+function openDev() { $('dev').classList.add('open'); }
+function closeDev() { $('dev').classList.remove('open'); }
 window.vgBack = () => {
   if ($('wizard').classList.contains('open')) { closeWizard(); return true; }
+  if ($('dev').classList.contains('open')) { closeDev(); return true; }
   if ($('sheet').classList.contains('open')) { closeSheet(); return true; }
   return false;
 };
@@ -342,6 +369,9 @@ $('date').textContent = new Date().toLocaleDateString([], { weekday: 'long', day
 function render() {
   const s = S;
   $('simBanner').style.display = s.source === 'demo' ? '' : 'none';
+  const sp = s.settings ? s.settings.demoSpeed : 1;
+  $('demoBanner').style.display = sp > 1 ? '' : 'none';
+  $('demoBanner').textContent = sp >= 60 ? `Demo: 1 minute of tool use counts as ${sp / 60 === 1 ? '1 hour' : sp / 60 + ' hours'}` : `Demo: 1 minute of tool use counts as ${sp} minutes`;
   const busy = (s.grip && s.grip.flow) || (s.toolCal && s.toolCal.phase) || W.open;
   $('conn').textContent = !s.running ? 'Sleeve switched off in the app' : !s.connected ? 'Looking for your sleeve…' : !s.fresh ? 'Reconnecting…' : busy ? 'Setting up…' : 'Sleeve connected';
   $('dot').style.background = s.connected && s.fresh ? 'var(--low)' : s.connected ? 'var(--mid)' : 'var(--faint)';
@@ -380,9 +410,8 @@ function render() {
   else if (s.running && s.connected && !s.fresh) { al.style.display = ''; al.style.background = 'var(--mid-soft)'; al.style.color = 'var(--mid)'; al.innerHTML = '<b>Lost the sleeve\'s signal</b>Stay close to your phone.'; }
   else al.style.display = 'none';
 
-  const ready = s.gripCalibrated && t.calibrated;
-  $('setup').style.display = s.connected && !ready ? '' : 'none';
-  $('again').style.display = s.connected && ready ? '' : 'none';
+  $('setup').style.display = s.connected && !s.gripCalibrated ? '' : 'none';
+  $('again').style.display = s.connected && s.gripCalibrated ? '' : 'none';
   $('demoPanel').style.display = s.source === 'demo' ? '' : 'none';
   const h = (s.history || []).slice(0, 7);
   $('days').style.display = h.length ? '' : 'none';
@@ -412,18 +441,23 @@ const CAP = {
   movement: { kind: 'tool', secs: 12, title: 'Keep moving', text: 'Shake hands, wave, swing your arm. Tool off.', color: 'var(--primary)', pulse: false },
   tool:     { kind: 'tool', secs: 10, title: 'Keep using the tool', text: 'Hold it firmly, like at work.', color: 'var(--mid)', pulse: true },
 };
-// the intro screen before each capture, and what comes after it
+// the intro screen before each capture
 const INTRO = {
-  relaxed:  { n: 1, icon: ICON_HAND,  title: 'Relax your arm', text: 'Rest your arm on a table and let your hand go loose. This takes 3 seconds.', next: 'squeeze' },
-  squeeze:  { n: 2, icon: ICON_FIST,  title: 'Squeeze your fist', text: 'Make a fist as hard as you can, and hold it until the ring is full. 3 seconds.', next: 'still', done: 'Relax done' },
-  still:    { n: 3, icon: ICON_STILL, title: 'Keep still', text: 'Now your tool. First, rest your arm and don\'t move for 5 seconds. Tool off.', next: 'movement', done: 'Grip done' },
-  movement: { n: 4, icon: ICON_WAVE,  title: 'Move like normal', text: 'Tool off. For 12 seconds, shake hands, wave and swing your arm. This shows the phone what is NOT a tool.', next: 'tool', done: 'Still done' },
-  tool:     { n: 5, icon: ICON_TOOL,  title: 'Use your tool', text: 'Turn your tool on and hold it like you do at work. Press Start when it is running. 10 seconds.', next: null, done: 'Movement done' },
+  relaxed:  { icon: ICON_HAND,  title: 'Relax your arm', text: 'Rest your arm on a table and let your hand go loose. This takes 3 seconds.' },
+  squeeze:  { icon: ICON_FIST,  title: 'Squeeze your fist', text: 'Make a fist as hard as you can, and hold it until the ring is full. 3 seconds.' },
+  still:    { icon: ICON_STILL, title: 'Keep still', text: 'Rest your arm and don\'t move for 5 seconds. Tool off.' },
+  movement: { icon: ICON_WAVE,  title: 'Move like normal', text: 'Tool off. For 12 seconds, shake hands, wave and swing your arm. This shows the phone what is NOT a tool.' },
+  tool:     { icon: ICON_TOOL,  title: 'Use your tool', text: 'Turn your tool on and hold it like at work. Press Start when it is running. 10 seconds.' },
 };
+const DONE = { relaxed: 'Relax done', squeeze: 'Grip done', still: 'Still done', movement: 'Movement done' };
+// the wearer's setup is the grip only; the tool (IMU) calibration is in Developer options
+const FLOW = { grip: ['relaxed', 'squeeze'], tool: ['still', 'movement', 'tool'] };
+const nextOf = c => { const f = FLOW[W.mode], i = f.indexOf(c); return i >= 0 && i < f.length - 1 ? f[i + 1] : null; };
+const prevOf = c => { const f = FLOW[W.mode], i = f.indexOf(c); return i > 0 ? f[i - 1] : null; };
 let W = { open: false, screen: null, shown: null, cap: null, sent: false, seen: false, t0: 0, dur: 1, readyAt: 0, msg: '', retry: null, raf: 0 };
 
-function openWizard() {
-  W = { open: true, screen: 'intro', shown: null, cap: null, sent: false, seen: false, t0: 0, dur: 1, readyAt: 0, msg: '', retry: null, raf: 0 };
+function openWizard(mode) {
+  W = { mode: mode === 'tool' ? 'tool' : 'grip', open: true, screen: 'intro', shown: null, cap: null, sent: false, seen: false, t0: 0, dur: 1, readyAt: 0, msg: '', retry: null, raf: 0 };
   $('wizard').classList.add('open'); $('wstage').innerHTML = ''; renderWizard(); loop();
 }
 function closeWizard() {
@@ -434,10 +468,11 @@ function closeWizard() {
 function show(name) { W.screen = name; renderWizard(); }
 function getReady(cap) { W.cap = cap; W.readyAt = performance.now(); W.sent = false; W.seen = false; show('ready'); }
 function stepIndex() {
+  const f = FLOW[W.mode];
   if (W.screen === 'intro') return 0;
-  if (W.screen === 'allDone') return 6;
+  if (W.screen === 'allDone') return f.length + 1;
   const c = W.screen.split(':')[1] || W.cap;
-  return c ? INTRO[c].n : 0;
+  return c ? f.indexOf(c) + 1 : 0;
 }
 
 function ringHTML(color) {
@@ -448,15 +483,18 @@ function ringHTML(color) {
 function screenHTML(name) {
   const off = !S.connected;
   const need = off ? '<p class="muted" style="text-align:center">Switch on the sleeve first.</p>' : '';
-  if (name === 'intro') return `<div class="wbody"><div class="hero">${ICON_HAND}</div><h1>Let's set up your sleeve</h1>
-      <p>Five short steps, one at a time: two for your grip, three for your tool. Take your time between them.</p></div>
-    <div class="wfoot"><button class="primary wide" onclick="show('intro:relaxed')">Begin</button></div>`;
+  if (name === 'intro') return W.mode === 'grip'
+    ? `<div class="wbody"><div class="hero">${ICON_HAND}</div><h1>Let's set up your sleeve</h1>
+      <p>Two short steps, so the sleeve knows your grip: relax, then squeeze. Sit down and rest your arm on a table.</p></div>
+      <div class="wfoot"><button class="primary wide" onclick="show('intro:relaxed')">Begin</button></div>`
+    : `<div class="wbody"><div class="hero">${ICON_TOOL}</div><h1>Calibrate the tool</h1>
+      <p>Three steps that teach the phone your tool's vibration apart from normal movement. Have the tool ready.</p></div>
+      <div class="wfoot"><button class="primary wide" onclick="show('intro:still')">Begin</button></div>`;
   if (name.startsWith('intro:')) {
-    const c = name.slice(6), it = INTRO[c];
-    const chip = it.done && W.justDone ? `<div class="chip">✓ ${it.done}</div>` : '';
-    const skip = c === 'still' && S.tool && S.tool.calibrated ? `<button class="wide" onclick="show('allDone')">Skip: my tool is already set up</button>` : '';
-    return `<div class="wbody">${chip}<div class="hero">${it.icon}</div><div class="label" style="margin-top:20px">Step ${it.n} of 5</div><h1 style="margin-top:4px">${it.title}</h1><p>${it.text}</p></div>
-      <div class="wfoot">${skip}<button class="primary wide" ${off ? 'disabled' : ''} onclick="getReady('${c}')">Start</button>${need}</div>`;
+    const c = name.slice(6), it = INTRO[c], f = FLOW[W.mode], p = prevOf(c);
+    const chip = p && W.justDone ? `<div class="chip">✓ ${DONE[p]}</div>` : '';
+    return `<div class="wbody">${chip}<div class="hero">${it.icon}</div><div class="label" style="margin-top:20px">Step ${f.indexOf(c) + 1} of ${f.length}</div><h1 style="margin-top:4px">${it.title}</h1><p>${it.text}</p></div>
+      <div class="wfoot"><button class="primary wide" ${off ? 'disabled' : ''} onclick="getReady('${c}')">Start</button>${need}</div>`;
   }
   if (name === 'ready') return `<div class="wbody"><p style="font-size:20px;color:var(--fg);font-weight:600">Get ready</p><div class="ready" id="readyN">3</div>
       <p>${CAP[W.cap].title}</p></div><div class="wfoot"><button class="wide" onclick="cancelStep()">Cancel</button></div>`;
@@ -465,8 +503,8 @@ function screenHTML(name) {
       <div class="wfoot"><button class="wide" onclick="cancelStep()">Stop</button></div>`; }
   if (name === 'fail') return `<div class="wbody"><div class="bad-badge">${ICON_BAD}</div><h1>That didn't work</h1><p>${esc(W.msg || 'Try that step again.')}</p></div>
       <div class="wfoot"><button class="primary wide" onclick="show('${W.retry}')">Try again</button></div>`;
-  if (name === 'allDone') return `<div class="wbody"><div class="ok-badge">${ICON_OK}</div><h1>You're all set</h1>
-      <p>The sleeve knows your grip and your tool. Points add up while you work.</p></div>
+  if (name === 'allDone') return `<div class="wbody"><div class="ok-badge">${ICON_OK}</div><h1>${W.mode === 'grip' ? 'You\'re all set' : 'Tool calibrated'}</h1>
+      <p>${W.mode === 'grip' ? 'The sleeve knows your grip. Points add up while you use a tool.' : 'The phone now tells this tool apart from normal movement.'}</p></div>
     <div class="wfoot"><button class="primary wide" onclick="closeWizard()">Done</button></div>`;
   return '';
 }
@@ -486,11 +524,11 @@ function advance() {
     if (g.flow === c) { if (!W.seen) { W.seen = true; W.t0 = performance.now() - 1000 * (CAP[c].secs - (g.left ?? CAP[c].secs)); } else sync(g.left); return; }
     if (!W.seen && !g.result) return;                       // the command has not been picked up yet
     if (g.result === 'failed') return fail(g.message, 'intro:relaxed');
-    if ((c === 'relaxed' && g.result === 'relaxed_done') || (c === 'squeeze' && g.result === 'calibrated')) { W.justDone = true; return show('intro:' + INTRO[c].next); }
+    if ((c === 'relaxed' && g.result === 'relaxed_done') || (c === 'squeeze' && g.result === 'calibrated')) { W.justDone = true; const n = nextOf(c); return show(n ? 'intro:' + n : 'allDone'); }
   } else {
     if (tc.phase === c) { if (!W.seen) { W.seen = true; W.t0 = performance.now() - 1000 * (CAP[c].secs - (tc.left ?? CAP[c].secs)); } else sync(tc.left); return; }
     if (!W.seen) return;
-    if (new Set(tc.done || []).has(c) && !tc.failed) { W.justDone = true; return show(INTRO[c].next ? 'intro:' + INTRO[c].next : 'allDone'); }
+    if (new Set(tc.done || []).has(c) && !tc.failed) { W.justDone = true; const n = nextOf(c); return show(n ? 'intro:' + n : 'allDone'); }
     return fail(tc.message, c === 'tool' ? 'intro:movement' : 'intro:' + c);
   }
 }
@@ -530,7 +568,7 @@ function renderWizard() {
   if (!W.open) return;
   advance();
   const n = stepIndex();
-  $('wdots').innerHTML = [0, 1, 2, 3, 4, 5].map(i => `<i class="${i === n ? 'on' : i < n ? 'done' : ''}"></i>`).join('');
+  $('wdots').innerHTML = Array.from({ length: FLOW[W.mode].length + 2 }, (_, i) => i).map(i => `<i class="${i === n ? 'on' : i < n ? 'done' : ''}"></i>`).join('');
   const stage = $('wstage');
   if (W.shown !== W.screen) {
     const el = document.createElement('div');
@@ -553,6 +591,9 @@ function renderWizard() {
 function renderSettings(s) {
   if (document.activeElement !== $('sSource')) $('sSource').value = s.settings.source;
   if (document.activeElement !== $('sCpg')) $('sCpg').value = String(Math.round(s.settings.countsPerG));
+  if (document.activeElement !== $('dSpeed')) $('dSpeed').value = String(Math.round(s.settings.demoSpeed));
+  $('tcStatus').textContent = s.tool.calibrated ? 'Calibrated for the tool used during calibration.' : 'Using the default (provisional) thresholds. Calibrate with the tool you will use.';
+  $('tcReset').style.display = s.tool.calibrated ? '' : 'none';
   $('sLimit').textContent = Math.round(s.settings.limit) + ' points';
   const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${esc(v)}</span></div>`;
   const t = s.tool, e = s.exposure, r = s.toolCal.result, th = r && r.thresholds || {};

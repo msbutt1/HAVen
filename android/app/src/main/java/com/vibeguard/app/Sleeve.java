@@ -74,8 +74,13 @@ final class Sleeve {
     // the day's log (exposure.py: counts only while a tool is in use and you are not known to be relaxed);
     // kept as the energy sum(a^2 dt) so it survives an app restart; rolls over at midnight
     private String day;
-    private double dayEnergyBase, dayContactBase, dayToolBase;
+    private double dayEnergy, dayContact, dayTool;        // today's totals (demo-scaled when demo speed > 1)
+    private Double lastE, lastC, lastTool;                 // the engine's totals at the previous tick
     private double lastSaved;
+    // DEMO: a massage gun for a 2-minute demo. The measured vibration and the formula are unchanged; only the
+    // clock runs faster: each real second of tool use counts as `demoSpeed` seconds (60 = a minute counts as
+    // an hour). Shown on the Today screen while it is on.
+    private double demoSpeed;
     private final ArrayDeque<String> log = new ArrayDeque<>();
     private final Set<String> shownWarnings = new HashSet<>();
     private String toast;
@@ -86,6 +91,7 @@ final class Sleeve {
         source = prefs.getString("source", "sleeve");
         countsPerG = prefs.getFloat("countsPerG", 4096);
         personalLimit = prefs.getFloat("personalLimit", 400);
+        demoSpeed = prefs.getFloat("demoSpeed", 60);
         proc = newProcessor();
         loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);   // the page reads the state 10x a second
@@ -102,18 +108,18 @@ final class Sleeve {
         try {
             JSONObject t = new JSONObject(prefs.getString("today", "{}"));
             if (day.equals(t.optString("date"))) {
-                dayEnergyBase = t.optDouble("energy", 0);
-                dayContactBase = t.optDouble("contact", 0);
-                dayToolBase = t.optDouble("tool", 0);
+                dayEnergy = t.optDouble("energy", 0);
+                dayContact = t.optDouble("contact", 0);
+                dayTool = t.optDouble("tool", 0);
             } else if (t.has("date")) {
                 archive(t.optString("date"), t.optDouble("energy", 0), t.optDouble("tool", 0));
             }
         } catch (Exception ignored) {}
     }
 
-    private double toolToday() { return dayToolBase + proc.snapshot.tool.sessionToolS; }
-    private double energyToday() { return dayEnergyBase + proc.snapshot.exposure.energy; }
-    private double contactToday() { return dayContactBase + proc.snapshot.exposure.contactS; }
+    private double toolToday() { return dayTool; }
+    private double energyToday() { return dayEnergy; }
+    private double contactToday() { return dayContact; }
 
     private void saveDay() {
         try {
@@ -142,12 +148,19 @@ final class Sleeve {
         if (!now.equals(day)) {
             archive(day, energyToday(), toolToday());
             day = now;
-            dayEnergyBase = 0; dayContactBase = 0; dayToolBase = 0;
-            proc.resetToolSession();
-            proc.resetExposure();
+            dayEnergy = 0; dayContact = 0; dayTool = 0;
             shownWarnings.clear();
             note("New day started");
         }
+        // add what the engine added since the last tick, at the demo speed
+        Exposure.Snapshot x = proc.snapshot.exposure;
+        double e = x.energy, c = x.contactS, tt = proc.snapshot.tool.sessionToolS;
+        if (lastE != null) {
+            dayEnergy += Math.max(0, e - lastE) * demoSpeed;
+            dayContact += Math.max(0, c - lastC) * demoSpeed;
+            dayTool += Math.max(0, tt - lastTool) * demoSpeed;
+        }
+        lastE = e; lastC = c; lastTool = tt;
         if (t - lastSaved > 10) { saveDay(); lastSaved = t; }
     }
 
@@ -259,7 +272,7 @@ final class Sleeve {
             flows();
             logDay(t);
             Processor.Snapshot s = proc.snapshot;
-            for (String w : s.tool.warnings) if (shownWarnings.add(w)) showToast(warningText(w));
+            for (String w : warnings(s)) if (shownWarnings.add(w)) showToast(warningText(w));
             state = build(s, t).toString();
         } catch (Exception e) {
             state = "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
@@ -397,6 +410,14 @@ final class Sleeve {
             setting(() -> { source = c.substring(7); prefs.edit().putString("source", source).apply(); });
         } else if (c.startsWith("cpg:")) {
             setting(() -> { countsPerG = Double.parseDouble(c.substring(4)); prefs.edit().putFloat("countsPerG", (float) countsPerG).apply(); });
+        } else if (c.equals("day:clear")) {           // developer: start the demo again from zero
+            dayEnergy = 0; dayContact = 0; dayTool = 0; shownWarnings.clear();
+            saveDay();
+            showToast("Today's points cleared");
+        } else if (c.startsWith("speed:")) {
+            demoSpeed = Math.max(1, Math.min(240, Double.parseDouble(c.substring(6))));
+            prefs.edit().putFloat("demoSpeed", (float) demoSpeed).apply();
+            showToast(demoSpeed > 1 ? "Demo: 1 minute of tool use counts as " + Math.round(demoSpeed) + " minutes" : "Demo speed off: real time");
         } else if (c.startsWith("limit:")) {
             // a supervisor can LOWER one worker's daily limit (HSE points); never above the limit value (400)
             personalLimit = Math.max(25, Math.min(Exposure.ELV_POINTS, Double.parseDouble(c.substring(6))));
@@ -417,9 +438,7 @@ final class Sleeve {
         boolean was = running;
         stopOnEngine();
         change.run();
-        dayToolBase = toolToday();          // keep today's totals across the new processor
-        dayEnergyBase = energyToday();
-        dayContactBase = contactToday();
+        lastE = null; lastC = null; lastTool = null;   // today's totals carry on with the new processor
         proc = newProcessor();
         gripFlow = null; gripDone = false; toolPhase = null;
         if (was) startOnEngine();
@@ -462,7 +481,7 @@ final class Sleeve {
                 .put("toolTime", toolToday()).put("bout", tl.boutS).put("bouts", tl.bouts).put("longest", tl.longestBoutS)
                 .put("calibrated", tl.calibrationSource.equals("calibrated"));
         JSONArray warn = new JSONArray();
-        for (String w : tl.warnings) warn.put(warningText(w));
+        for (String w : warnings(s)) warn.put(warningText(w));
         tj.put("warnings", warn);
         o.put("tool", tj);
         JSONObject tc = new JSONObject();
@@ -481,11 +500,13 @@ final class Sleeve {
                 .put("contact", contactToday()).put("limit", x.personalLimit).put("action", Exposure.EAV_POINTS)
                 .put("counting", aNow != null)
                 .put("pointsPerHour", aNow == null ? JSONObject.NULL : 2 * aNow * aNow)
-                .put("hoursToAction", nz(Exposure.hoursUntil(points, Exposure.EAV_POINTS, aNow)))
-                .put("hoursToLimit", nz(Exposure.hoursUntil(points, x.personalLimit, aNow)))
+                // real time left on the phone's clock (demo: divided by the speed)
+                .put("hoursToAction", nz(scaled(Exposure.hoursUntil(points, Exposure.EAV_POINTS, aNow), demoSpeed)))
+                .put("hoursToLimit", nz(scaled(Exposure.hoursUntil(points, x.personalLimit, aNow), demoSpeed)))
                 .put("status", x.status).put("reasons", new JSONArray(x.reasons))
                 .put("gripUnknown", x.gripUnknownS));
-        o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit));
+        o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit)
+                .put("demoSpeed", demoSpeed));
         o.put("events", new JSONArray(log));
         JSONArray hist = new JSONArray();
         try {
@@ -499,6 +520,17 @@ final class Sleeve {
         o.put("toast", toast == null ? JSONObject.NULL : toast).put("toastId", toastId);
         return o;
     }
+
+    /** Break and daily tool-time reminders, on the (demo-scaled) clock the screen shows. */
+    private java.util.List<String> warnings(Processor.Snapshot s) {
+        java.util.List<String> w = new java.util.ArrayList<>();
+        if ("tool".equals(s.tool.state) && s.tool.boutS * demoSpeed >= 20 * 60) w.add("continuous_tool_use_long");
+        if (dayTool >= 2 * 3600) w.add("session_tool_time_high");
+        else if (dayTool >= 0.8 * 2 * 3600) w.add("session_tool_time_approaching");
+        return w;
+    }
+
+    private static Double scaled(Double hours, double speed) { return hours == null ? null : hours / speed; }
 
     private static Object nz(Double v) { return v == null ? JSONObject.NULL : v; }
 
