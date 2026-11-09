@@ -28,6 +28,9 @@ public final class Processor {
         public ToolUse.State tool = new ToolUse.State();
         public Set<String> staleStreams = new HashSet<>();
         public long records, seqGaps, missingRecords;
+        public long emgSamples, imuSamples;           // samples received per stream (for the TV view's rates)
+        public double emgSaturation;                  // recent share of EMG samples at the input limits (0..1)
+        public String emgSensor, imuSensor;           // sensor descriptions from the hello record
         public Exposure.Snapshot exposure = new Exposure.Snapshot();
     }
 
@@ -157,6 +160,9 @@ public final class Processor {
             case "hello":
                 declared = r.streams;
                 snapshot.firmware = r.firmware;
+                Records.StreamDecl de = r.streams.get("emg"), di = r.streams.get("imu");
+                snapshot.emgSensor = de == null ? null : de.sensorModel;
+                snapshot.imuSensor = di == null ? null : di.sensorModel;
                 break;
             case "status":
                 for (Map.Entry<String, String> e : r.sensors.entrySet()) {
@@ -173,6 +179,8 @@ public final class Processor {
                 }
                 break;
             default:
+                if ("emg".equals(r.batch.stream)) snapshot.emgSamples += r.batch.samples.length;
+                else if ("imu".equals(r.batch.stream)) snapshot.imuSamples += r.batch.samples.length;
                 onBatch(r.batch, rx);
         }
         checkStale(rx);
@@ -271,10 +279,25 @@ public final class Processor {
         double[] limits = d == null ? null : d.rawLimits;
         boolean deviceClipped = b.hasFlag("clipped");
         boolean[] clipped = new boolean[n];
-        for (int i = 0; i < n; i++) {
-            boolean c = deviceClipped;
-            if (!c && limits != null) for (Double v : b.samples[i]) if (v != null && (v <= limits[0] || v >= limits[1])) { c = true; break; }
-            clipped[i] = c;
+        if (limits == null) {
+            for (int i = 0; i < n; i++) clipped[i] = deviceClipped;          // nothing better to go on
+        } else {
+            // The device's "clipped" flag is per batch: at least ONE of its samples saturated. Marking all of them
+            // (50 for EMG) overstated clipping up to 50x and failed calibrations on a single spike. Count the samples
+            // at or within 1 % of a limit, and at least the most extreme one when the flag is set.
+            double margin = 0.01 * (limits[1] - limits[0]);
+            int marked = 0, extreme = -1;
+            double worst = -1;
+            for (int i = 0; i < n; i++) {
+                for (Double v : b.samples[i]) {
+                    if (v == null) continue;
+                    double edge = Math.min(v - limits[0], limits[1] - v);
+                    if (edge <= margin) { clipped[i] = true; }
+                    if (worst < 0 || edge < worst) { worst = edge; extreme = i; }
+                }
+                if (clipped[i]) marked++;
+            }
+            if (deviceClipped && marked == 0 && extreme >= 0) clipped[extreme] = true;
         }
         if (b.stream.equals("emg")) {
             int ci = Math.max(0, b.indexOf("emg0"));
@@ -303,6 +326,7 @@ public final class Processor {
             score.updateActivation(tEnd, nrm);
             exposure.updateActivation(tEnd, nrm);
             snapshot.envelope = env.value;
+            snapshot.emgSaturation = emg.saturation;
             snapshot.envelopeStatus = st.stale ? "unavailable" : env.status;
             snapshot.activation = nrm.value;
             snapshot.activationStatus = nrm.status;

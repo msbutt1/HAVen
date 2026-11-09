@@ -13,7 +13,9 @@
   <!-- TV view: two meters fed by the sleeve's own sensors through the backend (/ws/live).
        The badge is green "LIVE" only when the backend's device is the real wearable (Wi-Fi or serial), its records
        say provenance "live", and the last one arrived under a second ago. Anything else is named for what it is.
-       Keys: R relaxed, S squeeze (grip calibration), F full screen. URL: ?vibmax=10 sets 100 % vibration in m/s². -->
+       Keys: R relaxed, S squeeze (grip calibration), F full screen. URL: ?vibmax=10 sets 100 % vibration in m/s².
+       Phone mode (?source=phone, served by the Android app on port 8080): reads the phone engine's snapshot as
+       Server-Sent Events; calibration is done on the phone, so the TV only shows it. -->
   <header class="top">
     <div class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg></span>HAVen</div>
     <div class="badge" id="badge" role="status"><span class="pulse" aria-hidden="true"></span><span id="badge-text">Connecting…</span></div>
@@ -50,9 +52,9 @@
     <span>Device <b id="pf-device">--</b></span>
     <span>EMG <b id="pf-emg">--</b>/s</span>
     <span>IMU <b id="pf-imu">--</b>/s</span>
-    <span>Missing samples <b id="pf-gaps">--</b></span>
+    <span><span id="pl-gaps">Missing samples</span> <b id="pf-gaps">--</b></span>
     <span>Last packet <b id="pf-age">--</b></span>
-    <span class="cal-btns">
+    <span class="cal-btns" id="cal-btns">
       <button class="btn" id="btn-relaxed" title="Keyboard: R">Relax 3 s</button>
       <button class="btn" id="btn-squeeze" title="Keyboard: S">Squeeze 3 s</button>
     </span>

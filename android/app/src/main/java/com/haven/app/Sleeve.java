@@ -52,6 +52,7 @@ final class Sleeve {
     private double countsPerG, personalLimit;
     private boolean running;
     private volatile String state = "{}";
+    private volatile String tvState = "{}";      // the small snapshot the TV view streams (TvServer)
 
     // link
     private Thread serverThread;
@@ -67,6 +68,9 @@ final class Sleeve {
     // flows
     private String gripFlow, gripMessage;        // null | relaxed | squeeze; message after the last attempt
     private boolean gripDone;
+    // bumped by every grip/tool capture command: the page ignores results until it sees its own attempt, so the
+    // previous attempt's result (e.g. an old failure) is never shown for a new one
+    private int gripAttempt, toolAttempt;
     private String gripResult;                   // relaxed_done | calibrated | failed (the last finished step)
     private String toolPhase, toolMessage;
     private final Set<String> toolDone = new HashSet<>();
@@ -123,6 +127,7 @@ final class Sleeve {
         proc = newProcessor();
         loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);   // the page reads the state 10x a second
+        TvServer.start(c, this);   // the TV view on this phone's Wi-Fi/hotspot: http://<phone>:8080/
     }
 
     // ---- daily log ----
@@ -288,6 +293,7 @@ final class Sleeve {
     private static double now() { return System.nanoTime() / 1e9; }
 
     String stateJson() { return state; }
+    String tvJson() { return tvState; }
 
     void start() { ex.execute(this::startOnEngine); }
     void stop() { ex.execute(this::stopOnEngine); }
@@ -380,6 +386,7 @@ final class Sleeve {
             Processor.Snapshot s = proc.snapshot;
             // the only alarms are the action level and the daily limit (checkAlarms); no other reminder sounds or pops up
             String b = build(s, t).toString();
+            tvState = buildTv(s, t).toString();
             // the day log (up to 400 days) is serialized once per change, not 20 times a second
             state = b.substring(0, b.length() - 1) + ",\"history\":" + historyJson() + "}";
         } catch (Exception e) {
@@ -507,8 +514,9 @@ final class Sleeve {
         if (c.equals("start")) startOnEngine();
         else if (c.equals("stop")) stopOnEngine();
         else if (c.equals("grip:relaxed") || c.equals("grip:squeeze")) {
-            if (!connected) { showToast("Connect the sleeve first."); return; }
             String phase = c.substring(5);
+            gripAttempt++;
+            if (!connected) { gripResult = "failed"; gripMessage = "The sleeve is not sending. Switch it on and wait until it connects, then try again."; return; }
             gripMessage = null; gripResult = null;
             if (phase.equals("relaxed")) gripDone = false;
             proc.gripCalibration(phase);
@@ -524,7 +532,9 @@ final class Sleeve {
                 showToast("Tool thresholds back to the defaults");
                 return;
             }
-            if (!connected || toolPhase != null) return;
+            if (toolPhase != null) return;
+            toolAttempt++;
+            if (!connected) { toolFailed = true; toolMessage = "The sleeve is not sending. Switch it on and wait until it connects, then try again."; return; }
             if (ph.equals("still")) toolDone.clear();
             toolMessage = null; toolFailed = false;
             proc.toolCalibration(ph);
@@ -614,6 +624,33 @@ final class Sleeve {
         if (was) startOnEngine();
     }
 
+    // ---- state for the TV view (TvServer) ----
+
+    /** Only what the TV meters and their proof strip need, 20 times a second; never the history. */
+    private JSONObject buildTv(Processor.Snapshot s, double t) throws Exception {
+        JSONObject o = new JSONObject();
+        boolean fresh = connected && t - lastLineAt <= 1 && s.staleStreams.isEmpty();
+        boolean actOk = fresh && (s.activationStatus.equals("ok") || s.activationStatus.equals("degraded"));
+        boolean vibOk = fresh && (s.vibrationStatus.equals("ok") || s.vibrationStatus.equals("degraded"));
+        o.put("running", running).put("connected", connected).put("fresh", fresh);
+        o.put("source", source).put("dataSource", s.source == null ? JSONObject.NULL : s.source);
+        o.put("age", lastLineAt < 0 ? JSONObject.NULL : t - lastLineAt);
+        o.put("device", s.deviceId == null ? JSONObject.NULL : s.deviceId);
+        o.put("firmware", s.firmware == null ? JSONObject.NULL : s.firmware);
+        o.put("emgSensor", s.emgSensor == null ? JSONObject.NULL : s.emgSensor);
+        o.put("imuSensor", s.imuSensor == null ? JSONObject.NULL : s.imuSensor);
+        o.put("emgSamples", s.emgSamples).put("imuSamples", s.imuSamples);
+        o.put("records", s.records).put("lost", s.missingRecords).put("boot", s.bootId == null ? JSONObject.NULL : s.bootId);
+        o.put("activation", actOk && s.activation != null ? s.activation : JSONObject.NULL);
+        o.put("gripState", s.calibrationState).put("gripFlow", gripFlow == null ? JSONObject.NULL : gripFlow);
+        o.put("gripReason", s.calibrationReason == null ? JSONObject.NULL : s.calibrationReason).put("gripAttempt", gripAttempt);
+        o.put("emgSaturation", s.emgSaturation).put("envelope", fresh && s.envelope != null ? s.envelope : JSONObject.NULL);
+        o.put("vibration", vibOk && s.vibration != null ? s.vibration : JSONObject.NULL);
+        o.put("tool", fresh ? s.tool.state : "unknown").put("toolHz", nz(s.tool.dominantHz));
+        o.put("t", t);
+        return o;
+    }
+
     // ---- state for the screen ----
 
     private JSONObject build(Processor.Snapshot s, double t) throws Exception {
@@ -639,7 +676,9 @@ final class Sleeve {
                 .put("total", s.calibrationDurationS)
                 .put("done", gripDone).put("message", gripMessage == null ? JSONObject.NULL : gripMessage)
                 .put("result", gripResult == null ? JSONObject.NULL : gripResult)
-                .put("relaxed", g == null ? JSONObject.NULL : g.relaxed).put("squeeze", g == null ? JSONObject.NULL : g.squeeze));
+                .put("relaxed", g == null ? JSONObject.NULL : g.relaxed).put("squeeze", g == null ? JSONObject.NULL : g.squeeze)
+                .put("attempt", gripAttempt).put("reason", s.calibrationReason == null ? JSONObject.NULL : s.calibrationReason)
+                .put("saturation", fresh ? s.emgSaturation : JSONObject.NULL));
         // vibration
         boolean vibOk = fresh && (s.vibrationStatus.equals("ok") || s.vibrationStatus.equals("degraded"));
         o.put("vibration", vibOk && s.vibration != null ? s.vibration : JSONObject.NULL).put("vibrationClipped", s.vibrationClipped);
@@ -655,7 +694,7 @@ final class Sleeve {
         tj.put("warnings", warn);
         o.put("tool", tj);
         JSONObject tc = new JSONObject();
-        tc.put("phase", toolPhase == null ? JSONObject.NULL : toolPhase)
+        tc.put("attempt", toolAttempt).put("phase", toolPhase == null ? JSONObject.NULL : toolPhase)
                 .put("left", tl.captureLeftS == null ? JSONObject.NULL : tl.captureLeftS)
                 .put("total", toolPhase == null ? 1 : proc.toolCaptureDuration(toolPhase))
                 .put("done", new JSONArray(toolDone)).put("failed", toolFailed)
@@ -695,6 +734,7 @@ final class Sleeve {
                 .put("tool", toolToday()).put("limit", personalLimit).put("demoSpeed", dayDemo);
         o.put("months", History.months(historyDays, day, todayEntry, 12));
         o.put("toast", toast == null ? JSONObject.NULL : toast).put("toastId", toastId);
+        o.put("tvUrls", new JSONArray(TvServer.urls()));
         return o;
     }
 
@@ -723,6 +763,7 @@ final class Sleeve {
     static String reasonText(String reason, String fallback) {
         if (reason == null) return fallback;
         switch (reason) {
+            case "noisy_at_rest": return "The muscle signal is noisy even with your arm relaxed, so a squeeze cannot stand out. Press all three pads firmly onto the skin, check the cable snaps, keep the cable still (tape it to the arm), then try again.";
             case "insufficient_separation": return "The squeeze was not clearly stronger than the relaxed reading. Squeeze harder, or check the pads, and try again.";
             case "insufficient_data": return "Not enough clean signal was captured. Check the electrodes and try again.";
             case "clipped": return "The signal hit the top of the input range too often. Squeeze a little less hard and try again.";

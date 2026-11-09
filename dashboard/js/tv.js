@@ -11,6 +11,8 @@
 
   const q = new URLSearchParams(location.search);
   const RUNTIME = q.get('runtime') || 'wearable';
+  // phone: served by the Android app (TvServer), which reads the sleeve and computes everything itself
+  const MODE = q.get('source') === 'phone' ? 'phone' : 'backend';
   const VIB_MAX = Math.max(0.1, Number(q.get('vibmax')) || 10);
   const STALE_MS = 1500;
   const RATE_WINDOW_MS = 3000;
@@ -29,6 +31,7 @@
     device: $('pf-device'), emgRate: $('pf-emg'), imuRate: $('pf-imu'), gaps: $('pf-gaps'), age: $('pf-age'),
     btnRelaxed: $('btn-relaxed'), btnSqueeze: $('btn-squeeze'),
     toast: $('toast'),
+    gapsLabel: $('pl-gaps'), calBtns: $('cal-btns'),
   };
 
   // ---------------------------------------------------------------- state
@@ -45,6 +48,8 @@
     rate: { emg: [], imu: [] },               // [t, samples] per batch, last RATE_WINDOW_MS
     next: { emg: null, imu: null, boot: null }, // expected first_sample_index per stream
     gaps: 0,
+    phone: null,           // the phone's latest snapshot (phone mode)
+    phoneSamples: null,    // previous cumulative sample counts, to turn them into rates
   };
 
   // ---------------------------------------------------------------- helpers
@@ -147,8 +152,46 @@
     }
   }
 
+  // ---------------------------------------------------------------- phone mode
+  function onPhone(p) {
+    const now = performance.now();
+    S.phone = p;
+    S.status = p;
+    S.lastRx = p.age == null ? 0 : now - p.age * 1000;
+    if (p.device) el.device.textContent = p.device;
+    if (p.emgSensor) el.sGrip.textContent = shortModel(p.emgSensor, ' via');
+    if (p.imuSensor) el.sVib.textContent = shortModel(p.imuSensor, ',');
+    // cumulative sample counts -> per-message deltas, so rate() works as with raw batches
+    const prev = S.phoneSamples;
+    if (prev && p.emgSamples >= prev.emg && p.imuSamples >= prev.imu) {
+      if (p.emgSamples > prev.emg) S.rate.emg.push([now, p.emgSamples - prev.emg]);
+      if (p.imuSamples > prev.imu) S.rate.imu.push([now, p.imuSamples - prev.imu]);
+    }
+    S.phoneSamples = { emg: p.emgSamples, imu: p.imuSamples };
+    S.calState = p.gripState || 'uncalibrated';
+    S.capturing = typeof S.calState === 'string' && S.calState.startsWith('capturing_') ? S.calState.slice(10) : null;
+    const act = num(p.activation);
+    S.grip.target = act == null ? null : clamp01(act);
+    S.grip.text = act == null ? null : Math.max(0, Math.round(act * 100));
+    const v = num(p.vibration);
+    S.vib.ms2 = v;
+    S.vib.target = v == null ? null : clamp01(v / VIB_MAX);
+  }
+
+  function sourcePhone(now) {
+    const p = S.phone;
+    if (!S.wsOpen || !p) return ['none', 'Not connected to the phone'];
+    if (p.source === 'demo' || p.dataSource === 'simulated') return ['simulated', 'Simulated · phone practice mode'];
+    if (p.dataSource === 'replay') return ['replay', 'Replay · recorded, not live'];
+    const fresh = S.lastRx && now - S.lastRx < STALE_MS;
+    if (!p.running || !p.connected || !fresh) return ['stale', 'No signal · sleeve not sending'];
+    if (p.dataSource === 'live') return ['live', 'Live · sleeve → phone'];
+    return ['stale', 'Source unknown'];
+  }
+
   // ---------------------------------------------------------------- source badge
   function source(now) {
+    if (MODE === 'phone') return sourcePhone(now);
     if (!S.wsOpen) return ['none', 'Not connected to the laptop'];
     const st = S.status;
     if (!st) return ['none', 'No device on the laptop'];
@@ -185,6 +228,7 @@
       const calibrated = S.calState === 'calibrated';
       el.ovGrip.hidden = calibrated || !live;
       if (S.capturing) el.ovGrip.innerHTML = S.capturing === 'relaxed' ? 'Relax your arm…' : 'Squeeze hard!';
+      else if (MODE === 'phone') el.ovGrip.innerHTML = S.calState === 'failed' ? 'Calibration didn’t finish<small>run Setup again on the phone</small>' : 'Calibrate<small>run Setup on the phone</small>';
       else if (S.calState === 'relaxed_captured') el.ovGrip.innerHTML = 'Now squeeze<small>press S</small>';
       else if (S.calState === 'failed') el.ovGrip.innerHTML = 'Calibration didn’t finish<small>try again: R relax · S squeeze</small>';
       else el.ovGrip.innerHTML = 'Calibrate<small>R relax · S squeeze</small>';
@@ -196,7 +240,8 @@
 
       el.emgRate.textContent = rate(S.rate.emg, now);
       el.imuRate.textContent = rate(S.rate.imu, now);
-      el.gaps.textContent = S.next.boot ? String(S.gaps) : '--';
+      if (MODE === 'phone') el.gaps.textContent = S.phone && S.phone.device ? String(S.phone.lost) : '--';
+      else el.gaps.textContent = S.next.boot ? String(S.gaps) : '--';
       el.age.textContent = S.lastRx ? fmtAge(now - S.lastRx) : '--';
 
       const canCal = S.wsOpen && S.status && S.status.connection === 'connected' && !stale;
@@ -263,7 +308,15 @@
 
   // ---------------------------------------------------------------- connection
   let backoff = 500;
+  function connectPhone() {
+    const es = new EventSource('/api/tv/events');      // reconnects by itself
+    es.onopen = () => { S.wsOpen = true; el.toast.hidden = true; };
+    es.onmessage = (ev) => { try { onPhone(JSON.parse(ev.data)); } catch (e) { /* ignore a bad event */ } };
+    es.onerror = () => { S.wsOpen = false; };
+  }
+
   function connect() {
+    if (MODE === 'phone') { connectPhone(); return; }
     if (location.protocol === 'file:') {
       S.wsOpen = false;
       toast('Open this page from the laptop: http://127.0.0.1:8000/dashboard/tv.html', 0);
@@ -282,6 +335,10 @@
     };
   }
 
+  if (MODE === 'phone') {
+    el.calBtns.hidden = true;                 // calibration is the phone's Setup; the TV only shows it
+    el.gapsLabel.textContent = 'Missing records';
+  }
   connect();
   requestAnimationFrame(frame);
 })();
