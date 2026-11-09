@@ -177,8 +177,3 @@ On the current branch, the backend suite has a small number of serial and timing
 
 Built for natHacks 2026, University of Alberta.
 
----
-
-## Licence
-
-No licence has been chosen yet. Until one is added, all rights are reserved by the team.
