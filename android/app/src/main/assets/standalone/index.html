@@ -625,12 +625,26 @@ function ringLoop() {
   if (Math.abs(RING.shown - RING.drawn) > 0.01) drawRing(RING.shown, RING.limit);
   RING.raf = Math.abs(RING.target - RING.shown) > 0.001 ? requestAnimationFrame(ringLoop) : 0;
 }
+/* The ring's hue for today's points: green (140) at 0, amber-yellow (42) at the action level, red (0) at the
+   daily limit. Same rule as Sleeve.ringHue, which colours the sleeve's light: the two always match. */
+function ringHue(pts, limit) {
+  const action = Math.min(100, limit * 0.999);
+  if (!(pts > 0)) return 140;
+  if (pts < action) return Math.round(140 - 98 * pts / action);
+  if (pts < limit) return Math.round(42 - 42 * (pts - action) / (limit - action));
+  return 0;
+}
+function ringColor(pts, limit) {
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches, h = ringHue(pts, limit);
+  // more saturation and a little more light through the yellow band, so it reads yellow, never olive
+  const bump = Math.max(0, 1 - Math.abs(h - 50) / 38);
+  return dark ? `hsl(${h} ${70 + 18 * bump}% ${58 + 4 * bump}%)` : `hsl(${h} ${72 + 20 * bump}% ${38 + 8 * bump}%)`;
+}
 function drawRing(v, limit) {
   RING.drawn = v;
   const arc = $('arc'), over = $('over');
-  const lv = level(v, limit);
   arc.style.opacity = v > 0.5 ? 1 : 0;
-  arc.setAttribute('stroke', lv[1]);
+  arc.setAttribute('stroke', ringColor(v, limit));
   arc.setAttribute('stroke-dasharray', `${Math.max(0.001, Math.min(1, v / limit)) * ARC} ${ARC}`);
   const laps = (v - limit) / limit;
   if (laps <= 0) { over.innerHTML = ''; return; }

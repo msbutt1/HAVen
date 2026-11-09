@@ -242,8 +242,8 @@ final class Sleeve {
     }
 
     /**
-     * Same colours as the Today ring: green under the action level, amber from 100 points, red at the daily limit,
-     * and past it a slow fade between the snake's bright and deep red. Sent on change, and every 3 s so a
+     * The same colour as the Today ring at every moment (ringHue): green, through yellow at the action level, to red
+     * at the daily limit, and past it a slow fade between the snake's bright and deep red. Sent on change, and every 3 s so a
      * reconnected sleeve picks it up (the light falls back to "looking for the phone" after 15 s without one).
      */
     private void led(double t) {
@@ -251,9 +251,7 @@ final class Sleeve {
         if (sock == null || source.equals("demo")) return;
         double pts = Exposure.pointsFromEnergy(dayEnergy);
         String line = pts >= personalLimit * 1.02 ? "VGLED 1 breathe ff3048 5c000f 2400"
-                : pts >= personalLimit ? "VGLED 1 solid c8102e"
-                : pts >= Exposure.EAV_POINTS ? "VGLED 1 solid b86e00"
-                : "VGLED 1 solid 12804a";
+                : "VGLED 1 solid " + ledHex(ringHue(pts, personalLimit));
         if (line.equals(ledSent) && sock == ledSocket && t - ledAt < 3) return;
         try {
             sock.getOutputStream().write((line + "\n").getBytes(StandardCharsets.US_ASCII));
@@ -261,6 +259,29 @@ final class Sleeve {
         } catch (Exception ignored) {
             ledSent = null;                       // the reader thread notices the closed socket
         }
+    }
+
+    /**
+     * The Today ring's hue for today's points, in whole degrees: green (140) at 0, amber-yellow (42) at the action
+     * level, red (0) at the daily limit. The page draws the ring with the same rule (index.html ringHue), so the
+     * ring and the sleeve's light always show the same colour.
+     */
+    static int ringHue(double pts, double limit) {
+        double action = Math.min(Exposure.EAV_POINTS, limit * 0.999);
+        if (!(pts > 0)) return 140;
+        if (pts < action) return (int) Math.round(140 - 98 * pts / action);
+        if (pts < limit) return (int) Math.round(42 - 42 * (pts - action) / (limit - action));
+        return 0;
+    }
+
+    /** That hue at full saturation for the WS2812: gamma-corrected (the LED is linear) and at full brightness. */
+    static String ledHex(int hue) {
+        double h = ((hue % 360) + 360) % 360 / 60.0, x = 1 - Math.abs(h % 2 - 1);
+        double[] rgb = h < 1 ? new double[]{1, x, 0} : h < 2 ? new double[]{x, 1, 0} : h < 3 ? new double[]{0, 1, x}
+                : h < 4 ? new double[]{0, x, 1} : h < 5 ? new double[]{x, 0, 1} : new double[]{1, 0, x};
+        StringBuilder o = new StringBuilder();
+        for (double c : rgb) o.append(String.format(java.util.Locale.US, "%02x", (int) Math.round(255 * Math.pow(c, 2.2))));
+        return o.toString();
     }
 
     private void checkAlarms() {
