@@ -25,11 +25,11 @@ import android.os.PowerManager;
 /**
  * Keeps the sleeve connection and the on-phone processing running when the app is in the background or the
  * screen is off (a foreground service, type connectedDevice: the sleeve is a wearable on this phone's hotspot).
- * Posts the exposure alarms (action level, daily limit) and break reminders as notifications, with sound and
- * vibration, so they reach the wearer wherever the app is.
+ * Raises the only two alarms, the action level and the daily limit: a notification plus a loud looping alarm
+ * sound and vibration, so they reach the wearer wherever the app is.
  */
 public class SleeveService extends Service {
-    static final String CH_RUN = "vg.running", CH_ALARM = "vg.alarm2", CH_BREAK = "vg.break";
+    static final String CH_RUN = "vg.running", CH_ALARM = "vg.alarm2";
     private static final int ID_RUN = 1;
     private PowerManager.WakeLock wake;
     private final Handler main = new Handler(Looper.getMainLooper());
@@ -100,19 +100,18 @@ public class SleeveService extends Service {
     }
 
     private void alert(String kind, String title, String text) {
-        boolean level = !kind.equals("break");
-        Notification n = new Notification.Builder(this, level ? CH_ALARM : CH_BREAK)
+        Notification n = new Notification.Builder(this, CH_ALARM)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(title)
                 .setContentText(text)
                 .setStyle(new Notification.BigTextStyle().bigText(text))
-                .setCategory(level ? Notification.CATEGORY_ALARM : Notification.CATEGORY_REMINDER)
+                .setCategory(Notification.CATEGORY_ALARM)
                 .setAutoCancel(true)
                 .setContentIntent(openApp())
-                .setFullScreenIntent(level ? openApp() : null, level)
+                .setFullScreenIntent(openApp(), true)
                 .build();
         getSystemService(NotificationManager.class).notify(alarmId++, n);
-        siren(level ? 60_000 : 4_000);
+        siren(60_000);
     }
 
     // ---- the audible alarm: loud enough to hear next to a running tool ----
@@ -183,10 +182,8 @@ public class SleeveService extends Service {
                 new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
                         .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
         alarm.setBypassDnd(true);
-        NotificationChannel brk = new NotificationChannel(CH_BREAK, "Break reminders", NotificationManager.IMPORTANCE_HIGH);
-        brk.enableVibration(true);
         nm.createNotificationChannel(run);
         nm.createNotificationChannel(alarm);
-        nm.createNotificationChannel(brk);
+        nm.deleteNotificationChannel("vg.break");    // older builds had break reminders
     }
 }

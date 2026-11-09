@@ -298,10 +298,7 @@ final class Sleeve {
             flows();
             logDay(t);
             Processor.Snapshot s = proc.snapshot;
-            for (String w : warnings(s)) if (shownWarnings.add(w)) {
-                showToast(warningText(w));
-                if (w.equals("continuous_tool_use_long")) raise("break", "Time for a break", "You have used the tool for over 20 minutes without one.");
-            }
+            // the only alarms are the action level and the daily limit (checkAlarms); no other reminder sounds or pops up
             state = build(s, t).toString();
         } catch (Exception e) {
             state = "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";

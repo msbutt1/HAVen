@@ -264,7 +264,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   <section class="sec">
     <div class="eyeicon" style="color:var(--mid)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div>
     <h2>Tool time</h2>
-    <p>The phone knows when you are using a power tool. While it runs, the Today screen tells you how long until the next level. After 20 minutes without a break, it reminds you to take one.</p>
+    <p>The phone knows when you are using a power tool. While it runs, the Today screen tells you how long until the next level. When you reach the action level or the daily limit, the phone sounds an alarm, even when the app is in the background.</p>
   </section>
 
   <section class="sec">
@@ -425,10 +425,10 @@ function render() {
   $('toolIcon').style.background = using ? 'var(--mid-soft)' : '';
   $('toolIcon').style.color = using ? 'var(--mid)' : '';
 
-  const al = $('alert'), w = (t.warnings || [])[0];
+  // the only alerts are the two levels (the alarm screen also covers them); plus a lost-signal notice
+  const al = $('alert');
   if (pts >= limit) { al.style.display = ''; al.style.background = 'var(--high-soft)'; al.style.color = 'var(--high)'; al.innerHTML = '<b>Daily limit reached</b>No more vibrating tools today.'; }
-  else if (w) { al.style.display = ''; al.style.background = 'var(--high-soft)'; al.style.color = 'var(--high)';
-    al.innerHTML = w.startsWith('Tool in use for over 20') ? '<b>Time for a break</b>You have used the tool for over 20 minutes without one.' : `<b>Heads up</b>${esc(w)}`; }
+  else if (pts >= 100) { al.style.display = ''; al.style.background = 'var(--mid-soft)'; al.style.color = 'var(--mid)'; al.innerHTML = '<b>Action level reached</b>Your employer has to cut your vibration today.'; }
   else if (s.running && s.connected && !s.fresh) { al.style.display = ''; al.style.background = 'var(--mid-soft)'; al.style.color = 'var(--mid)'; al.innerHTML = '<b>Lost the sleeve\'s signal</b>Stay close to your phone.'; }
   else al.style.display = 'none';
 
