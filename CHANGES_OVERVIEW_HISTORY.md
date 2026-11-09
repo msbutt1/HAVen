@@ -5,12 +5,13 @@ Branch `fahad/overview-history`, based on `origin/firmware-esp32` (4953882). And
 ## 1. Summary
 
 - The Overview tab now has a range selector: **Today** (by hour), **Week** (7 days), **Month** (30 days) and **Year** (12 months). The Points / Tool time toggle is unchanged.
-- **Limits stay daily.** Week and Month show one bar per day. Year shows one bar per month: the energy-mean daily A(8) of that month's working days, shown as average points per working day. Days are never summed.
-- The y axis is capped at `max(limit × 1.15, 95th percentile × 1.1)`, so one demo-speed day (for example 557 points) no longer flattens the rest. Bars taller than the cap reach the top with a "▲557" label.
-- Tapping a bar shows its details under the chart.
+- **Charts:** Today and Week are **bar charts**; Month and Year are **line charts** (a dot per value, coloured by status; a faint dashed link across days or months with no tool use; demo-speed values are hollow dots).
+- **Limits stay daily.** Week shows one bar per day and Month one point per day. Year shows one point per month: the energy-mean daily A(8) of that month's working days, shown as average points per working day. Days are never summed.
+- The y axis is capped at `max(limit × 1.15, 95th percentile × 1.1)`, so one demo-speed day (for example 557 points) no longer flattens the rest. Values above the cap reach the top with a "▲557" label.
+- Tapping a bar or point shows its details under the chart.
 - The stats tiles, the average card and the day list all follow the selected range. Month and Year add a trend line, for example "Your average is down 48% vs the first half of the year".
 - New card, **What the rules suggest**: guidance based on EU 2002/44/EC and UK HSE, using the ISO 5349-1 method. It links to How it works.
-- History now keeps **400 days** (was 30). Each archived day also stores `contact` and, if it was recorded at demo speed, `demoSpeed`. Demo-speed days are labelled.
+- **Every day is now kept on the phone** (was the last 30 days). The screen gets the newest 400 days, which covers the Year view. Each archived day also stores `contact` and, if it was recorded at demo speed, `demoSpeed`. Demo-speed days are labelled.
 - **Sample year** for demos: `history:sample`, `history:clearSample` and `history:resetDemo`. The days are deterministic and labelled, and they never overwrite a real day or touch today.
 
 ## 2. For Salaar (Android standalone app owner)
@@ -19,7 +20,7 @@ Branch `fahad/overview-history`, based on `origin/firmware-esp32` (4953882). And
 
 | File | Change |
 |---|---|
-| `android/.../app/History.java` (**new**) | Pure Java with no Android classes: `trim`, `clearSample`, `addSample`/`sampleDay`, `months` (12-month energy mean), plus A(8)/points helpers. |
+| `android/.../app/History.java` (**new**) | Pure Java with no Android classes: `newest`, `clearSample`, `addSample`/`sampleDay`, `months` (12-month energy mean), plus A(8)/points helpers. |
 | `android/.../app/Sleeve.java` | See the list below this table. |
 | `android/app/src/main/assets/standalone/index.html` | Overview markup, overview JS and CSS, a Developer options card, and one sentence in How it works. |
 | `android/app/src/test/.../app/HistoryTest.java` (**new**) | 6 tests. |
@@ -29,7 +30,7 @@ Changes in `Sleeve.java`:
 - **`loadDay` / `saveDay`:** also read and write `demoSpeed` and `hours`.
 - **`archive(date, energy, tool, contact, demo)`:** two new parameters. It writes through the new `saveDays()`.
 - **New helpers:**
-  - `saveDays()` trims to 400 days and bumps `historyVersion`.
+  - `saveDays()` writes the full log (nothing is dropped) and bumps `historyVersion`.
   - `historyJson()` caches the history.
   - `resetToday()`.
 - **`logDay`:** adds energy into the current hour's slot and records the day's demo speed.
@@ -54,7 +55,7 @@ The existing `week:sample`, `week:clearSample`, `day:clear`, `speed:` and `limit
 
 | Field | Status |
 |---|---|
-| `history` | Same shape: newest first, with `date`. It now covers up to 400 days, and entries may carry `contact`, `demoSpeed` and `sample`. |
+| `history` | Same shape: newest first, with `date`. It covers the newest 400 days (the full log stays in `SharedPreferences`), and entries may carry `contact`, `demoSpeed` and `sample`. |
 | `historyVersion` (new) | Increments on every write to the day log. The page uses it to skip redraws. |
 | `todayHours` (new) | 24 numbers: points added in each hour of today. |
 | `dayDemoSpeed` (new) | The highest demo speed that added points today (0 if none). |
@@ -65,7 +66,7 @@ The existing `week:sample`, `week:clearSample`, `day:clear`, `speed:` and `limit
 - Same `SharedPreferences` keys (`"today"`, `"days"`). There is no migration.
 - Old days without `a8`, `contact` or `demoSpeed` still load: A(8) falls back to `2.5·√(points/100)`.
 - An old `"today"` without `hours` or `demoSpeed` starts those at 0.
-- Size: about 100 bytes per day, so about 40 KB at 400 days.
+- Size: about 100 bytes per day, so about 36 KB per year kept. The state sent to the screen stays at most 400 days.
 
 ### Sample year (deterministic, seeded per date)
 
@@ -86,7 +87,7 @@ The existing `week:sample`, `week:clearSample`, `day:clear`, `speed:` and `limit
 - **No change** to the backend, the laptop dashboard, firmware or iOS. Nothing outside `android/` was changed except this report.
 - The year math matches the backend's `exposure.py daily_exposure`: energy-mean A(8) over the exposed days.
 - **iOS parity would need:**
-  1. Keep 400 days in its day log, and store `contact` and `demoSpeed` on each day.
+  1. Keep every day in its day log (send the newest 400 to the screen), and store `contact` and `demoSpeed` on each day.
   2. A port of `History.java` (the sample generator and `months`).
   3. The same three commands.
   4. `todayHours`, `dayDemoSpeed` and `months` in its state.
@@ -113,7 +114,7 @@ JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew testDebugUnitT
   - `ConnectTest`: 5
   - `RecordingTest`: 3
   - `HistoryTest` (new): 6. It covers:
-    - retention: keeps 400 days and drops older ones
+    - retention: all 1,000 test days are kept; the screen gets the newest 400, newest first
     - the generator is deterministic and marks its days as sample
     - it never touches today and never overwrites real days
     - clearing removes sample days only
@@ -141,6 +142,7 @@ JAVA_HOME="/c/Program Files/Android/Android Studio/jbr" ./gradlew testDebugUnitT
 - iOS not updated.
 - The demo-speed flag only applies to days archived after this change. Older demo days, such as an earlier 557-point day, show without the tag, but the axis cap still handles them.
 - "Today by hour" buckets use the phone's local hour. Points recorded before this update are not split by hour.
+- The log grows by about 36 KB a year with no cap; there is no export or clean-up button yet.
 - Week and Month averages are computed in JS. The Year months are computed in Java. Both use the same formula.
 - The guidance is general information from the rules, not advice for a specific person.
 
