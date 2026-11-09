@@ -29,6 +29,8 @@ public class StandaloneActivity extends Activity {
         // the phone does the processing: keep the screen on while the app is open
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         sleeve = Sleeve.get(this);
+        // debug builds only: lets the team inspect and screenshot the page over USB (chrome://inspect)
+        if ((getApplicationInfo().flags & android.content.pm.ApplicationInfo.FLAG_DEBUGGABLE) != 0) WebView.setWebContentsDebuggingEnabled(true);
         web = new WebView(this);
         web.setVerticalScrollBarEnabled(false);       // its scroll bar would run over the bottom tabs
         web.setHorizontalScrollBarEnabled(false);
@@ -63,6 +65,10 @@ public class StandaloneActivity extends Activity {
     final class Bridge {
         @JavascriptInterface
         public String state() { return sleeve.stateJson(); }
+
+        /** The day log (up to 400 days); the page asks only when the state's historyVersion changes. */
+        @JavascriptInterface
+        public String history() { return sleeve.historyJsonForPage(); }
 
         @JavascriptInterface
         public void command(String c) {

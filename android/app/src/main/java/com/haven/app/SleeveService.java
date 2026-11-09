@@ -54,7 +54,7 @@ public class SleeveService extends Service {
         wake.acquire();
         sleeve = Sleeve.get(this);
         sleeve.listener = new Sleeve.Listener() {
-            @Override public void alert(String kind, String title, String text) { main.post(() -> SleeveService.this.alert(kind, title, text)); }
+            @Override public void alert(String kind, String title, String text, boolean sound) { main.post(() -> SleeveService.this.alert(kind, title, text, sound)); }
             @Override public void silence() { main.post(SleeveService.this::stopSiren); }
         };
         sleeve.start();
@@ -99,8 +99,9 @@ public class SleeveService extends Service {
                 .build();
     }
 
-    private void alert(String kind, String title, String text) {
+    private void alert(String kind, String title, String text, boolean sound) {
         Notification n = new Notification.Builder(this, CH_ALARM)
+                .setColor(ACCENT)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(title)
                 .setContentText(text)
@@ -111,8 +112,11 @@ public class SleeveService extends Service {
                 .setFullScreenIntent(openApp(), true)
                 .build();
         getSystemService(NotificationManager.class).notify(alarmId++, n);
-        siren(60_000);
+        if (sound) siren(60_000);
     }
+
+    /** Enamel green: the notification's icon and title tint, as in the app. */
+    static final int ACCENT = 0xFF1D5A45;
 
     // ---- the audible alarm: loud enough to hear next to a running tool ----
 

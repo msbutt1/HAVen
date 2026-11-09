@@ -55,7 +55,7 @@ final class Sleeve {
     private volatile String tvState = "{}";      // the small snapshot the TV view streams (TvServer)
 
     // link
-    private Thread serverThread;
+    private volatile Thread serverThread;
     private ServerSocket server;
     private volatile Socket current;
     private String linkDetail = "", linkError;
@@ -79,6 +79,10 @@ final class Sleeve {
     // kept as the energy sum(a^2 dt) so it survives an app restart; rolls over at midnight
     private String day;
     private double dayEnergy, dayContact, dayTool;        // today's totals (demo-scaled when demo speed > 1)
+    // today's points over the last 10 s of the phone's clock: the "you reach ... in about" estimate uses the rate the
+    // ring is actually moving at, not the vibration of one instant (which jumps with every change of grip)
+    private final java.util.ArrayDeque<double[]> rateWin = new java.util.ArrayDeque<>();
+    private JSONArray monthsCache; private int monthsVersion = -1; private double monthsAt = -1;
     private Double lastE, lastC, lastTool;                 // the engine's totals at the previous tick
     private double lastSaved;
     // calibration never counts as exposure: nothing is added while setup is open or a capture runs, nor for a
@@ -101,7 +105,9 @@ final class Sleeve {
     private String historyJson = "[]";
 
     // alarms: each level fires once a day; the screen shows it until the wearer taps OK
-    interface Listener { void alert(String kind, String title, String text); void silence(); }
+    interface Listener { void alert(String kind, String title, String text, boolean sound); void silence(); }
+    /** The app's look (index.html data-theme); also the alarm notification's accent colour. */
+    volatile String theme = "enamel";
     volatile Listener listener;
     private boolean firedAction, firedLimit;
     private String alarm;                         // null | action | limit (shown on the screen until acknowledged)
@@ -124,6 +130,7 @@ final class Sleeve {
         // a light hold on a massage gun is often under 10 % of a hard squeeze, so for the demo points count
         // whenever the tool is detected (exposure.py's tool_on total); the grip rule is a Developer option
         gripGate = prefs.getBoolean("gripGate", false);
+        theme = "enamel";               // the one look (enamel lunch pail); the old picker is gone
         proc = newProcessor();
         loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);   // the page reads the state 10x a second
@@ -188,6 +195,8 @@ final class Sleeve {
     }
 
     /** The newest 400 days as the screen gets them, newest first, with each day's date; rebuilt only after a change. */
+    String historyJsonForPage() { return historyJson(); }
+
     private String historyJson() {
         if (historyBuilt == historyVersion) return historyJson;
         historyBuilt = historyVersion;
@@ -233,14 +242,16 @@ final class Sleeve {
             dayTool += Math.max(0, tt - lastTool) * demoSpeed;
         }
         lastE = e; lastC = c; lastTool = tt;
+        rateWin.addLast(new double[]{t, Exposure.pointsFromEnergy(dayEnergy)});
+        while (rateWin.size() > 2 && t - rateWin.peekFirst()[0] > 10) rateWin.removeFirst();
         checkAlarms();
         led(t);
         if (t - lastSaved > 10) { saveDay(); lastSaved = t; }
     }
 
     /**
-     * Same colours as the Today ring: green under the action level, amber from 100 points, red at the daily limit,
-     * and past it a slow fade between the snake's bright and deep red. Sent on change, and every 3 s so a
+     * The same colour as the Today ring at every moment (ringHue): green, through yellow at the action level, to red
+     * at the daily limit, and past it a slow fade between the snake's bright and deep red. Sent on change, and every 3 s so a
      * reconnected sleeve picks it up (the light falls back to "looking for the phone" after 15 s without one).
      */
     private void led(double t) {
@@ -248,9 +259,7 @@ final class Sleeve {
         if (sock == null || source.equals("demo")) return;
         double pts = Exposure.pointsFromEnergy(dayEnergy);
         String line = pts >= personalLimit * 1.02 ? "VGLED 1 breathe ff3048 5c000f 2400"
-                : pts >= personalLimit ? "VGLED 1 solid c8102e"
-                : pts >= Exposure.EAV_POINTS ? "VGLED 1 solid b86e00"
-                : "VGLED 1 solid 12804a";
+                : "VGLED 1 solid " + ledHex(ringHue(pts, personalLimit));
         if (line.equals(ledSent) && sock == ledSocket && t - ledAt < 3) return;
         try {
             sock.getOutputStream().write((line + "\n").getBytes(StandardCharsets.US_ASCII));
@@ -258,6 +267,29 @@ final class Sleeve {
         } catch (Exception ignored) {
             ledSent = null;                       // the reader thread notices the closed socket
         }
+    }
+
+    /**
+     * The Today ring's hue for today's points, in whole degrees: green (140) at 0, amber-yellow (42) at the action
+     * level, red (0) at the daily limit. The page draws the ring with the same rule (index.html ringHue), so the
+     * ring and the sleeve's light always show the same colour.
+     */
+    static int ringHue(double pts, double limit) {
+        double action = Math.min(Exposure.EAV_POINTS, limit * 0.999);
+        if (!(pts > 0)) return 140;
+        if (pts < action) return (int) Math.round(140 - 98 * pts / action);
+        if (pts < limit) return (int) Math.round(42 - 42 * (pts - action) / (limit - action));
+        return 0;
+    }
+
+    /** That hue at full saturation for the WS2812: gamma-corrected (the LED is linear) and at full brightness. */
+    static String ledHex(int hue) {
+        double h = ((hue % 360) + 360) % 360 / 60.0, x = 1 - Math.abs(h % 2 - 1);
+        double[] rgb = h < 1 ? new double[]{1, x, 0} : h < 2 ? new double[]{x, 1, 0} : h < 3 ? new double[]{0, 1, x}
+                : h < 4 ? new double[]{0, x, 1} : h < 5 ? new double[]{x, 0, 1} : new double[]{1, 0, x};
+        StringBuilder o = new StringBuilder();
+        for (double c : rgb) o.append(String.format(java.util.Locale.US, "%02x", (int) Math.round(255 * Math.pow(c, 2.2))));
+        return o.toString();
     }
 
     private void checkAlarms() {
@@ -320,6 +352,7 @@ final class Sleeve {
         try { if (server != null) server.close(); } catch (Exception ignored) {}
         try { if (current != null) current.close(); } catch (Exception ignored) {}
         server = null;
+        serverThread = null;                 // its accept() now fails with "Socket closed": that is not an error
         linkDetail = "";
     }
 
@@ -341,9 +374,12 @@ final class Sleeve {
                 reader.start();
             }
         } catch (Exception e) {
-            if (running) {
+            // only the CURRENT listener may report a failure: a listener closed by stop/restart (source change, reset)
+            // fails here with "Socket closed" after the new run has started, and must not switch that run off
+            Thread me = Thread.currentThread();
+            if (running && me == serverThread) {
                 String why = e.getMessage();
-                ex.execute(() -> { linkError = "Could not listen on port " + PORT + ": " + why; running = false; });
+                ex.execute(() -> { if (me == serverThread) { linkError = "Could not listen on port " + PORT + ": " + why; running = false; } });
             }
         }
     }
@@ -387,8 +423,9 @@ final class Sleeve {
             // the only alarms are the action level and the daily limit (checkAlarms); no other reminder sounds or pops up
             String b = build(s, t).toString();
             tvState = buildTv(s, t).toString();
-            // the day log (up to 400 days) is serialized once per change, not 20 times a second
-            state = b.substring(0, b.length() - 1) + ",\"history\":" + historyJson() + "}";
+            // the day log (up to 400 days) is NOT in the 10 Hz state: the page asks for it (historyJsonForPage)
+            // only when historyVersion changes
+            state = b;
         } catch (Exception e) {
             state = "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
         }
@@ -485,7 +522,7 @@ final class Sleeve {
 
     private void raise(String kind, String title, String text) {
         Listener l = listener;
-        if (l != null) l.alert(kind, title, text);
+        if (l != null) l.alert(kind, title, text, true);
         note(title);
     }
 
@@ -539,6 +576,14 @@ final class Sleeve {
             toolMessage = null; toolFailed = false;
             proc.toolCalibration(ph);
             if (proc.toolCalState().equals("capturing_" + ph)) toolPhase = ph;
+        } else if (c.equals("alarm:preview:action") || c.equals("alarm:preview:limit")) {
+            // developer: show the real alarm (screen + notification) without the siren, to check how it looks
+            boolean limit = c.endsWith("limit");
+            alarm = limit ? "limit" : "action"; alarmId++;
+            Listener l = listener;
+            if (l != null) l.alert(alarm, limit ? "Daily limit reached" : "Action level reached",
+                    limit ? "You have reached " + Math.round(personalLimit) + " points. Stop using vibrating tools for the rest of the day."
+                          : "100 points. Your employer has to cut your vibration today: other tasks, other tools or more breaks.", false);
         } else if (c.startsWith("source:")) {
             setting(() -> { source = c.substring(7); prefs.edit().putString("source", source).apply(); });
         } else if (c.startsWith("cpg:")) {
@@ -705,13 +750,18 @@ final class Sleeve {
         Exposure.Snapshot x = s.exposure;
         double energy = energyToday(), points = Exposure.pointsFromEnergy(energy);
         Double aNow = fresh && Boolean.TRUE.equals(x.counting) ? x.aHvNow : null;
+        Double perSec = null;                                  // points per second on the phone's clock, last 10 s
+        if (aNow != null && rateWin.size() >= 2) {
+            double[] a = rateWin.peekFirst(), z = rateWin.peekLast();
+            if (z[0] - a[0] >= 2 && z[1] > a[1]) perSec = (z[1] - a[1]) / (z[0] - a[0]);
+        }
         o.put("exposure", new JSONObject().put("points", points).put("a8", Exposure.a8FromEnergy(energy, 8 * 3600))
                 .put("contact", contactToday()).put("limit", personalLimit).put("action", Exposure.EAV_POINTS)
                 .put("counting", aNow != null)
                 .put("pointsPerHour", aNow == null ? JSONObject.NULL : 2 * aNow * aNow)
                 // real time left on the phone's clock (demo: divided by the speed)
-                .put("hoursToAction", nz(scaled(Exposure.hoursUntil(points, Exposure.EAV_POINTS, aNow), demoSpeed)))
-                .put("hoursToLimit", nz(scaled(Exposure.hoursUntil(points, x.personalLimit, aNow), demoSpeed)))
+                .put("hoursToAction", perSec == null ? JSONObject.NULL : Math.max(0, Exposure.EAV_POINTS - points) / perSec / 3600)
+                .put("hoursToLimit", perSec == null ? JSONObject.NULL : Math.max(0, x.personalLimit - points) / perSec / 3600)
                 .put("status", x.status).put("reasons", new JSONArray(x.reasons))
                 .put("gripUnknown", x.gripUnknownS)
                 .put("paused_for_setup", now() < quietUntil)
@@ -719,7 +769,7 @@ final class Sleeve {
                 .put("demoMinutesToLimit", x.aHvNow == null || x.aHvNow <= 0 ? JSONObject.NULL
                         : (x.personalLimit - Math.min(points, x.personalLimit)) / (2 * x.aHvNow * x.aHvNow) * 60 / demoSpeed));
         o.put("alarm", alarm == null ? JSONObject.NULL : alarm).put("alarmId", alarmId);
-        o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit)
+        o.put("settings", new JSONObject().put("theme", theme).put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit)
                 .put("demoSpeed", demoSpeed).put("gripGate", gripGate));
         o.put("events", new JSONArray(log));
         // "history" (the day log, newest first) is added by tick() from the cached copy
@@ -732,7 +782,10 @@ final class Sleeve {
         historyJson();
         JSONObject todayEntry = new JSONObject().put("points", points).put("a8", Exposure.a8FromEnergy(energy, 8 * 3600))
                 .put("tool", toolToday()).put("limit", personalLimit).put("demoSpeed", dayDemo);
-        o.put("months", History.months(historyDays, day, todayEntry, 12));
+        if (monthsCache == null || monthsVersion != historyVersion || t - monthsAt >= 1) {
+            monthsCache = History.months(historyDays, day, todayEntry, 12); monthsVersion = historyVersion; monthsAt = t;
+        }
+        o.put("months", monthsCache);
         o.put("toast", toast == null ? JSONObject.NULL : toast).put("toastId", toastId);
         o.put("tvUrls", new JSONArray(TvServer.urls()));
         return o;

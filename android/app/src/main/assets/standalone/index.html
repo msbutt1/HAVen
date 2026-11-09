@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="enamel">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -169,13 +169,15 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
 .stat { background: var(--surface); border-radius: var(--r); padding: 18px 20px; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04); }
 .stat.wide2 { grid-column: span 2; }
-.stat .sv { font-size: 24px; font-weight: 600; margin-top: 4px; letter-spacing: -.3px; }
+.stat .label { min-height: 2.7em; line-height: 1.35; }
+.stat .sv { font-size: 26px; font-weight: 600; margin-top: 6px; letter-spacing: -.4px; white-space: nowrap; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.sv.avg { font-size: 30px; font-weight: 600; margin-top: 4px; letter-spacing: -.5px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.sv.avg .u { font-size: 16px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin-left: 6px; }
+.stat .sv .u { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; margin: 0 2px 0 3px; }
+.stat .sd { font-size: 14px; color: var(--muted); margin-top: 4px; min-height: 1.4em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row-ic { display: inline-flex; align-items: center; gap: 12px; color: var(--fg); }
 .row-ic svg { color: var(--primary); }
 .nw { white-space: nowrap; }
-#dayList .item .right { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; font-size: 15px; }
-#dayList .item .right b { font-weight: 600; }
-#dayList .item .right .muted { font-size: 13px; }
 .tagS { font-size: 12px; color: var(--sim); border: 1px solid currentColor; border-radius: 99px; padding: 0 6px; margin-left: 6px; font-weight: 500; }
 .tagD { font-size: 12px; color: var(--primary); border: 1px dashed currentColor; border-radius: 99px; padding: 0 6px; margin-left: 6px; font-weight: 500; white-space: nowrap; }
 .selline { color: var(--muted); font-size: 14px; min-height: 21px; margin: 6px 0 0; }
@@ -184,7 +186,55 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 .trend { font-weight: 600; font-size: 16px; margin: 6px 0 0; }
 .gstatus { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; margin: 8px 0 4px; }
 #gText p { font-size: 16px; }
-#dayList .item .left { flex-wrap: wrap; row-gap: 2px; }
+</style>
+<style id="themes">
+/* ===== HAVen look: enamel lunch pail (chosen 2026-11-09 from three candidates) ===== */
+
+/* ---------- B. enamel lunch pail: deep enamel green body, white enamel inside, dark rolled rims on every edge ---------- */
+html[data-theme="enamel"] { --bg: #f1f6f2; --page: #cfe6d7; --track: #d6e3da; --inside: #eef2ef; --surface: #ffffff; --fg: #18211d; --muted: #56625c; --faint: #8d9893; --line: #d5ddd8; --rim: #18211d;
+  --primary: #1d5a45; --on-primary: #ffffff; --primary-soft: #dcebe3; --on-page: #18211d; --on-page-2: #45544d; --page-chip: rgba(255,255,255,.62);
+  --low: #23874c; --low-soft: #e0f1e6; --mid: #c47700; --mid-soft: #fbefdc; --high: #c62f2f; --high-soft: #fae5e5; --r: 22px; }
+@media (prefers-color-scheme: dark) { html[data-theme="enamel"] { --bg: #0c2219; --page: #0e2b20; --track: #0a1c14; --inside: #0c2219; --surface: #143528; --fg: #eef4f0; --muted: #a6bab0; --faint: #6f877b; --line: #23493a; --rim: #04110b;
+  --primary: #5fc597; --on-primary: #06140e; --primary-soft: #173327; --on-page: #edf2ef; --on-page-2: #a3b0aa; --page-chip: rgba(0,0,0,.25);
+  --low: #57c787; --low-soft: #11281b; --mid: #f0a443; --mid-soft: #2c2010; --high: #ff7670; --high-soft: #331716; } }
+html[data-theme="enamel"], html[data-theme="enamel"] body { background: var(--page); }
+html[data-theme="enamel"] main .appbar, html[data-theme="enamel"] main > .pill { color: var(--on-page); }
+html[data-theme="enamel"] main .appbar .date, html[data-theme="enamel"] main > .pill span { color: var(--on-page-2); }
+html[data-theme="enamel"] .appbar .title { font-size: 36px; letter-spacing: -1px; }
+html[data-theme="enamel"] .appbar .iconbtn { background: var(--page-chip); color: var(--on-page); border: 3px solid var(--rim); box-shadow: none; }
+html[data-theme="enamel"] main > .pill { background: var(--page-chip); border: 2px solid var(--rim); box-shadow: none; }
+html[data-theme="enamel"] .card, html[data-theme="enamel"] .stat { box-shadow: none; border: 3px solid var(--rim); }
+html[data-theme="enamel"] .gauge svg circle:first-child { stroke: var(--track); filter: url(#groove); }   /* the empty track sits pressed into the enamel */
+html[data-theme="enamel"] .gauge { border-radius: 50%; box-shadow: 0 0 0 5px var(--rim) inset; }
+html[data-theme="enamel"] .toolicon { border-radius: 50%; border: 3px solid var(--rim); }
+html[data-theme="enamel"] button { border-radius: 99px; }
+html[data-theme="enamel"] button.primary { background: var(--primary); border: 3px solid var(--rim); }
+html[data-theme="enamel"] nav { left: 14px; right: 14px; bottom: 12px; border-radius: 24px; background: var(--surface); border: 3px solid var(--rim); box-shadow: 0 6px 18px rgba(0,0,0,.25); padding: 6px; }
+@media (prefers-color-scheme: dark) { html[data-theme="enamel"] nav { background: #0a1d15; } }
+html[data-theme="enamel"] nav button { color: var(--on-page-2); min-height: 58px; }
+html[data-theme="enamel"] nav button .ind { height: 26px; }
+html[data-theme="enamel"] nav button.on { color: var(--on-primary); background: var(--primary); border-radius: 18px; }
+@media (prefers-color-scheme: dark) { html[data-theme="enamel"] nav button.on { background: var(--primary-soft); color: var(--primary); } }
+html[data-theme="enamel"] nav button.on .ind { background: none; color: inherit; }   /* the icon follows the tab's text colour */
+html[data-theme="enamel"] main { padding-bottom: 130px; }
+html[data-theme="enamel"] .seg { background: var(--inside); border: 2px solid var(--rim); border-radius: 99px; }
+html[data-theme="enamel"] .seg button { border-radius: 99px; }
+html[data-theme="enamel"] .seg button.on { background: var(--primary); color: var(--on-primary); box-shadow: none; }
+html[data-theme="enamel"] .sim, html[data-theme="enamel"] .demo { border: 2px solid var(--rim); }
+html[data-theme="enamel"] .sheet, html[data-theme="enamel"] #wizard { background: var(--inside); }
+html[data-theme="enamel"] .sheet .bar { background: var(--page); color: var(--on-page); border-bottom: 3px solid var(--rim); }
+html[data-theme="enamel"] .sheet .bar button.text { color: var(--on-page); }
+html[data-theme="enamel"] .sheet main { padding-top: 16px; }
+html[data-theme="enamel"] .hero { border-radius: 50%; border: 4px solid var(--rim); }
+html[data-theme="enamel"] .ok-badge, html[data-theme="enamel"] .bad-badge { border: 4px solid var(--rim); }
+html[data-theme="enamel"] .wfoot button:not(.primary) { box-shadow: none; border: 3px solid var(--rim); }
+html[data-theme="enamel"] .dots i { height: 10px; border: 2px solid var(--rim); }
+html[data-theme="enamel"] .ring svg circle:first-child { stroke: var(--line); }
+html[data-theme="enamel"] .eyeicon, html[data-theme="enamel"] .tips li::before { border: 2px solid var(--rim); }
+html[data-theme="enamel"] .compare > div { border: 2px solid var(--rim); }
+html[data-theme="enamel"] #alarm .abadge { border: 4px solid rgba(0,0,0,.35); }
+html[data-theme="enamel"] #alarm button { border: 3px solid rgba(0,0,0,.6); }
+html[data-theme="enamel"] #toast { border: 3px solid var(--rim); }
 </style>
 </head>
 <body>
@@ -199,7 +249,6 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   </div>
   <div class="pill"><i class="dot" id="dot"></i><span id="conn">Starting…</span></div>
   <div class="sim" id="simBanner" style="display:none">Practice mode: made-up data, not a real sleeve</div>
-  <div class="demo" id="demoBanner" style="display:none"></div>
 
   <div class="alert" id="alert" style="display:none"></div>
 
@@ -217,7 +266,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
     <div class="label">Vibration today</div>
     <div class="gauge">
       <svg viewBox="0 0 120 120">
-        <defs><filter id="headShadow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#000" flood-opacity=".55"/></filter></defs>
+        <defs><filter id="headShadow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#000" flood-opacity=".55"/></filter><filter id="groove" x="-10%" y="-10%" width="120%" height="120%"><feComponentTransfer in="SourceAlpha"><feFuncA type="table" tableValues="1 0"/></feComponentTransfer><feGaussianBlur stdDeviation="1.5"/><feOffset dx="-1.7" dy="0" result="sh"/><feFlood flood-color="#000" flood-opacity=".45"/><feComposite in2="sh" operator="in"/><feComposite in2="SourceAlpha" operator="in" result="inner"/><feMerge><feMergeNode in="SourceGraphic"/><feMergeNode in="inner"/></feMerge></filter></defs>
         <g transform="rotate(-90 60 60)">
           <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="12"/>
           <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="var(--low)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 327"/>
@@ -256,7 +305,6 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 <!-- OVERVIEW: over time (today by hour, week, month, year) -->
 <main id="tab-overview" style="display:none">
   <div class="appbar"><div><p class="title">Overview</p><div class="date" id="ovSub">Your last 7 days</div></div></div>
-  <div class="sim" id="sampleNote" style="display:none;margin-top:4px">Includes sample days for the demo, not real work</div>
 
   <div class="card">
     <div class="seg" role="tablist" aria-label="Time range">
@@ -275,15 +323,15 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   </div>
 
   <div class="stats">
-    <div class="stat"><div class="label" id="stToolL">Tool time this week</div><div class="sv" id="stTool">—</div></div>
-    <div class="stat"><div class="label">Days over the action level</div><div class="sv" id="stOver">—</div></div>
-    <div class="stat"><div class="label">Days over the daily limit</div><div class="sv" id="stLimit">—</div></div>
-    <div class="stat"><div class="label">Highest day</div><div class="sv" id="stMax">—</div></div>
+    <div class="stat"><div class="label" id="stToolL">Tool time this week</div><div class="sv" id="stTool">—</div><div class="sd" id="stToolD"></div></div>
+    <div class="stat"><div class="label">Days over the action level</div><div class="sv" id="stOver">—</div><div class="sd" id="stOverD"></div></div>
+    <div class="stat"><div class="label">Days over the daily limit</div><div class="sv" id="stLimit">—</div><div class="sd" id="stLimitD"></div></div>
+    <div class="stat"><div class="label">Highest day</div><div class="sv" id="stMax">—</div><div class="sd" id="stMaxD"></div></div>
   </div>
 
   <div class="card" id="weekCard">
     <div class="label" id="avgLabel">This week on average</div>
-    <div class="sv" id="wkAvg" style="font-size:24px;font-weight:600;margin-top:4px">—</div>
+    <div class="sv avg" id="wkAvg">—</div>
     <p class="trend" id="wkTrend" style="display:none"></p>
     <p class="muted" id="wkLong" style="font-size:15px;margin-bottom:0"></p>
   </div>
@@ -296,11 +344,6 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
     <button class="text" onclick="openHow()">Why these rules?</button>
   </div>
 
-  <div class="card list" id="dayCard">
-    <div class="label" style="margin-bottom:4px">Day by day</div>
-    <div id="dayList"></div>
-    <button class="text" id="dayMore" style="display:none" onclick="MORE += 14; renderOverview(S, true)">Show more days</button>
-  </div>
 
   <div class="card list" style="padding:4px 24px">
     <button class="rowbtn" onclick="openHow()"><span class="row-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>How it works</span><span class="muted">›</span></button>
@@ -421,6 +464,10 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 <div class="sheet" id="dev">
   <div class="bar"><h2>Developer options</h2><button class="text" onclick="closeDev()">Back</button></div>
   <main style="padding-bottom:40px">
+    <div class="card"><h2>Alarm preview</h2>
+      <button class="wide" onclick="cmd('alarm:preview:action')">Preview the action-level alarm</button>
+      <button class="wide" style="margin-top:10px" onclick="cmd('alarm:preview:limit')">Preview the daily-limit alarm</button>
+      <p class="muted" style="font-size:13px">Shows the alarm screen and the notification without the siren.</p></div>
     <div class="card"><h2>TV view</h2>
       <p class="muted" style="font-size:15px">Live grip and vibration meters for a TV, served by this phone. Connect the laptop or TV to this phone's hotspot, then open this address in its browser (press F for full screen). It shows what this phone measures, with this phone's calibration.</p>
       <p class="mono" style="font-size:18px;font-weight:600;word-break:break-all" id="dTv">—</p></div>
@@ -475,7 +522,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VGB = window.VG || { state: () => JSON.stringify({ running: false, linkDetail: "Open this page inside the HAVen app." }), command: () => {} };
+const VGB = window.VG || { state: () => JSON.stringify({ running: false, linkDetail: "Open this page inside the HAVen app." }), history: () => '[]', command: () => {} };
 let S = {}, lastToast = 0;
 const ARC = 2 * Math.PI * 52;
 function cmd(c) { VGB.command(c); setTimeout(tick, 60); }
@@ -509,9 +556,6 @@ $('date').textContent = new Date().toLocaleDateString([], { weekday: 'long', day
 function render() {
   const s = S;
   $('simBanner').style.display = s.source === 'demo' ? '' : 'none';
-  const sp = s.settings ? s.settings.demoSpeed : 1;
-  $('demoBanner').style.display = sp > 1 ? '' : 'none';
-  $('demoBanner').textContent = sp >= 60 ? `Demo: 1 minute of tool use counts as ${sp / 60 === 1 ? '1 hour' : Math.round(sp / 60) + ' hours'}` : `Demo: 1 minute of tool use counts as ${sp} minutes`;
   const busy = (s.grip && s.grip.flow) || (s.toolCal && s.toolCal.phase) || W.open;
   $('conn').textContent = !s.running ? 'Sleeve switched off in the app' : !s.connected ? 'Looking for your sleeve…' : !s.fresh ? 'Reconnecting…' : busy ? 'Setting up…' : 'Sleeve connected';
   $('dot').style.background = s.connected && s.fresh ? 'var(--low)' : s.connected ? 'var(--mid)' : 'var(--faint)';
@@ -520,21 +564,19 @@ function render() {
   if (!s.exposure) { renderWizard(); return; }
 
   const e = s.exposure, pts = e.points || 0, limit = e.limit || 400, lv = level(pts, limit);
-  $('word').textContent = lv[0]; $('word').style.color = lv[1];
   RING.target = pts; RING.limit = limit;
-  if (!RING.raf) RING.raf = requestAnimationFrame(ringLoop);
+  if (!RING.raf) { RING.last = performance.now(); RING.raf = requestAnimationFrame(ringLoop); }
   const a = 2 * Math.PI * Math.min(1, 100 / limit);
   $('tick').setAttribute('transform', `rotate(${a * 180 / Math.PI} 60 60)`);
   $('tick').style.display = limit > 100 ? '' : 'none';
-  $('pts').textContent = `${Math.round(pts)} of ${Math.round(limit)} points`;
   const t = s.tool, using = s.fresh && t.state === 'tool';
   let note;
   if (!s.connected || !s.fresh) note = 'Not counting: no signal from the sleeve.';
   else if (e.paused_for_setup) note = 'Paused while you set up. Calibration does not count.';
-  else if (e.counting && pts < 100 && e.hoursToAction != null) note = `At this tool, you reach the action level in about ${minutes(e.hoursToAction * 3600)}.`;
-  else if (e.counting && pts < limit && e.hoursToLimit != null) note = `At this tool, you reach your daily limit in about ${minutes(e.hoursToLimit * 3600)}.`;
-  else if (pts >= limit) note = 'Stop using vibrating tools for the rest of the day.';
-  else if (pts >= 100) note = 'Your employer should cut your vibration today.';
+  else if (pts >= limit) note = 'Daily limit reached. Stop using vibrating tools for the rest of the day.';
+  else if (pts >= 100 && e.counting && e.hoursToLimit != null) note = `Action level reached. At this pace, the daily limit in about ${minutes(e.hoursToLimit * 3600)}.`;
+  else if (pts >= 100) note = 'Action level reached. Your employer should cut your vibration today.';
+  else if (e.counting && e.hoursToAction != null) note = `At this pace, you reach the action level in about ${minutes(e.hoursToAction * 3600)}.`;
   else note = 'Points add up only while you use a tool.';
   $('note').textContent = note;
 
@@ -560,25 +602,45 @@ function render() {
 
 /* ---------- today's ring: grows smoothly; past the limit a second lap in deepening red slides over the
    first, its shadowed head eating its own tail ---------- */
-const RING = { shown: 0, target: 0, limit: 400, raf: 0, drawn: -1 };
+const RING = { shown: 0, target: 0, limit: 400, raf: 0, drawn: -1, last: 0 };
 function lerpColor(a, b, t) {
   const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
   const x = p(a), y = p(b);
   return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
 }
 function ringPoint(frac) { const th = 2 * Math.PI * frac; return [60 + 52 * Math.cos(th), 60 + 52 * Math.sin(th)]; }
-function ringLoop() {
+function ringLoop(now) {
+  // ease toward the reading on the clock, not per frame: a dropped frame never makes the ring fall behind
+  const dt = Math.min(0.25, Math.max(0, (now - RING.last) / 1000)); RING.last = now;
   const d = RING.target - RING.shown;
-  RING.shown += Math.abs(d) < 0.05 ? d : d * 0.08;               // ease toward the reading, ~60 fps
+  RING.shown += Math.abs(d) < 0.05 ? d : d * (1 - Math.exp(-dt / 0.08));
   if (Math.abs(RING.shown - RING.drawn) > 0.01) drawRing(RING.shown, RING.limit);
   RING.raf = Math.abs(RING.target - RING.shown) > 0.001 ? requestAnimationFrame(ringLoop) : 0;
+}
+/* The ring's hue for today's points: green (140) at 0, amber-yellow (42) at the action level, red (0) at the
+   daily limit. Same rule as Sleeve.ringHue, which colours the sleeve's light: the two always match. */
+function ringHue(pts, limit) {
+  const action = Math.min(100, limit * 0.999);
+  if (!(pts > 0)) return 140;
+  if (pts < action) return Math.round(140 - 98 * pts / action);
+  if (pts < limit) return Math.round(42 - 42 * (pts - action) / (limit - action));
+  return 0;
+}
+function ringColor(pts, limit) {
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches, h = ringHue(pts, limit);
+  // more saturation and a little more light through the yellow band, so it reads yellow, never olive
+  const bump = Math.max(0, 1 - Math.abs(h - 50) / 38);
+  return dark ? `hsl(${h} ${70 + 18 * bump}% ${58 + 4 * bump}%)` : `hsl(${h} ${72 + 20 * bump}% ${38 + 8 * bump}%)`;
 }
 function drawRing(v, limit) {
   RING.drawn = v;
   const arc = $('arc'), over = $('over');
-  const lv = level(v, limit);
   arc.style.opacity = v > 0.5 ? 1 : 0;
-  arc.setAttribute('stroke', lv[1]);
+  arc.setAttribute('stroke', ringColor(v, limit));
+  // the word and the points inside the ring follow the ring itself, so they can never disagree with it
+  const lv = level(v, limit);
+  $('word').textContent = lv[0]; $('word').style.color = lv[1];
+  $('pts').textContent = `${Math.round(v)} of ${Math.round(limit)} points`;
   arc.setAttribute('stroke-dasharray', `${Math.max(0.001, Math.min(1, v / limit)) * ARC} ${ARC}`);
   const laps = (v - limit) / limit;
   if (laps <= 0) { over.innerHTML = ''; return; }
@@ -930,7 +992,6 @@ function renderOverview(s, force) {
   const metric = RANGE === 'today' ? 'points' : METRIC;
   $('ovSub').textContent = R.sub;
   $('segMetric').style.display = RANGE === 'today' ? 'none' : '';
-  $('sampleNote').style.display = logged.some(x => x.e.sample) ? '' : 'none';
   const ptsLines = [{ v: 100, color: 'var(--mid)', label: '100' }, { v: limit, color: 'var(--high)', label: String(Math.round(limit)) }];
   const toolLbl = h => h < 1 ? Math.round(h * 60) + 'm' : h.toFixed(1) + 'h';
   const dayCol = e => metric === 'tool' ? 'var(--primary)' : rule(e.points, e.limit || limit)[1];
@@ -988,17 +1049,24 @@ function renderOverview(s, force) {
   const over = worked.filter(e => e.points >= 100).length, overLim = worked.filter(e => e.points >= (e.limit || limit)).length;
   const top1 = logged.reduce((m, x) => !m || x.e.points > m.e.points ? x : m, null);
   $('stToolL').textContent = R.tool;
-  $('stTool').textContent = hm(real.reduce((a, e) => a + (e.tool || 0), 0));
-  $('stOver').innerHTML = `${over} <span class="sof">of ${worked.length} work day${worked.length === 1 ? '' : 's'}</span>`;
-  $('stLimit').innerHTML = `${overLim} <span class="sof">day${overLim === 1 ? '' : 's'}</span>`;
-  $('stMax').innerHTML = top1 && top1.e.points > 0 ? `${Math.round(top1.e.points)} points<div class="muted" style="font-size:14px;font-weight:500">${top1.e.today ? 'today' : longDate(top1.d)}${tagsOf(top1.e)}</div>` : '—';
+  // every box: a big number with a small unit on one line, then one muted detail line
+  const toolS = real.reduce((a, e) => a + (e.tool || 0), 0), tm = Math.round(toolS / 60);
+  $('stTool').innerHTML = tm >= 60 ? `${Math.floor(tm / 60)}<span class="u">h</span>${tm % 60}<span class="u">min</span>` : `${tm}<span class="u">min</span>`;
+  $('stToolD').textContent = worked.length ? `on ${worked.length} work day${worked.length === 1 ? '' : 's'}` : 'no tool use';
+  $('stOver').innerHTML = `${over}<span class="u">day${over === 1 ? '' : 's'}</span>`;
+  $('stOverD').textContent = `of ${worked.length} work day${worked.length === 1 ? '' : 's'}`;
+  $('stLimit').innerHTML = `${overLim}<span class="u">day${overLim === 1 ? '' : 's'}</span>`;
+  $('stLimitD').textContent = `of ${worked.length} work day${worked.length === 1 ? '' : 's'}`;
+  const hasTop = top1 && top1.e.points > 0;
+  $('stMax').innerHTML = hasTop ? `${Math.round(top1.e.points)}<span class="u">points</span>` : '—';
+  $('stMaxD').innerHTML = hasTop ? `${top1.e.today ? 'Today' : longDate(top1.d)}${tagsOf(top1.e)}` : '';
 
   // the range on average (ISO 5349-1 Annex C years-to-risk group estimate, not shown below A(8) 1 m/s^2)
   const av = avgOf(real);
   $('avgLabel').textContent = R.avg;
   if (!av) { $('wkAvg').textContent = 'No tool use yet'; $('wkLong').textContent = 'Days with tool use are counted here.'; }
   else {
-    $('wkAvg').textContent = RANGE === 'today' ? `${Math.round(av.points)} points` : `${Math.round(av.points)} points a working day`;
+    $('wkAvg').innerHTML = `${Math.round(av.points)}<span class="u">${RANGE === 'today' ? 'points' : 'points a working day'}</span>`;
     const over1 = RANGE === 'today' ? `A(8) ${f(av.a8, 2)} m/s².` : `A(8) ${f(av.a8, 2)} m/s², energy mean over ${av.n} day${av.n === 1 ? '' : 's'} with tool use.`;
     $('wkLong').textContent = RANGE === 'year' ? over1 : `${over1} ${yearsText(av.a8)}`;
   }
@@ -1033,16 +1101,6 @@ function renderOverview(s, force) {
   $('gStatus').innerHTML = `<i class="dot" style="background:${st[1]}"></i><span style="color:${st[1]}">${st[0]}</span>`;
   $('gText').innerHTML = msgs.map(m => `<p>${esc(m)}</p>`).join('');
 
-  // day by day (newest first; the latest 14, then "show more")
-  const listDays = [...logged].reverse();
-  $('dayList').innerHTML = listDays.slice(0, MORE).map(x => {
-    const p = x.e.points, l = rule(p, x.e.limit || limit);
-    const label = x.e.today ? 'Today' : longDate(x.d) + (RANGE === 'year' && x.d.getFullYear() !== new Date().getFullYear() ? ' ' + x.d.getFullYear() : '');
-    return `<div class="item"><div class="left"><i class="dot" style="background:${l[1]}"></i><span class="nw">${label}</span>${tagsOf(x.e)}</div>
-      <div class="right"><b>${Math.round(p)} points</b><span class="muted">${l[0]} · ${hm(x.e.tool)} tool</span></div></div>`;
-  }).join('') || '<p class="muted">Nothing logged yet. Days are saved by themselves.</p>';
-  $('dayMore').style.display = listDays.length > MORE ? '' : 'none';
-  $('dayMore').textContent = `Show more days (${listDays.length - Math.min(MORE, listDays.length)} more)`;
 }
 
 function renderSettings(s) {
@@ -1090,7 +1148,17 @@ function renderAlarm(s) {
   el.className = 'on ' + (lim ? 'limit' : 'action');
 }
 
-function tick() { try { S = JSON.parse(VGB.state()); if (S.error) { $('linkError').textContent = S.error; return; } render(); } catch (e) { $('linkError').textContent = String(e); } }
+// the 10 Hz state leaves out the day log (up to 400 days); fetch it only when its version changes
+let HIST = [], HIST_V = null;
+function tick() {
+  try {
+    S = JSON.parse(VGB.state());
+    if (S.error) { $('linkError').textContent = S.error; return; }
+    if (S.historyVersion !== HIST_V) { HIST_V = S.historyVersion; HIST = JSON.parse(VGB.history ? VGB.history() : '[]'); }
+    S.history = HIST;
+    render();
+  } catch (e) { $('linkError').textContent = String(e); }
+}
 setInterval(tick, 100); tick();
 </script>
 </body>
