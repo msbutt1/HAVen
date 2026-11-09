@@ -1,4 +1,4 @@
-/* VibeGuard firmware: hardware configuration types.
+/* HAVen firmware: hardware configuration types.
  *
  * Board/pin/power FACTS live in boards/<name>/board.c as data of these types.
  * Logic never hard-codes a pin. Every fact carries a status so an unconfirmed

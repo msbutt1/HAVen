@@ -17,8 +17,8 @@ from pathlib import Path
 import pytest
 
 from conftest import ScriptedAdapter, SimAdapter, sim_frames, wait_until
-from vibeguard_signals.simulator import SimConfig, Simulation
-from vibeguard_backend.runtime import RuntimeConflict
+from haven_signals.simulator import SimConfig, Simulation
+from haven_backend.runtime import RuntimeConflict
 
 STALE_DEADLINE_S = 0.5  # a silent stream must be visibly stale within this
 

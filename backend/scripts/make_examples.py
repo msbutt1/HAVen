@@ -18,10 +18,10 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
-from vibeguard_backend.adapters import SimAdapter
-from vibeguard_backend.app import create_app
-from vibeguard_backend.history import seed_history
-from vibeguard_backend.service import Backend, processing_config_for
+from haven_backend.adapters import SimAdapter
+from haven_backend.app import create_app
+from haven_backend.history import seed_history
+from haven_backend.service import Backend, processing_config_for
 
 OUT = Path(__file__).resolve().parents[1] / "examples"
 

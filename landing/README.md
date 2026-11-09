@@ -1,4 +1,4 @@
-# VibeGuard landing page
+# HAVen landing page
 
 A static page built on livops.uz's design system (its colour tokens for light and dark, rim-lit panels, the hero
 grid with a moving light, section layout and footer): `index.html`, `style.css`, two screenshots and self-hosted fonts (Onest and

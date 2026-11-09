@@ -1,6 +1,6 @@
 /**
  * The Summary tab's numbers, from the saved history (the same items as the History tab), with the web dashboard's
- * Overview rules (dashboard/js/overview.js; ios/VibeGuard/Summary.swift). Pure: no React Native imports, so
+ * Overview rules (dashboard/js/overview.js; ios/HAVen/Summary.swift). Pure: no React Native imports, so
  * `node --test` runs it. No safe/unsafe line and no good/bad colour: there are no validated limits behind these.
  */
 

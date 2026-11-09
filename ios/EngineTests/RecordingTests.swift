@@ -1,5 +1,5 @@
 import XCTest
-@testable import VibeGuardEngine
+@testable import HAVenEngine
 
 /// The Swift engine against the Python reference processor, on REAL recordings from the sleeve
 /// (board W, 2026-11-08): the same lines and calibration presses in, the same results out.

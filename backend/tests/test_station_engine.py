@@ -8,9 +8,9 @@ import time
 import pytest
 from conftest import wait_until
 
-from vibeguard_backend.runtime import RuntimeConflict
-from vibeguard_backend.service import BadRequest
-from vibeguard_backend.station import MockStationController, StationEngine, StationError
+from haven_backend.runtime import RuntimeConflict
+from haven_backend.service import BadRequest
+from haven_backend.station import MockStationController, StationEngine, StationError
 
 STIM = {"motor_setting": 120, "units": "pwm_duty_0_255"}
 

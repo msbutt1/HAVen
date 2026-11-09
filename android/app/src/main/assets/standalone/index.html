@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>VibeGuard</title>
+<title>HAVen</title>
 <style>
 @font-face { font-family: "Onest"; font-weight: 400; src: url("../assets/fonts/onest-latin-400-normal.woff2") format("woff2"); }
 @font-face { font-family: "Onest"; font-weight: 500; src: url("../assets/fonts/onest-latin-500-normal.woff2") format("woff2"); }
@@ -387,7 +387,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   <section class="sec last">
     <h2>Good to know</h2>
     <p>Each day is saved on its own and starts again at midnight. Set up the sleeve each time you put it on.</p>
-    <p class="fine">This is an estimate from a sensor on your wrist, not an official measurement: official checks measure at the hand. Staying under the action level does not make vibration safe. VibeGuard is a test version, not a medical device.</p>
+    <p class="fine">This is an estimate from a sensor on your wrist, not an official measurement: official checks measure at the hand. Staying under the action level does not make vibration safe. HAVen is a test version, not a medical device.</p>
     <p class="fine">Based on: EU Directive 2002/44/EC; UK Control of Vibration at Work Regulations 2005 and HSE's points system; ISO 5349-1 (daily exposure and Annex C); ISO/TS 22270 (wrist-worn monitoring).</p>
   </section>
 </main>
@@ -472,7 +472,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 <script>
 "use strict";
 const $ = id => document.getElementById(id);
-const VGB = window.VG || { state: () => JSON.stringify({ running: false, linkDetail: "Open this page inside the VibeGuard app." }), command: () => {} };
+const VGB = window.VG || { state: () => JSON.stringify({ running: false, linkDetail: "Open this page inside the HAVen app." }), command: () => {} };
 let S = {}, lastToast = 0;
 const ARC = 2 * Math.PI * 52;
 function cmd(c) { VGB.command(c); setTimeout(tick, 60); }

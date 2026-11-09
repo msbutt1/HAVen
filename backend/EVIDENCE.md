@@ -1,6 +1,6 @@
 # Backend acceptance evidence
 
-- **Build:** vibeguard-backend 0.1.0, git `2611b5b` on `backend` (uncommitted changes)
+- **Build:** haven-backend 0.1.0, git `2611b5b` on `backend` (uncommitted changes)
 - **Python:** 3.13.5   **Platform:** darwin
 - **Owner:** abduljabbar (backend)
 - **Data:** SIMULATED, in-process, offline. Nothing here was measured on hardware or a person.

@@ -374,7 +374,7 @@ wheels = [
 ]
 
 [[package]]
-name = "vibeguard-signals"
+name = "haven-signals"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

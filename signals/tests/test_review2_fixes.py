@@ -13,9 +13,9 @@ import random
 
 import pytest
 
-from vibeguard_signals.processing import ProcessingConfig, Processor
-from vibeguard_signals.processing.config import CalibrationConfig, ScoreConfig
-from vibeguard_signals.processing.score import ScoreEngine
+from haven_signals.processing import ProcessingConfig, Processor
+from haven_signals.processing.config import CalibrationConfig, ScoreConfig
+from haven_signals.processing.score import ScoreEngine
 
 from test_emg import calibrated_run, emg_feats, events, run, synth
 from test_vibration_score import ACT, VIB
@@ -142,14 +142,14 @@ def test_freshness_still_explicit_and_buffers_bounded():
 def test_processor_scores_identical_when_streams_interleave_differently():
     """End to end: the same telemetry with EMG/IMU records reordered among
     themselves (each stream's own order kept) gives the same final score."""
-    from vibeguard_signals.demo import CALIBRATION_SCHEDULE, demo_processing_config, process_records
-    from vibeguard_signals.simulator import SimConfig, Simulation
+    from haven_signals.demo import CALIBRATION_SCHEDULE, demo_processing_config, process_records
+    from haven_signals.simulator import SimConfig, Simulation
     # Fault-free stream: the processor's own device-clock staleness rule reacts to arrival
     # order at transport-loss boundaries, so exact invariance is only claimed without loss.
     recs = [r.record for r in Simulation(SimConfig(scenario="happy_path", duration_s=10, seed=1),
                                          run_id="order").records() if not r.lost]
     sched = ((0.3, "relaxed"), (2.1, "squeeze"))
-    from vibeguard_signals.processing.config import CalibrationConfig as _CC
+    from haven_signals.processing.config import CalibrationConfig as _CC
     cfg = ProcessingConfig(imu=demo_processing_config().imu,
                            calibration=_CC(relaxed_s=1.0, squeeze_s=1.0, discard_s=0.2, min_updates=5))
     _, a = process_records(recs, cfg, sched)

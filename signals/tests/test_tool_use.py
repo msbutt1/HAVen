@@ -8,11 +8,11 @@ from dataclasses import replace
 import numpy as np
 import pytest
 
-from vibeguard_signals.demo import demo_processing_config
-from vibeguard_signals.processing import Processor
-from vibeguard_signals.processing.config import ToolUseConfig
-from vibeguard_signals.processing.tool_use import ToolUseDetector
-from vibeguard_signals.simulator import SimConfig, Simulation
+from haven_signals.demo import demo_processing_config
+from haven_signals.processing import Processor
+from haven_signals.processing.config import ToolUseConfig
+from haven_signals.processing.tool_use import ToolUseDetector
+from haven_signals.simulator import SimConfig, Simulation
 
 RATE = 500.0
 G = 9.80665

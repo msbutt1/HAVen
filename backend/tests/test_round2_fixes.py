@@ -12,12 +12,12 @@ import pytest
 from conftest import ScriptedAdapter, sim_frames, wait_until
 from fastapi.testclient import TestClient
 
-from vibeguard_backend.app import create_app
-from vibeguard_backend.cli import main as cli_main
-from vibeguard_backend.history import seed_history
-from vibeguard_backend.runtime import COUNTED_EVENTS
-from vibeguard_backend.service import Backend, BadRequest, processing_config_for
-from vibeguard_backend.status_page import CSP, STATUS_PAGE
+from haven_backend.app import create_app
+from haven_backend.cli import main as cli_main
+from haven_backend.history import seed_history
+from haven_backend.runtime import COUNTED_EVENTS
+from haven_backend.service import Backend, BadRequest, processing_config_for
+from haven_backend.status_page import CSP, STATUS_PAGE
 
 CFG = processing_config_for("sim")
 

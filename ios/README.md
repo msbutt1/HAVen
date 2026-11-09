@@ -1,6 +1,6 @@
-# VibeGuard for iOS
+# HAVen for iOS
 
-A native SwiftUI app that reads the VibeGuard sleeve directly and does every calculation on the phone: grip
+A native SwiftUI app that reads the HAVen sleeve directly and does every calculation on the phone: grip
 effort from the EMG, vibration, tool use vs normal arm use, tool time, and the experimental exposure score.
 No laptop and no server are needed.
 
@@ -30,7 +30,7 @@ iOS asks for local-network permission the first time.
 
 ## The calculations
 
-`VibeGuard/Engine/` is a Swift port of the Python processor (`signals/src/vibeguard_signals/processing`):
+`HAVen/Engine/` is a Swift port of the Python processor (`signals/src/haven_signals/processing`):
 the same Butterworth filters, EMG envelope, relaxed/squeeze calibration, vibration features, tool detection
 (periodicity, steadiness, tool calibration) and score formula. It uses Foundation only, so it builds and is
 tested on Linux too:
@@ -52,27 +52,27 @@ recordings the totals agree to within 0.000001 au.
 ## Build and run
 
 ```bash
-open ios/VibeGuard.xcodeproj            # then Run, on an iPhone (the Simulator cannot reach the sleeve)
+open ios/HAVen.xcodeproj            # then Run, on an iPhone (the Simulator cannot reach the sleeve)
 ```
 
 In the Simulator, choose **Simulated sleeve (demo)** in Settings: it produces labelled simulated data with
 controls for squeezing, arm movement and a running tool.
 
-On a real iPhone: pick your team under Signing & Capabilities (bundle id `dev.vibeguard.ios`; change it if Xcode
+On a real iPhone: pick your team under Signing & Capabilities (bundle id `dev.haven.ios`; change it if Xcode
 asks).
 
 ## What is where
 
 | File | What it does |
 |---|---|
-| `VibeGuard/SleeveLink.swift` | TCP listener on port 8765 (Network framework), NDJSON lines from the sleeve |
-| `VibeGuard/Engine/` | The on-phone processor (filters, records, EMG, vibration, tool use, score) |
-| `VibeGuard/AppModel.swift` | Connects the link, the engine, the calibrations and the screens |
-| `VibeGuard/DemoSleeve.swift` | The in-app simulated sleeve |
-| `VibeGuard/Store.swift` | Calibrations kept between launches |
-| `VibeGuard/Views/` | Dashboard, Overview, Calibrate (sheet), Settings |
+| `HAVen/SleeveLink.swift` | TCP listener on port 8765 (Network framework), NDJSON lines from the sleeve |
+| `HAVen/Engine/` | The on-phone processor (filters, records, EMG, vibration, tool use, score) |
+| `HAVen/AppModel.swift` | Connects the link, the engine, the calibrations and the screens |
+| `HAVen/DemoSleeve.swift` | The in-app simulated sleeve |
+| `HAVen/Store.swift` | Calibrations kept between launches |
+| `HAVen/Views/` | Dashboard, Overview, Calibrate (sheet), Settings |
 | `EngineTests/` | Linux/SwiftPM tests of the engine against the Python processor |
-| `VibeGuardTests/` | Xcode unit tests (translation rules, staircase) |
+| `HAVenTests/` | Xcode unit tests (translation rules, staircase) |
 
 Limits, shown in the app: grip effort is relative to your own calibration (not force, not %MVC); the exposure
 score is experimental, in arbitrary units (not a dose, not A(8)); the bar's reference and the tool warnings are

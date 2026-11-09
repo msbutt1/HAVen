@@ -22,14 +22,14 @@ import pytest
 
 from conftest import wait_until
 from firmware_emulator import DEVICE_ID_W, FirmwareEmulator
-from vibeguard_signals import contract
-from vibeguard_backend import runtime as runtime_mod
-from vibeguard_backend.adapters import AdapterDisconnected, ReplayAdapter, SerialAdapter
-from vibeguard_backend.hardware import find_baud, serial_check
-from vibeguard_backend.preflight import FAIL, PASS, WARN
-from vibeguard_backend.serial_select import DeviceIdSerialAdapter
-from vibeguard_backend.service import Backend, processing_config_for
-from vibeguard_backend.stream import StreamAdapter
+from haven_signals import contract
+from haven_backend import runtime as runtime_mod
+from haven_backend.adapters import AdapterDisconnected, ReplayAdapter, SerialAdapter
+from haven_backend.hardware import find_baud, serial_check
+from haven_backend.preflight import FAIL, PASS, WARN
+from haven_backend.serial_select import DeviceIdSerialAdapter
+from haven_backend.service import Backend, processing_config_for
+from haven_backend.stream import StreamAdapter
 
 pytestmark = pytest.mark.skipif(not hasattr(os, "openpty"), reason="needs pseudo-terminals")
 BAUD = 115200  # a pty accepts this; the emulator paces its TX like a 921600 wire (92 kB/s)
@@ -388,8 +388,8 @@ def test_probing_silent_ports_does_not_make_the_runtime_unstoppable(tmp_path, ba
 
 
 def test_serial_check_device_id_adapter_uses_the_profiles_dtr_rts(tmp_path, monkeypatch, capsys):
-    import vibeguard_backend.serial_select as sel
-    from vibeguard_backend.cli import main
+    import haven_backend.serial_select as sel
+    from haven_backend.cli import main
     seen = {}
 
     class Spy(sel.DeviceIdSerialAdapter):
@@ -405,8 +405,8 @@ def test_serial_check_device_id_adapter_uses_the_profiles_dtr_rts(tmp_path, monk
 
 
 def test_try_bauds_honours_device_id_and_the_profile(tmp_path, monkeypatch, capsys):
-    import vibeguard_backend.hardware as hw
-    from vibeguard_backend.cli import main
+    import haven_backend.hardware as hw
+    from haven_backend.cli import main
     seen = {}
 
     def fake_find(port, bauds, probe_s=3.0, probe_max_s=10.0, adapter_factory=None, progress=None, dtr=None, rts=None):

@@ -16,11 +16,11 @@ import numpy as np
 import pytest
 from conftest import sim_frames
 
-import vibeguard_backend.hardware as hw
-from vibeguard_backend.adapters import AdapterDisconnected
-from vibeguard_backend.hardware import serial_check
-from vibeguard_backend.preflight import FAIL, PASS, WARN
-from vibeguard_signals import contract
+import haven_backend.hardware as hw
+from haven_backend.adapters import AdapterDisconnected
+from haven_backend.hardware import serial_check
+from haven_backend.preflight import FAIL, PASS, WARN
+from haven_signals import contract
 
 BAUD = 3_000_000  # virtual link: no bandwidth verdicts unless a test asks for one
 

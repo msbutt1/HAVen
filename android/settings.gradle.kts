@@ -12,5 +12,5 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "VibeGuard"
+rootProject.name = "HAVen"
 include(":app")

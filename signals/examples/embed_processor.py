@@ -1,4 +1,4 @@
-"""Embedding the VibeGuard reference processor in a host service (SIMULATED DATA).
+"""Embedding the HAVen reference processor in a host service (SIMULATED DATA).
 
 Shows the lifecycle a backend needs, with no CLI subprocess:
 
@@ -18,10 +18,10 @@ from __future__ import annotations
 import json
 from collections import Counter
 
-from vibeguard_signals import contract
-from vibeguard_signals.demo import demo_processing_config
-from vibeguard_signals.processing import ProcessingConfig, Processor, to_ndjson_line
-from vibeguard_signals.simulator import SimConfig, Simulation
+from haven_signals import contract
+from haven_signals.demo import demo_processing_config
+from haven_signals.processing import ProcessingConfig, Processor, to_ndjson_line
+from haven_signals.simulator import SimConfig, Simulation
 
 
 def device_frames():

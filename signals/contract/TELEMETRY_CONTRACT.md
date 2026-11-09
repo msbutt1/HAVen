@@ -1,7 +1,7 @@
-# VibeGuard device telemetry contract — v1 (PROPOSED)
+# HAVen device telemetry contract — v1 (PROPOSED)
 
 **Status: proposed, pending review by Abduljabbar (ingestion) and Ali (display).**
-Owner: Salaar. Authoritative validator: `signals/src/vibeguard_signals/contract.py`
+Owner: Salaar. Authoritative validator: `signals/src/haven_signals/contract.py`
 (`uv run vg-validate …`). If this document and the validator disagree, the validator
 is the reference and the disagreement is a bug to report.
 
@@ -21,7 +21,7 @@ It does **not** cover:
 
 The device only acquires samples: it timestamps raw samples, sequences them, and flags
 quality. All filtering, envelopes, calibration, vibration features, and the experimental
-score run on the host, in the `vibeguard_signals` reference package. Nothing is processed
+score run on the host, in the `haven_signals` reference package. Nothing is processed
 on the device until a measured reason (link bandwidth, latency) justifies porting a
 specific stage.
 

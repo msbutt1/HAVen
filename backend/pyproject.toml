@@ -1,11 +1,11 @@
 [project]
-name = "vibeguard-backend"
+name = "haven-backend"
 version = "0.1.0"
-description = "VibeGuard local backend: device adapters, ingestion, sessions, storage, live delivery, recording/replay (Abduljabbar-owned)."
+description = "HAVen local backend: device adapters, ingestion, sessions, storage, live delivery, recording/replay (Abduljabbar-owned)."
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
-    "vibeguard-signals",
+    "haven-signals",
     "fastapi>=0.115",
     "uvicorn[standard]>=0.30",
     "pyserial>=3.5",
@@ -14,10 +14,10 @@ dependencies = [
 ]
 
 [project.scripts]
-vg-backend = "vibeguard_backend.cli:main"
+vg-backend = "haven_backend.cli:main"
 
 [tool.uv.sources]
-vibeguard-signals = { path = "../signals", editable = true }
+haven-signals = { path = "../signals", editable = true }
 
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12.0"]

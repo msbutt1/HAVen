@@ -14,9 +14,9 @@ from pathlib import Path
 
 import pytest
 
-from vibeguard_signals import contract
-from vibeguard_signals.sim_cli import main as sim_main
-from vibeguard_signals.simulator import (
+from haven_signals import contract
+from haven_signals.sim_cli import main as sim_main
+from haven_signals.simulator import (
     SCENARIOS, SIM_COUNTS_PER_G, SIM_EMG_LIMITS, SIM_EMG_OFFSET, SimConfig, Simulation,
 )
 
@@ -295,7 +295,7 @@ def test_overrun_reports_dropped_samples_and_index_jump():
 
 def test_cli_stdout_is_pure_ndjson_and_stderr_has_diagnostics():
     proc = subprocess.run(
-        [sys.executable, "-m", "vibeguard_signals.sim_cli", "--scenario", "relaxed",
+        [sys.executable, "-m", "haven_signals.sim_cli", "--scenario", "relaxed",
          "--duration", "1", "--fast", "--seed", "3"],
         capture_output=True, text=True, check=True)
     lines = proc.stdout.splitlines()

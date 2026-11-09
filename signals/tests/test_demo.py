@@ -11,10 +11,10 @@ from pathlib import Path
 
 import pytest
 
-from vibeguard_signals import contract
-from vibeguard_signals.demo import CSV_COLUMNS, replay_demo, run_demo
-from vibeguard_signals.replay import ReplayError, to_replay
-from vibeguard_signals.replay_cli import main as replay_main
+from haven_signals import contract
+from haven_signals.demo import CSV_COLUMNS, replay_demo, run_demo
+from haven_signals.replay import ReplayError, to_replay
+from haven_signals.replay_cli import main as replay_main
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -160,10 +160,10 @@ def test_replay_requires_identity_and_is_idempotent():
 
 def test_cli_run_and_replay(tmp_path):
     out = tmp_path / "cli"
-    run = subprocess.run([sys.executable, "-m", "vibeguard_signals.demo_cli", "run", "--out", str(out),
+    run = subprocess.run([sys.executable, "-m", "haven_signals.demo_cli", "run", "--out", str(out),
                           "--run-id", "cli-test", "--quiet"], capture_output=True, text=True)
     assert run.returncode == 0 and "SIMULATED run saved" in run.stderr
-    rep = subprocess.run([sys.executable, "-m", "vibeguard_signals.demo_cli", "replay", str(out)],
+    rep = subprocess.run([sys.executable, "-m", "haven_signals.demo_cli", "replay", str(out)],
                          capture_output=True, text=True)
     assert rep.returncode == 0 and "apart from provenance: YES" in rep.stdout
 

@@ -9,10 +9,10 @@ import pytest
 from conftest import wait_until
 from fastapi.testclient import TestClient
 
-from vibeguard_backend.app import create_app
-from vibeguard_backend.runtime import RuntimeConflict
-from vibeguard_backend.service import BadRequest
-from vibeguard_backend.station import MockStationController, StationEngine, StationError
+from haven_backend.app import create_app
+from haven_backend.runtime import RuntimeConflict
+from haven_backend.service import BadRequest
+from haven_backend.station import MockStationController, StationEngine, StationError
 
 STIM = {"motor_setting": 120, "units": "pwm_duty_0_255"}
 
@@ -48,7 +48,7 @@ def test_idempotent_respond_records_once(backend):
 
 
 def test_request_id_reuse_across_commands_conflicts(backend):
-    from vibeguard_backend.store import IdempotencyConflict
+    from haven_backend.store import IdempotencyConflict
     eng, ctl, sid = mk(backend)
     eng.present(sid, STIM, response_timeout_s=5, request_id="same")
     with pytest.raises(IdempotencyConflict):

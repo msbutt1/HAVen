@@ -28,10 +28,10 @@ from pathlib import Path
 import pytest
 
 from conftest import ScriptedAdapter, sim_frames, wait_until
-from vibeguard_signals import contract
-from vibeguard_signals.simulator import SimConfig, Simulation
-from vibeguard_backend.runtime import RuntimeConflict
-from vibeguard_backend.service import Backend, processing_config_for
+from haven_signals import contract
+from haven_signals.simulator import SimConfig, Simulation
+from haven_backend.runtime import RuntimeConflict
+from haven_backend.service import Backend, processing_config_for
 
 TESTS_DIR = Path(__file__).resolve().parent
 BACKEND_SRC = TESTS_DIR.parent / "src"
@@ -92,8 +92,8 @@ CHILD = r'''
 import json, sys, threading, time
 sys.path.insert(0, sys.argv[1])
 from conftest import ScriptedAdapter, sim_frames, wait_until
-from vibeguard_backend.adapters import SimAdapter
-from vibeguard_backend.service import Backend, processing_config_for
+from haven_backend.adapters import SimAdapter
+from haven_backend.service import Backend, processing_config_for
 
 data_dir, scenario = sys.argv[2], sys.argv[3]
 b = Backend(data_dir)
@@ -357,7 +357,7 @@ def test_interrupted_session_replays_with_replay_provenance_after_restart(crashe
 
 def test_health_reports_what_was_recovered_on_start(crashed_recover, tmp_path):
     from fastapi.testclient import TestClient
-    from vibeguard_backend.app import create_app
+    from haven_backend.app import create_app
 
     data, ids = recovered_copy(crashed_recover, tmp_path)
     b = Backend(data)
@@ -411,7 +411,7 @@ def test_frames_recorded_before_an_unplug_survive_a_later_crash(tmp_path):
 
 
 def test_seed_history_cli_while_serving_does_not_interrupt_the_live_session(tmp_path, sim_config):
-    from vibeguard_backend.cli import main as cli_main
+    from haven_backend.cli import main as cli_main
 
     data = tmp_path / "data"
     frames = sim_frames(duration_s=3)
@@ -442,7 +442,7 @@ def test_seed_history_cli_while_serving_does_not_interrupt_the_live_session(tmp_
 
 
 def test_completed_records_and_calibrations_persist_across_backend_instances(tmp_path):
-    from vibeguard_backend.history import seed_history
+    from haven_backend.history import seed_history
 
     data = tmp_path / "data"
     frames = demo30()
@@ -737,7 +737,7 @@ def test_source_has_no_network_client_imports_or_remote_urls(root):
 
 
 def test_cli_defaults_bind_to_loopback_and_local_data_dir():
-    from vibeguard_backend.cli import build_parser
+    from haven_backend.cli import build_parser
 
     args = build_parser().parse_args(["serve"])
     assert args.host == "127.0.0.1" and args.device == "sim"
@@ -748,8 +748,8 @@ def test_full_local_demo_runs_with_outbound_network_blocked(tmp_path, monkeypatc
     """Record, restart, replay, seed history and serve the API with every non-loopback
     connection attempt blocked and logged."""
     from fastapi.testclient import TestClient
-    from vibeguard_backend.app import create_app
-    from vibeguard_backend.history import seed_history
+    from haven_backend.app import create_app
+    from haven_backend.history import seed_history
 
     attempts: list = []
     real_connect, real_create = socket.socket.connect, socket.create_connection

@@ -1,4 +1,4 @@
-# VibeGuard firmware
+# HAVen firmware
 
 Two ESP32 roles share one portable layer. Host algorithms (EMG filtering, calibration,
 vibration features, scoring) stay in `../signals/`; firmware only acquires data and

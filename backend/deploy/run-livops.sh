@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Serve the VibeGuard dashboard + backend on this computer and publish it through a Cloudflare Tunnel.
+# Serve the HAVen dashboard + backend on this computer and publish it through a Cloudflare Tunnel.
 # Everything stays here: the data directory is local, the tunnel only forwards requests to 127.0.0.1.
 #
 #   VG_HOSTNAME=vibeguard.livops.uz  VG_BASIC_AUTH=user:password  deploy/run-livops.sh

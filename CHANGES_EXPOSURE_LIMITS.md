@@ -28,11 +28,11 @@ Everything is additive: nothing was removed, `experimental_score` and all statio
 
 | File | Change |
 |---|---|
-| `backend/src/vibeguard_backend/exposure.py` | **New** (mine): session summary, daily totals, `PersonalLimit` |
-| `backend/src/vibeguard_backend/runtime.py` | `latest["exposure"]`; session keeps `start_exposure` / `first_exposure`; on stop `counters["exposure"] = session_exposure_summary(...)`; stale masking treats `exposure` like `experimental_score`; new `DeviceRuntime.set_personal_exposure_limit()` |
-| `backend/src/vibeguard_backend/service.py` | `Backend.exposure_limit` (lazy `PersonalLimit`), `set_personal_exposure_limit()`, `exposure_daily()`; `add_runtime` applies a lowered limit to a new processor before its thread starts |
-| `backend/src/vibeguard_backend/app.py` | 4 routes under `/api/exposure/...` (below) |
-| `backend/src/vibeguard_backend/history.py` | simulated history sessions also get `counters["exposure"]` (so the daily view has sample data) |
+| `backend/src/haven_backend/exposure.py` | **New** (mine): session summary, daily totals, `PersonalLimit` |
+| `backend/src/haven_backend/runtime.py` | `latest["exposure"]`; session keeps `start_exposure` / `first_exposure`; on stop `counters["exposure"] = session_exposure_summary(...)`; stale masking treats `exposure` like `experimental_score`; new `DeviceRuntime.set_personal_exposure_limit()` |
+| `backend/src/haven_backend/service.py` | `Backend.exposure_limit` (lazy `PersonalLimit`), `set_personal_exposure_limit()`, `exposure_daily()`; `add_runtime` applies a lowered limit to a new processor before its thread starts |
+| `backend/src/haven_backend/app.py` | 4 routes under `/api/exposure/...` (below) |
+| `backend/src/haven_backend/history.py` | simulated history sessions also get `counters["exposure"]` (so the daily view has sample data) |
 | `backend/tests/test_exposure_api.py` | **New**: 7 tests |
 | `backend/tests/test_gaps_and_disconnects.py` | one assertion now expects `"exposure": None` in `latest` |
 | `dashboard/js/exposure.js` | **New** (mine): renders the card, points maths (`VG.ExposureMath`), personal limit on the Limits page |
@@ -142,9 +142,9 @@ To show it in SwiftUI: in `Backend.swift` add `case ("exposure", _): exposure = 
 
 | File | Change |
 |---|---|
-| `signals/src/vibeguard_signals/processing/exposure.py` | **New**: `ExposureEngine`, `wh_gain`, `a8_from_energy`, `points_from_energy`, `hours_until`, `years_to_10pct_vwf`, `limits_reference` |
-| `signals/src/vibeguard_signals/processing/config.py` | **New** `ExposureConfig` + `WEIGHTINGS`; `ProcessingConfig.exposure` field; `validate()` calls it |
-| `signals/src/vibeguard_signals/processing/processor.py` | additive: builds `self.exposure`; feeds it activation (EMG), vibration + tool record (IMU); emits `exposure` after `experimental_score` and in `finish()`; boot change → flush; provenance change → reset + `exposure_accumulation_reset` event; `tool_use_reset_session()` also resets exposure; new `set_personal_exposure_limit()` |
+| `signals/src/haven_signals/processing/exposure.py` | **New**: `ExposureEngine`, `wh_gain`, `a8_from_energy`, `points_from_energy`, `hours_until`, `years_to_10pct_vwf`, `limits_reference` |
+| `signals/src/haven_signals/processing/config.py` | **New** `ExposureConfig` + `WEIGHTINGS`; `ProcessingConfig.exposure` field; `validate()` calls it |
+| `signals/src/haven_signals/processing/processor.py` | additive: builds `self.exposure`; feeds it activation (EMG), vibration + tool record (IMU); emits `exposure` after `experimental_score` and in `finish()`; boot change → flush; provenance change → reset + `exposure_accumulation_reset` event; `tool_use_reset_session()` also resets exposure; new `set_personal_exposure_limit()` |
 | `signals/tests/test_exposure.py` | **New**: 40 tests |
 
 - `score.py` is **not modified**: `exposure.py` imports its `_Track`, `_Input`, `_block_key` and `USABLE`

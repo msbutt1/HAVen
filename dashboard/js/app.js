@@ -1,5 +1,5 @@
 /*
- * VibeGuard dashboard app. Talks only to the adapter interface, so swapping
+ * HAVen dashboard app. Talks only to the adapter interface, so swapping
  * mock data for the real backend is a URL change: ?source=ws&url=ws://...
  */
 (function () {

@@ -1,4 +1,4 @@
-"""Validator for VibeGuard station protocol v1 (PROPOSED). See STATION_PROTOCOL.md.
+"""Validator for HAVen station protocol v1 (PROPOSED). See STATION_PROTOCOL.md.
 
 Separate from the wearable telemetry contract (signals/contract): station
 commands and events never go through the telemetry validator.

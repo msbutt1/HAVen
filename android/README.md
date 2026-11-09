@@ -1,4 +1,4 @@
-# VibeGuard for Android
+# HAVen for Android
 
 **Standalone (default):** the sleeve connects to this phone and the phone does every calculation: grip effort
 from the EMG, vibration, tool use vs normal arm use, tool time, and the experimental exposure score. Two pages,
@@ -17,7 +17,7 @@ wearable --Wi-Fi (this phone's hotspot)--> phone (this app: TCP 8765, all proces
    the hotspot gateway (this phone). Data appears within a few seconds. Do not run `vg-bridge` or
    `vg-backend --device wifi` on the same hotspot, or the sleeve connects to the laptop instead.
 
-The engine (`app/src/main/java/com/vibeguard/app/engine`) is a Java port of the Swift engine (`ios/VibeGuard/Engine`),
+The engine (`app/src/main/java/com/haven/app/engine`) is a Java port of the Swift engine (`ios/HAVen/Engine`),
 itself a port of the Python processor. `app/src/test/.../engine/RecordingTest.java` runs it on real board W
 recordings (`ios/EngineTests/Fixtures`) and compares with the Python processor: every compared value matches,
 including the grip calibration and the massage-gun tool calibration thresholds. Verified live on a Galaxy S25
@@ -28,7 +28,7 @@ below.
 
 ## Laptop mode
 
-An Android app that opens the VibeGuard dashboard from the laptop running the backend, over Wi-Fi. The phone shows
+An Android app that opens the HAVen dashboard from the laptop running the backend, over Wi-Fi. The phone shows
 the same screens as the web dashboard (Live, Overview, Calibrate, Perception test, History); the laptop still talks
 to the wearable and stores everything.
 
@@ -39,7 +39,7 @@ wearable --Wi-Fi--> laptop (vg-backend) <--Wi-Fi-- phone (this app)
 ## Build the APK
 
 ```
-android/build-apk.sh          # -> android/dist/VibeGuard-0.1.0-debug.apk
+android/build-apk.sh          # -> android/dist/HAVen-0.1.0-debug.apk
 ```
 
 Needs a JDK 17+ and the Android SDK (found through `ANDROID_HOME` or `android/local.properties`). The first build
@@ -50,7 +50,7 @@ The APK is **debug-signed**: fine for installing on team phones by sideloading, 
 
 ## Install it
 
-- USB: `adb install -r android/dist/VibeGuard-0.1.0-debug.apk`
+- USB: `adb install -r android/dist/HAVen-0.1.0-debug.apk`
 - Or copy the APK to the phone (AirDrop to a Mac first, Google Drive, a USB cable) and open it; Android asks to allow
   installing from that app once.
 
@@ -70,7 +70,7 @@ The APK is **debug-signed**: fine for installing on team phones by sideloading, 
    in plain words and a box to type the laptop's address (macOS: System Settings › Wi-Fi › Details), e.g.
    `192.168.1.23` (port 8000 is assumed).
 
-How Find works: the app broadcasts `VGFIND 1` to UDP 8767; the backend (`backend/src/vibeguard_backend/appdiscovery.py`)
+How Find works: the app broadcasts `VGFIND 1` to UDP 8767; the backend (`backend/src/haven_backend/appdiscovery.py`)
 answers `VGAPI 1 <http port> <password 0|1> <name>`, only to private addresses and only when it listens beyond the
 laptop. The app then checks `/api/health` and opens `http://<laptop>:<port>/dashboard/`.
 

@@ -51,7 +51,7 @@ export function Eyebrow({ children }: { children: ReactNode }) {
 }
 
 /**
- * The violet stripes that mark simulated data everywhere in VibeGuard: diagonal bands drawn in the tile itself
+ * The violet stripes that mark simulated data everywhere in HAVen: diagonal bands drawn in the tile itself
  * (react-native-svg does not rotate patterns the way browsers do).
  */
 export function Stripes({ t, radius = 10 }: { t: Theme; radius?: number }) {

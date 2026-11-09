@@ -12,9 +12,9 @@ import pytest
 import uvicorn
 from test_http_review import NODE, _run_page, _runtime, ok
 
-from vibeguard_backend import hardware
-from vibeguard_backend.adapters import AdapterDisconnected
-from vibeguard_backend.cli import main as cli_main
+from haven_backend import hardware
+from haven_backend.adapters import AdapterDisconnected
+from haven_backend.cli import main as cli_main
 
 EXAMPLE_PROFILE = Path(__file__).resolve().parents[1] / "hardware.example.json"
 
@@ -60,8 +60,8 @@ class _RecordingAdapter:
         pass
 
 
-@pytest.mark.parametrize("extra, target", [([], "vibeguard_backend.serial_select.DeviceIdSerialAdapter"),
-                                           (["--try-bauds", "115200"], "vibeguard_backend.serial_select.SerialAdapter")])
+@pytest.mark.parametrize("extra, target", [([], "haven_backend.serial_select.DeviceIdSerialAdapter"),
+                                           (["--try-bauds", "115200"], "haven_backend.serial_select.SerialAdapter")])
 def test_serial_check_honours_the_profiles_dtr_rts(monkeypatch, extra, target):
     _RecordingAdapter.instances = []
     mod, name = target.rsplit(".", 1)

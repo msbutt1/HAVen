@@ -10,11 +10,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from conftest import wait_until
-from vibeguard_backend.app import create_app
-from vibeguard_backend.exposure import PersonalLimit, daily_exposure, session_exposure_summary
-from vibeguard_backend.fake_wifi import FakeWifiWearable
-from vibeguard_backend.service import Backend, processing_config_for
-from vibeguard_backend.wifi import WifiAdapter
+from haven_backend.app import create_app
+from haven_backend.exposure import PersonalLimit, daily_exposure, session_exposure_summary
+from haven_backend.fake_wifi import FakeWifiWearable
+from haven_backend.service import Backend, processing_config_for
+from haven_backend.wifi import WifiAdapter
 
 
 def free_port(kind=socket.SOCK_STREAM) -> int:

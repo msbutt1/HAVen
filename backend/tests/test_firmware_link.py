@@ -17,11 +17,11 @@ from pathlib import Path
 import pytest
 from conftest import sim_frames, wait_until
 
-from vibeguard_backend.adapters import AdapterDisconnected
-from vibeguard_backend.runtime import DeviceRuntime
-from vibeguard_backend.serial_select import DeviceIdSerialAdapter
-from vibeguard_backend.service import processing_config_for
-from vibeguard_backend.stream import StreamAdapter
+from haven_backend.adapters import AdapterDisconnected
+from haven_backend.runtime import DeviceRuntime
+from haven_backend.serial_select import DeviceIdSerialAdapter
+from haven_backend.service import processing_config_for
+from haven_backend.stream import StreamAdapter
 
 pytestmark = pytest.mark.skipif(not hasattr(os, "openpty"), reason="needs pseudo-terminals")
 BAUD = 115200  # any rate a pty accepts; the real boards use 921600
@@ -213,8 +213,8 @@ import subprocess
 import sys
 import urllib.request
 
-from vibeguard_backend.hardware import ProfileError, load_profile, serial_check
-from vibeguard_backend.preflight import FAIL, PASS, WARN
+from haven_backend.hardware import ProfileError, load_profile, serial_check
+from haven_backend.preflight import FAIL, PASS, WARN
 
 
 class _Lines:
@@ -305,7 +305,7 @@ def test_serve_reads_the_fake_device_stream_and_keeps_it_labelled_simulated(tmp_
     f = tmp_path / "fake.ndjson"
     f.write_bytes(b"".join(_firmware_stream(counters={"tx_dropped_records": 0, "emg_dropped_samples": 0})))
     port = _free_port()
-    proc = subprocess.Popen([sys.executable, "-m", "vibeguard_backend.cli", "--data-dir", str(tmp_path / "data"), "serve",
+    proc = subprocess.Popen([sys.executable, "-m", "haven_backend.cli", "--data-dir", str(tmp_path / "data"), "serve",
                              "--device", "stream", "--stream", str(f), "--http-port", str(port), "--log-level", "warning"],
                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     try:
@@ -334,7 +334,7 @@ def test_serve_reads_the_fake_device_stream_and_keeps_it_labelled_simulated(tmp_
 
 
 def test_stream_needs_a_source_and_rejects_a_profile(tmp_path):
-    from vibeguard_backend.cli import main
+    from haven_backend.cli import main
     assert main(["serve", "--device", "stream", "--data-dir", str(tmp_path / "d")]) == 2
     prof = tmp_path / "hw.json"
     prof.write_text(json.dumps({"name": "w", "baud": 921600, "emg": {"output": "raw"}}))

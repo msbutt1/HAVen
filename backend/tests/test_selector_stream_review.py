@@ -16,13 +16,13 @@ import types
 import pytest
 from conftest import sim_frames, wait_until
 
-from vibeguard_signals import contract
-from vibeguard_signals.replay import replay_lines
-from vibeguard_backend import serial_select
-from vibeguard_backend.adapters import AdapterDisconnected, EndOfStream, MAX_LINE_BYTES
-from vibeguard_backend.serial_select import DeviceIdSerialAdapter
-from vibeguard_backend.service import processing_config_for
-from vibeguard_backend.stream import StreamAdapter
+from haven_signals import contract
+from haven_signals.replay import replay_lines
+from haven_backend import serial_select
+from haven_backend.adapters import AdapterDisconnected, EndOfStream, MAX_LINE_BYTES
+from haven_backend.serial_select import DeviceIdSerialAdapter
+from haven_backend.service import processing_config_for
+from haven_backend.stream import StreamAdapter
 
 A, B = "vg-w-2805a5075554", "vg-w-aaaaaaaaaaaa"
 
@@ -198,7 +198,7 @@ def test_a_pinned_adapter_whose_port_starts_carrying_the_other_board_is_not_foll
 
 def test_default_dtr_rts_in_the_cli_do_not_reset_the_unwanted_board(monkeypatch, tmp_path):
     """serve --device-id without --no-dtr probes EVERY candidate with the driver default (DTR/RTS asserted)."""
-    from vibeguard_backend import cli
+    from haven_backend import cli
     seen = {}
 
     class Spy:

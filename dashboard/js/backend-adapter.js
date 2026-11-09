@@ -1,5 +1,5 @@
 /*
- * BackendAdapter: the dashboard's connection to the real VibeGuard backend (backend/ in this repo).
+ * BackendAdapter: the dashboard's connection to the real HAVen backend (backend/ in this repo).
  * Same interface as MockAdapter, so app.js does not know which one it is talking to.
  *
  *   live data   WebSocket  /ws/live      (derived features, runtime state, sessions)
@@ -65,7 +65,7 @@
       // "Basic …" for a backend started with VG_BASIC_AUTH, when the caller is not a browser that handles the
       // password itself (the Expo phone app). Sent on every request and on the WebSocket handshake.
       this.authorization = opts.authorization || null;
-      // set by an app (not a browser): sent as X-VibeGuard-Client, so a missing password gets a plain 401 instead of
+      // set by an app (not a browser): sent as X-HAVen-Client, so a missing password gets a plain 401 instead of
       // a challenge (iOS would otherwise hold the request, waiting for a password prompt)
       this.client = opts.client || null;
       this.wsUrl = opts.wsUrl || this._defaultWsUrl();
@@ -117,7 +117,7 @@
       try {
         // React Native's WebSocket takes headers as a third argument; a browser never gets one (no authorization)
         const wsHeaders = Object.assign({}, this.authorization ? { Authorization: this.authorization } : {},
-          this.client ? { 'X-VibeGuard-Client': this.client } : {});
+          this.client ? { 'X-HAVen-Client': this.client } : {});
         ws = Object.keys(wsHeaders).length ? new WebSocket(this.wsUrl, [], { headers: wsHeaders }) : new WebSocket(this.wsUrl);
       } catch (e) {
         this._retry();
@@ -414,7 +414,7 @@
           method,
           headers: Object.assign(body ? { 'content-type': 'application/json' } : {},
             this.authorization ? { Authorization: this.authorization } : {},
-            this.client ? { 'X-VibeGuard-Client': this.client } : {}),
+            this.client ? { 'X-HAVen-Client': this.client } : {}),
           body: body ? JSON.stringify(body) : undefined,
         });
       } catch (e) {

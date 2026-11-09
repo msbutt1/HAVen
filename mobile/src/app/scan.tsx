@@ -23,10 +23,10 @@ export default function Scan() {
     return (
       <View style={{ flex: 1, backgroundColor: t.background, padding: 24, paddingTop: insets.top + 40, gap: 16 }}>
         <Text style={{ color: t.foreground, fontSize: 28, fontWeight: '800' }}>Use the camera</Text>
-        <Muted size={18}>VibeGuard uses the camera only to read the QR code on the laptop. Nothing is recorded.</Muted>
+        <Muted size={18}>HAVen uses the camera only to read the QR code on the laptop. Nothing is recorded.</Muted>
         {permission.canAskAgain
           ? <BigButton title="Allow the camera" onPress={requestPermission} height={68} />
-          : <Muted size={17}>The camera is turned off for VibeGuard. Turn it on in the phone’s Settings, or go back and type the laptop’s address.</Muted>}
+          : <Muted size={17}>The camera is turned off for HAVen. Turn it on in the phone’s Settings, or go back and type the laptop’s address.</Muted>}
         <BigButton title="Go back" kind="outline" onPress={() => router.back()} />
       </View>
     );
@@ -36,7 +36,7 @@ export default function Scan() {
     <View style={{ flex: 1, backgroundColor: '#000' }}>
       <CameraView style={{ flex: 1 }} facing="back" barcodeScannerSettings={{ barcodeTypes: ['qr'] }}
         onBarcodeScanned={done ? undefined : ({ data }) => {
-          if (!baseURL(data)) { setHint('That QR code is not a VibeGuard laptop.'); return; }
+          if (!baseURL(data)) { setHint('That QR code is not a HAVen laptop.'); return; }
           setDone(true);
           scanned.set(data);
           router.back();

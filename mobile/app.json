@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "VibeGuard",
-    "slug": "vibeguard",
+    "name": "HAVen",
+    "slug": "haven",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "dev.vibeguard.mobile",
+      "bundleIdentifier": "dev.haven.mobile",
       "infoPlist": {
-        "NSLocalNetworkUsageDescription": "VibeGuard connects to the laptop running VibeGuard on your Wi-Fi. The laptop reads the sleeve.",
+        "NSLocalNetworkUsageDescription": "HAVen connects to the laptop running HAVen on your Wi-Fi. The laptop reads the sleeve.",
         "NSAppTransportSecurity": {
           "NSAllowsLocalNetworking": true,
           "NSAllowsArbitraryLoads": true
@@ -25,7 +25,7 @@
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "dev.vibeguard.mobile",
+      "package": "dev.haven.mobile",
       "usesCleartextTraffic": true
     },
     "web": {
@@ -37,11 +37,11 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "VibeGuard uses the camera only to read the QR code on the laptop.",
+          "cameraPermission": "HAVen uses the camera only to read the QR code on the laptop.",
           "recordAudioAndroid": false
         }
       ]
     ],
-    "scheme": "vibeguard"
+    "scheme": "haven"
   }
 }

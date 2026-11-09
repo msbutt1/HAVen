@@ -30,10 +30,10 @@ from pathlib import Path
 import pytest
 
 from conftest import ScriptedAdapter, SimAdapter, sim_frames, wait_until
-from vibeguard_backend.hub import Hub
-from vibeguard_backend.runtime import RuntimeGone
-from vibeguard_backend.service import Backend, processing_config_for
-from vibeguard_backend.store import Store
+from haven_backend.hub import Hub
+from haven_backend.runtime import RuntimeGone
+from haven_backend.service import Backend, processing_config_for
+from haven_backend.store import Store
 
 # registered informally: `pytest -m fast` selects these
 pytestmark = pytest.mark.fast
@@ -309,7 +309,7 @@ def test_sigterm_with_a_stuck_websocket_client_still_shuts_down(tmp_path: Path):
     port = _free_port()
     data = tmp_path / "data"
     proc = subprocess.Popen(
-        [sys.executable, "-m", "vibeguard_backend.cli", "--data-dir", str(data), "serve", "--http-port",
+        [sys.executable, "-m", "haven_backend.cli", "--data-dir", str(data), "serve", "--http-port",
          str(port), "--speed", "20", "--log-level", "warning"],
         stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     stuck = None

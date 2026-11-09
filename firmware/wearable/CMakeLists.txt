@@ -1,4 +1,4 @@
-# VibeGuard wearable role (ESP-IDF project). Build with: ../tools/build.sh wearable <board>
+# HAVen wearable role (ESP-IDF project). Build with: ../tools/build.sh wearable <board>
 cmake_minimum_required(VERSION 3.22)
 set(VG_BOARD "unconfigured" CACHE STRING "board directory under firmware/boards")
 set(EXTRA_COMPONENT_DIRS
@@ -6,4 +6,4 @@ set(EXTRA_COMPONENT_DIRS
     "${CMAKE_CURRENT_LIST_DIR}/../boards"
     "${CMAKE_CURRENT_LIST_DIR}/../target")
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(vibeguard_wearable)
+project(haven_wearable)

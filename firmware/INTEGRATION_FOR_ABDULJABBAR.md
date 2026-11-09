@@ -21,7 +21,7 @@ UDP broadcast on 8766, so the laptop's hotspot IP can change.
   (500 Hz, 25 rows per batch, accelerometer only).
 - `provenance.source` is `live`. Values are raw ADC counts (EMG) and raw counts
   (IMU; ±8 g = 4096 LSB/g).
-- Validate every line with `vibeguard_signals.contract.parse_line` before use.
+- Validate every line with `haven_signals.contract.parse_line` before use.
   Invalid lines are rejected whole; never repair them.
 - Field definitions: `signals/contract/TELEMETRY_CONTRACT.md`.
 - Live Wi-Fi rates measured on board W: about 41 records/s, about 32 kB/s, 0 sample
@@ -106,12 +106,12 @@ Two options. **Recommended: option A (embed the processor).** It needs no separa
 process, and commands go straight to the processor.
 
 **Option A: embed `Processor` in the backend** (`signals/examples/embed_processor.py` is
-the reference; `signals/src/vibeguard_signals/bridge.py` is a complete live example):
+the reference; `signals/src/haven_signals/bridge.py` is a complete live example):
 
 ```python
 import dataclasses, time
-from vibeguard_signals import contract
-from vibeguard_signals.processing import Processor, ProcessingConfig, StreamConfig, to_ndjson_line
+from haven_signals import contract
+from haven_signals.processing import Processor, ProcessingConfig, StreamConfig, to_ndjson_line
 
 G = 9.80665
 def live_config(lsb_per_g: float = 4096.0) -> ProcessingConfig:
@@ -203,7 +203,7 @@ Tests of the processing itself: `cd signals && uv run pytest` (330 tests, all pa
   maximum squeeze. It is not force, and it is not %MVC.
 - **EMG needs electrodes on skin**, with the BioAmp's BANDPASS jumper bridged. The
   input is validated by the processor (`degraded` when clipped).
-- **The tool thresholds are provisional** (`signals/src/vibeguard_signals/processing/config.py`,
+- **The tool thresholds are provisional** (`signals/src/haven_signals/processing/config.py`,
   `ToolUseConfig`). They were tuned on a phone motor, not a real power tool. The
   warnings are team choices, not regulatory limits.
 - **The experimental score** is arbitrary units and is not a dose.

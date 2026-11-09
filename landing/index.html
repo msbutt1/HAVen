@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VibeGuard: a wearable for hand-arm vibration awareness</title>
-  <meta name="description" content="VibeGuard is a hackathon prototype: a forearm sleeve that measures muscle effort and wrist vibration together, a fingertip vibration test, and a local dashboard. Experimental, not a medical device.">
+  <title>HAVen: a wearable for hand-arm vibration awareness</title>
+  <meta name="description" content="HAVen is a hackathon prototype: a forearm sleeve that measures muscle effort and wrist vibration together, a fingertip vibration test, and a local dashboard. Experimental, not a medical device.">
   <meta name="theme-color" content="#11151d" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f8ff7'/%3E%3Cpath d='M5 16h5l3-7 4 14 3-9 2 2h5' fill='none' stroke='%23131826' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -17,16 +17,16 @@
 
   <div class="announce">
     <div class="wrap">
-      <span>VibeGuard is a natHacks 2026 prototype. The demo runs on<code>simulated</code>data in your browser, not a real sleeve.</span>
+      <span>HAVen is a natHacks 2026 prototype. The demo runs on<code>simulated</code>data in your browser, not a real sleeve.</span>
       <a href="#status">Where it stands<span aria-hidden="true">→</span></a>
     </div>
   </div>
 
   <header class="site-header">
     <div class="wrap header-row">
-      <a class="brand" href="#top" aria-label="VibeGuard">
+      <a class="brand" href="#top" aria-label="HAVen">
         <span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg></span>
-        <span>VibeGuard</span>
+        <span>HAVen</span>
       </a>
       <nav class="nav" aria-label="Page sections">
         <a href="#measures">What it measures</a>
@@ -37,7 +37,7 @@
         <a href="#faq">FAQ</a>
       </nav>
       <div class="header-actions">
-        <a class="chip-btn" href="https://github.com/msbutt1/VibeGaurd">GitHub</a>
+        <a class="chip-btn" href="https://github.com/msbutt1/HAVen">GitHub</a>
         <a class="btn btn-primary btn-sm" href="dashboard/?source=mock">Open the demo</a>
       </div>
     </div>
@@ -69,13 +69,13 @@
           <figure class="frame panel">
             <div class="frame-bar">
               <span class="mark mark-sm" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg></span>
-              <span class="path">vibeguard / dashboard</span>
+              <span class="path">haven / dashboard</span>
               <span class="pill"><span class="dot" aria-hidden="true"></span>Replay · not live</span>
             </div>
             <picture>
               <source srcset="assets/dashboard-dark.png" media="(prefers-color-scheme: dark)">
               <img src="assets/dashboard-light.png" width="1920" height="1140"
-                   alt="The VibeGuard dashboard Live screen: muscle activation as a percentage of max squeeze, wrist vibration in metres per second squared, an experimental exposure score, and three 30-second charts. A blue banner reads: Recorded replay. This is not live.">
+                   alt="The HAVen dashboard Live screen: muscle activation as a percentage of max squeeze, wrist vibration in metres per second squared, an experimental exposure score, and three 30-second charts. A blue banner reads: Recorded replay. This is not live.">
             </picture>
             <figcaption>The real dashboard, replaying a recorded demo session. Not live data.</figcaption>
           </figure>
@@ -95,7 +95,7 @@
         </div>
         <div class="split-r prose reveal">
           <p>Hand-arm vibration syndrome comes from regular, long-term use of vibrating hand tools. Exposure is typically estimated from a tool’s rated vibration and the hours it was used.</p>
-          <p>VibeGuard explores adding what the worker’s own arm is doing: how hard the forearm muscles are working, and the vibration that actually reaches the wrist. It is an idea we are prototyping, not a validated method.</p>
+          <p>HAVen explores adding what the worker’s own arm is doing: how hard the forearm muscles are working, and the vibration that actually reaches the wrist. It is an idea we are prototyping, not a validated method.</p>
         </div>
       </div>
     </section>
@@ -259,7 +259,7 @@
           <p class="lede">Four parts, each tested on its own. One command starts the demo.</p>
         </div>
         <div class="terminal body-gap reveal" role="img" aria-label="Terminal: starting the backend with the recorded demo session and serving the dashboard">
-          <div class="frame-bar"><span class="path">~/VibeGuard/backend</span></div>
+          <div class="frame-bar"><span class="path">~/HAVen/backend</span></div>
           <pre><span class="t-dim">$</span> uv run vg-backend serve --backup backup/demo-session --loop
 <span class="t-info">vg-backend:</span> REPLAY FALLBACK from backup/demo-session (labelled replay, not live), looping
 <span class="t-info">vg-backend:</span> dashboard at http://127.0.0.1:8000/dashboard/
@@ -314,7 +314,7 @@
         </div>
         <div class="faq">
           <details>
-            <summary>Is VibeGuard a medical device?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
+            <summary>Is HAVen a medical device?<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></summary>
             <p>No. It is a hackathon prototype for demonstration. Nothing it shows is a diagnosis.</p>
           </details>
           <details>
@@ -346,7 +346,7 @@
         </div>
         <div class="cta-row">
           <a class="btn btn-primary btn-lg" href="dashboard/?source=mock">Open the demo</a>
-          <a class="btn btn-outline btn-lg" href="https://github.com/msbutt1/VibeGaurd">View the source</a>
+          <a class="btn btn-outline btn-lg" href="https://github.com/msbutt1/HAVen">View the source</a>
         </div>
       </div>
     </section>
@@ -355,7 +355,7 @@
   <footer class="site-footer">
     <div class="wrap foot-grid">
       <div>
-        <span class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg></span><span>VibeGuard</span></span>
+        <span class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg></span><span>HAVen</span></span>
         <p class="blurb">A forearm sleeve, a fingertip test and a local dashboard for hand-arm vibration awareness.</p>
       </div>
       <div>
@@ -370,7 +370,7 @@
       <div>
         <p class="foot-title">Code</p>
         <ul class="foot-links">
-          <li><a href="https://github.com/msbutt1/VibeGaurd">GitHub repository</a></li>
+          <li><a href="https://github.com/msbutt1/HAVen">GitHub repository</a></li>
           <li><a href="dashboard/?source=mock">Open the demo</a></li>
           <li><a href="#faq">FAQ</a></li>
         </ul>
@@ -382,7 +382,7 @@
     </div>
     <div class="foot-bottom">
       <div class="wrap">
-        <span>© 2026 VibeGuard team · natHacks 2026</span>
+        <span>© 2026 HAVen team · natHacks 2026</span>
         <b>Prototype · not a medical device · no diagnosis · the score is not a dose</b>
       </div>
     </div>

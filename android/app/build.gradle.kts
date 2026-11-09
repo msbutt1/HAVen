@@ -3,11 +3,11 @@ plugins {
 }
 
 android {
-    namespace = "com.vibeguard.app"
+    namespace = "com.haven.app"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.vibeguard.app"
+        applicationId = "com.haven.app"
         minSdk = 26          // Android 8.0
         targetSdk = 36
         versionCode = 1

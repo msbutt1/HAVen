@@ -10,12 +10,12 @@ import math
 
 import pytest
 
-from vibeguard_signals import contract
-from vibeguard_signals.processing import ProcessingConfig, Processor
-from vibeguard_signals.processing.config import (
+from haven_signals import contract
+from haven_signals.processing import ProcessingConfig, Processor
+from haven_signals.processing.config import (
     CalibrationConfig, EmgFilterConfig, EmgProcessingConfig, StreamConfig,
 )
-from vibeguard_signals.simulator import SimConfig, Simulation
+from haven_signals.simulator import SimConfig, Simulation
 
 FAST_CAL = CalibrationConfig(relaxed_s=1.0, squeeze_s=1.0, discard_s=0.2, min_updates=5)
 

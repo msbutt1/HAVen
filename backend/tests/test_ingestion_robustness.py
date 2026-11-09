@@ -22,10 +22,10 @@ import pytest
 import serial
 
 from conftest import FIXTURES, ScriptedAdapter, sim_frames, wait_until
-from vibeguard_signals import contract
-from vibeguard_backend.adapters import MAX_LINE_BYTES, AdapterDisconnected, SerialAdapter
-from vibeguard_backend.hub import Hub
-from vibeguard_backend.service import Backend, processing_config_for
+from haven_signals import contract
+from haven_backend.adapters import MAX_LINE_BYTES, AdapterDisconnected, SerialAdapter
+from haven_backend.hub import Hub
+from haven_backend.service import Backend, processing_config_for
 
 # --------------------------------------------------------------------------- helpers
 

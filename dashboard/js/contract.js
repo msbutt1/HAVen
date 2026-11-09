@@ -1,5 +1,5 @@
 /*
- * VibeGuard dashboard: data contract (PLACEHOLDER)
+ * HAVen dashboard: data contract (PLACEHOLDER)
  *
  * This is the dashboard's working guess at the message format, built from
  * Ali_04_interfaces_and_parallelism.md. Replace it with the team's agreed

@@ -2,7 +2,7 @@
   "version": "0.0.1",
   "configurations": [
     {
-      "name": "vibeguard-backend",
+      "name": "haven-backend",
       "runtimeExecutable": "uv",
       "runtimeArgs": ["run", "--project", "backend", "vg-backend", "serve", "--speed", "1"],
       "port": 8765

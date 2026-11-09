@@ -27,7 +27,7 @@ A practical pre-hardware budget is about 6–9 focused hours, adjusted to the te
 ## Prompt 0 — Load context and establish ownership
 
 ```text
-You are implementing Salaar's pre-hardware work for VibeGuard in /home/salaar/nathacks.
+You are implementing Salaar's pre-hardware work for HAVen in /home/salaar/nathacks.
 
 Read the seven original Markdown files in project-plan/Salaar (01 through 07), applicable repository instructions, and any existing source/configuration. Inspect the working tree without disturbing teammates' edits. This file is the execution guide, not an instruction to run every step now.
 

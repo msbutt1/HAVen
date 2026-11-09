@@ -22,13 +22,13 @@ import pytest
 from fastapi.testclient import TestClient
 
 from conftest import ScriptedAdapter, sim_frames, wait_until
-from vibeguard_signals import contract
-from vibeguard_signals.demo import CALIBRATION_SCHEDULE
-from vibeguard_signals.processing import to_ndjson_line
-from vibeguard_backend.app import create_app
-from vibeguard_backend.history import seed_history
-from vibeguard_backend.hub import Hub
-from vibeguard_backend.service import Backend, processing_config_for
+from haven_signals import contract
+from haven_signals.demo import CALIBRATION_SCHEDULE
+from haven_signals.processing import to_ndjson_line
+from haven_backend.app import create_app
+from haven_backend.history import seed_history
+from haven_backend.hub import Hub
+from haven_backend.service import Backend, processing_config_for
 
 DURATION_S = 30.0  # the demo timeline: calibration captures need ~8 s of device time
 

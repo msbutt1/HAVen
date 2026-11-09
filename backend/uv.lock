@@ -946,7 +946,7 @@ wheels = [
 ]
 
 [[package]]
-name = "vibeguard-backend"
+name = "haven-backend"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
@@ -954,7 +954,7 @@ dependencies = [
     { name = "pyserial" },
     { name = "segno" },
     { name = "uvicorn", extra = ["standard"] },
-    { name = "vibeguard-signals" },
+    { name = "haven-signals" },
     { name = "zeroconf" },
 ]
 
@@ -970,7 +970,7 @@ requires-dist = [
     { name = "pyserial", specifier = ">=3.5" },
     { name = "segno", specifier = ">=1.6" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
-    { name = "vibeguard-signals", editable = "../signals" },
+    { name = "haven-signals", editable = "../signals" },
     { name = "zeroconf", specifier = ">=0.136" },
 ]
 
@@ -981,7 +981,7 @@ dev = [
 ]
 
 [[package]]
-name = "vibeguard-signals"
+name = "haven-signals"
 version = "0.1.0"
 source = { editable = "../signals" }
 dependencies = [

@@ -22,9 +22,9 @@ import pytest
 from fastapi.testclient import TestClient
 
 from conftest import ScriptedAdapter, SimAdapter, sim_frames, wait_until
-from vibeguard_backend.app import create_app
-from vibeguard_backend.hub import CHANNELS, DEFAULT_CHANNELS, Hub
-from vibeguard_backend.service import Backend
+from haven_backend.app import create_app
+from haven_backend.hub import CHANNELS, DEFAULT_CHANNELS, Hub
+from haven_backend.service import Backend
 
 
 # ---------------------------------------------------------------------------- helpers
