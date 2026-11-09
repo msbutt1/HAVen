@@ -4,7 +4,7 @@
 
 HAVen is a prototype for hand-arm vibration (HAV) exposure. It pairs a wearable sleeve (an ESP32 with a forearm EMG sensor and a wrist accelerometer) with a phone app that does all the processing, and a laptop dashboard for demos and review. It was built for natHacks 2026.
 
-> **Status: hackathon prototype.** HAVen is not a medical device and does not give a diagnosis. Its exposure score is experimental, its vibration numbers are an unweighted wrist estimate, and the demo data is simulated unless labelled otherwise. See [Limitations](#limitations).
+> **Status: hackathon prototype.** HAVen is not a medical device and does not give a diagnosis. Its exposure score is prevential measure not ground truth.
 
 ---
 
