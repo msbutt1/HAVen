@@ -164,25 +164,23 @@ final class Sleeve {
                     .put("contact", contact);
             if (demo > 1) d.put("demoSpeed", demo);       // recorded at demo speed: labelled on the Overview
             days.put(date, d);
-            saveDays(days);                               // keeps the last 400 days (History.KEEP_DAYS)
+            saveDays(days);                               // every day is kept on the phone
         } catch (Exception ignored) {}
     }
 
-    /** Every write of the "days" log goes here: bounded, and the screen's copy is rebuilt once. */
+    /** Every write of the "days" log goes here (all days are kept locally); the screen's copy is rebuilt once. */
     private void saveDays(JSONObject days) {
-        History.trim(days, History.KEEP_DAYS);
         prefs.edit().putString("days", days.toString()).apply();
         historyVersion++;
     }
 
-    /** The log as the screen gets it, newest first, with each day's date; rebuilt only after a change. */
+    /** The newest 400 days as the screen gets them, newest first, with each day's date; rebuilt only after a change. */
     private String historyJson() {
         if (historyBuilt == historyVersion) return historyJson;
         historyBuilt = historyVersion;
         historyDays = History.parse(prefs.getString("days", "{}"));
         JSONArray hist = new JSONArray();
-        java.util.List<String> keys = History.sortedKeys(historyDays);
-        java.util.Collections.reverse(keys);
+        java.util.List<String> keys = History.newest(historyDays, History.SCREEN_DAYS);
         try {
             for (String k : keys) hist.put(new JSONObject(historyDays.getJSONObject(k).toString()).put("date", k));
         } catch (Exception ignored) {}

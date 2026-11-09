@@ -21,15 +21,19 @@ public class HistoryTest {
     }
 
     @Test
-    public void retentionKeepsTheNewest400Days() throws Exception {
+    public void everyDayIsKeptAndTheScreenGetsTheNewest400() throws Exception {
         JSONObject days = new JSONObject();
         LocalDate t = LocalDate.parse(TODAY);
-        for (int i = 1; i <= 450; i++) days.put(t.minusDays(i).toString(), real(50));
-        History.trim(days, History.KEEP_DAYS);
-        assertEquals(400, days.length());
-        assertTrue(days.has(t.minusDays(1).toString()));
-        assertTrue(days.has(t.minusDays(400).toString()));
-        assertFalse(days.has(t.minusDays(401).toString()));
+        for (int i = 1; i <= 1000; i++) days.put(t.minusDays(i).toString(), real(50));
+        List<String> shown = History.newest(days, History.SCREEN_DAYS);
+        assertEquals(1000, days.length());                     // nothing is dropped from the log
+        assertEquals(400, shown.size());
+        assertEquals(t.minusDays(1).toString(), shown.get(0));  // newest first
+        assertEquals(t.minusDays(400).toString(), shown.get(399));
+        // sample days added and removed around old real days leave the real ones alone
+        History.addSample(days, TODAY, History.SAMPLE_DAYS);
+        History.clearSample(days);
+        assertEquals(1000, days.length());
     }
 
     @Test

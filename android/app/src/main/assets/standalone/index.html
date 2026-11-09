@@ -757,7 +757,7 @@ function renderWizard() {
 
 
 /* ---------- overview over time: today by hour, the last 7 days, the last 30 days, the last 12 months.
-   Limits are DAILY: a week or month is one bar per day, never a sum; the year is one bar per month = the
+   Limits are DAILY: a week (bars) or month (line) is one value per day, never a sum; the year (line) is one point per month = the
    energy mean of that month's daily A(8), as average points per working day (History.months in Sleeve) ---------- */
 let METRIC = 'points', RANGE = 'week', SEL = null, MORE = 14, OV_SIG = '';
 const RANGES = {
@@ -802,9 +802,11 @@ function rangeDays(s, byDate, todayKey) {
   return out;
 }
 
-// one bar chart: items {v, col, faded, demo, x, bold, top}; the y axis is capped so one demo-speed day cannot
-// flatten the rest (taller bars reach the top with a small "▲value" label)
+// one chart: items {v, col, faded, demo, empty, x, bold, top}. Bars (Today, Week) or, with o.line, a line with a
+// dot per point coloured by its status (Month, Year); a gap with nothing logged is a faint dashed link. The y axis
+// is capped so one demo-speed day cannot flatten the rest (taller values reach the top with a "▲value" label)
 function barChart(items, o) {
+  if (o.line) return lineChart(items, o);
   const W = 340, H = 190, top = 18, bottom = 26, left = 4, right = 4, n = items.length;
   const vals = items.map(i => i.v || 0), pos = vals.filter(v => v > 0).sort((a, b) => a - b);
   const q = !pos.length ? 0 : pos.length >= 20 ? pos[Math.floor(pos.length * 0.95)] : pos.length >= 2 ? pos[pos.length - 2] : pos[0];
@@ -829,6 +831,39 @@ function barChart(items, o) {
     svg += `<polyline points="${pts}" fill="none" stroke="var(--fg)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".75"/>`;
   }
   // a full-height tap target per bar
+  items.forEach((it, i) => { svg += `<rect data-i="${i}" x="${left + i * bw}" y="0" width="${bw}" height="${H}" fill="transparent"/>`; });
+  return svg + '</svg>';
+}
+function lineChart(items, o) {
+  const W = 340, H = 190, top = 18, bottom = 26, left = 8, right = 8, n = items.length;
+  const vals = items.map(i => i.v || 0), pos = items.filter(i => !i.empty).map(i => i.v || 0).filter(v => v > 0).sort((a, b) => a - b);
+  const q = !pos.length ? 0 : pos.length >= 20 ? pos[Math.floor(pos.length * 0.95)] : pos.length >= 2 ? pos[pos.length - 2] : pos[0];
+  const cap = Math.max(o.floor, q * 1.1);
+  const y = v => top + (H - top - bottom) * (1 - Math.min(v, cap) / cap);
+  const bw = (W - left - right) / n, cx = i => left + i * bw + bw / 2, r = n > 20 ? 3.2 : 4.5;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria)}">`;
+  for (const l of o.lines || []) if (l.v <= cap) svg += `<line x1="${left}" x2="${W - right}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.color}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".9"/>
+    <text x="${W - right}" y="${y(l.v) - 5}" text-anchor="end" font-size="10" fill="${l.color}">${l.label}</text>`;
+  svg += `<line x1="${left}" x2="${W - right}" y1="${H - bottom}" y2="${H - bottom}" stroke="var(--line)" stroke-width="1"/>`;
+  if (SEL != null && SEL < n) svg += `<line x1="${cx(SEL)}" x2="${cx(SEL)}" y1="${top - 10}" y2="${H - bottom}" stroke="var(--fg)" stroke-width="1" opacity=".25"/>`;
+  // the line: solid between neighbouring points, faint and dashed across days or months with nothing logged
+  const idx = items.map((it, i) => it.empty ? -1 : i).filter(i => i >= 0);
+  let solid = '', dashed = '';
+  for (let k = 1; k < idx.length; k++) {
+    const a = idx[k - 1], b = idx[k], seg = ` M${cx(a).toFixed(1)} ${y(vals[a]).toFixed(1)} L${cx(b).toFixed(1)} ${y(vals[b]).toFixed(1)}`;
+    if (b - a === 1) solid += seg; else dashed += seg;
+  }
+  if (dashed) svg += `<path d="${dashed}" fill="none" stroke="var(--faint)" stroke-width="1.5" stroke-dasharray="2 4" stroke-linecap="round"/>`;
+  if (solid) svg += `<path d="${solid}" fill="none" stroke="${o.stroke || 'var(--muted)'}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+  items.forEach((it, i) => {
+    const v = vals[i], x = cx(i), yy = y(v);
+    if (!it.empty) svg += it.demo
+      ? `<circle cx="${x}" cy="${yy}" r="${r + .5}" fill="var(--surface)" stroke="${it.col}" stroke-width="2" stroke-dasharray="2 1.5"/>`
+      : `<circle cx="${x}" cy="${yy}" r="${SEL === i ? r + 1.5 : r}" fill="${it.col}" opacity="${it.faded ? .6 : 1}" stroke="var(--surface)" stroke-width="1.5"/>`;
+    if (!it.empty && v > cap) svg += `<text x="${x}" y="${top - 6}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--fg)">▲${it.top}</text>`;
+    else if (o.tops && !it.empty && it.top !== '' && it.top != null) svg += `<text x="${x}" y="${yy - 9}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--fg)">${it.top}</text>`;
+    if (it.x) svg += `<text x="${x}" y="${H - 8}" text-anchor="middle" font-size="${n > 12 ? 11 : 12}" font-weight="${it.bold ? 700 : 500}" fill="${it.bold ? 'var(--primary)' : 'var(--muted)'}">${it.x}</text>`;
+  });
   items.forEach((it, i) => { svg += `<rect data-i="${i}" x="${left + i * bw}" y="0" width="${bw}" height="${H}" fill="transparent"/>`; });
   return svg + '</svg>';
 }
@@ -881,8 +916,8 @@ function renderOverview(s, force) {
       return { v, empty: !m.days, col: metric === 'tool' ? 'var(--primary)' : rule(m.points, limit)[1], faded: m.sample, demo: m.demo,
         x: d.toLocaleDateString([], { month: 'narrow' }), bold: i === ms.length - 1, top: metric === 'points' ? Math.round(v) : toolLbl(v) };
     });
-    opts = metric === 'points' ? { floor: limit * 0.6, lines: ptsLines, tops: true, aria: 'Average points per working day, each of the last 12 months' }
-      : { floor: 2.5, lines: [{ v: 2, color: 'var(--faint)', label: '2 h' }], tops: true, aria: 'Average tool time per working day, each of the last 12 months' };
+    opts = metric === 'points' ? { line: true, floor: limit * 0.6, lines: ptsLines, tops: true, aria: 'Average points per working day, each of the last 12 months' }
+      : { line: true, stroke: 'var(--primary)', floor: 2.5, lines: [{ v: 2, color: 'var(--faint)', label: '2 h' }], tops: true, aria: 'Average tool time per working day, each of the last 12 months' };
     const m = SEL != null && ms[SEL];
     if (m) {
       const name = new Date(m.month + '-15T12:00:00').toLocaleDateString([], { month: 'long', year: 'numeric' });
@@ -897,21 +932,23 @@ function renderOverview(s, force) {
         x: n <= 7 ? x7 : (n - 1 - i) % 5 === 0 ? String(x.d.getDate()) : '', bold: e && e.today,
         top: e ? (metric === 'points' ? Math.round(v) : toolLbl(v)) : '' };
     });
-    opts = metric === 'points' ? { floor: limit * 1.15, lines: ptsLines, tops: n <= 7, aria: `Points per day, ${R.sub.toLowerCase()}` }
-      : { floor: 2.5, lines: [{ v: 2, color: 'var(--faint)', label: '2 h' }], tops: n <= 7, aria: `Tool time per day, ${R.sub.toLowerCase()}` };
+    const line = RANGE === 'month';                       // Month: a line; Week: bars
+    opts = metric === 'points' ? { line, floor: limit * 1.15, lines: ptsLines, tops: n <= 7, aria: `Points per day, ${R.sub.toLowerCase()}` }
+      : { line, stroke: 'var(--primary)', floor: 2.5, lines: [{ v: 2, color: 'var(--faint)', label: '2 h' }], tops: n <= 7, aria: `Tool time per day, ${R.sub.toLowerCase()}` };
     const x = SEL != null && days[SEL];
     if (x) sel = !x.e ? `<b>${longDate(x.d)}</b> · nothing logged` : `<b>${x.e.today ? 'Today' : longDate(x.d)}</b> · ${Math.round(x.e.points)} points (A(8) ${f(a8Of(x.e), 2)} m/s²) · ${hm(x.e.tool)} tool · ${rule(x.e.points, x.e.limit || limit)[0]}${tagsOf(x.e)}`;
   }
   $('chart').innerHTML = barChart(items, opts);
   $('chart').onclick = pickBar;
-  $('chartSel').innerHTML = sel || 'Tap a bar for details.';
+  $('chartSel').innerHTML = sel || (RANGE === 'month' || RANGE === 'year' ? 'Tap a point for details.' : 'Tap a bar for details.');
   const anySample = items.some(i => i.faded), anyDemo = items.some(i => i.demo);
   $('chartKey').innerHTML = (metric === 'points'
     ? '<span style="color:var(--mid)"><i></i>action level</span>' + (RANGE === 'year' ? '' : '<span style="color:var(--high)"><i></i>daily limit</span>')
     : '<span><i></i>2 hours</span>')
-    + (RANGE === 'year' ? '<span>each bar: average per working day that month</span>' : '')
+    + (RANGE === 'year' ? '<span>each point: average per working day that month</span>' : '')
     + (RANGE === 'today' ? '<span>line: running total</span>' : '')
-    + (anySample ? '<span>faded: sample</span>' : '') + (anyDemo ? '<span>dotted outline: demo speed</span>' : '');
+    + (RANGE === 'month' || RANGE === 'year' ? `<span>dashed gap: ${RANGE === 'year' ? 'month' : 'day'} with no tool use</span>` : '')
+    + (anySample ? '<span>faded: sample</span>' : '') + (anyDemo ? `<span>${RANGE === 'month' || RANGE === 'year' ? 'hollow dot' : 'dotted outline'}: demo speed</span>` : '');
 
   // stats for the range
   const real = logged.map(x => x.e), worked = real.filter(e => e.points > 0);

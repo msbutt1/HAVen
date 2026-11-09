@@ -22,8 +22,11 @@ import java.util.Random;
  * backend's exposure.py daily_exposure and the Overview's weekly average.
  */
 final class History {
-    /** About 13 months: enough for the Year view; one small object per day keeps this tiny. */
-    static final int KEEP_DAYS = 400;
+    /**
+     * Every day is kept on the phone (about 100 bytes a day, roughly 36 KB a year). The screen gets the newest
+     * {@code SCREEN_DAYS} (about 13 months: enough for the Year view), so the state stays small.
+     */
+    static final int SCREEN_DAYS = 400;
     static final int SAMPLE_DAYS = 365;
     static final long SEED = 20261109L;
 
@@ -40,10 +43,11 @@ final class History {
         return keys;
     }
 
-    /** Keep the newest {@code keep} days. */
-    static void trim(JSONObject days, int keep) {
+    /** The newest {@code n} dates, newest first (what the screen gets); nothing is removed from the log. */
+    static List<String> newest(JSONObject days, int n) {
         List<String> keys = sortedKeys(days);
-        while (keys.size() > keep) days.remove(keys.remove(0));
+        Collections.reverse(keys);
+        return keys.size() > n ? new ArrayList<>(keys.subList(0, n)) : keys;
     }
 
     /** Removes the sample days only; real days stay. Returns how many were removed. */
