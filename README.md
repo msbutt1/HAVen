@@ -28,10 +28,7 @@ HAVen is a prototype for hand-arm vibration (HAV) exposure. It pairs a wearable 
 | Source code | [github.com/msbutt1/HAVen](https://github.com/msbutt1/HAVen) |
 | Pitch deck (PowerPoint) | [presentation/HAVen_Pitch_Deck.pptx](https://github.com/msbutt1/HAVen/blob/main/presentation/HAVen_Pitch_Deck.pptx) |
 | Pitch deck source, speaker notes and build | [presentation/](https://github.com/msbutt1/HAVen/tree/main/presentation) |
-| Devpost submission | *to be added* |
-| Live demo (simulated data, runs in the browser) | *to be added: the landing page is in [`landing/`](landing/README.md)* |
 | Demo video | *to be added* |
-| Android app (APK) | *to be added as a release asset, built with [`android/build-apk.sh`](android/README.md)* |
 
 The pitch deck links point at `main`, so they work once the pull request that adds them is merged.
 
