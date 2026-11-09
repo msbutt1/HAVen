@@ -169,10 +169,10 @@ On the current branch, the backend suite has a small number of serial and timing
 
 | Name | Role |
 |---|---|
-| Fahad | Exposure engine, frontend, dashboard, presentation coordination |
-| Salaar | Firmware, signal processing, Android and iOS apps |
-| Abduljabbar | Backend, app integration |
-| Ali | CAD and parts |
+| Fahad | Exposure engine, frontend, presentation coordination |
+| Salaar | Firmware, signal processing |
+| Abduljabbar | Backend, app integration, Android and iOS apps |
+| Ali | Frontend CAD and parts |
 | Collins | Hardware and sleeve |
 
 Built for natHacks 2026, University of Alberta.
