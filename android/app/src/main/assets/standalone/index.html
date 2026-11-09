@@ -209,9 +209,11 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
     <div class="label">Vibration today</div>
     <div class="gauge">
       <svg viewBox="0 0 120 120">
+        <defs><filter id="headShadow" x="-60%" y="-60%" width="220%" height="220%"><feDropShadow dx="0" dy="0" stdDeviation="1.6" flood-color="#000" flood-opacity=".55"/></filter></defs>
         <g transform="rotate(-90 60 60)">
           <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="12"/>
-          <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="var(--low)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 327" style="transition: stroke-dasharray .6s ease-out, stroke .4s"/>
+          <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="var(--low)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 327"/>
+          <g id="over"></g>
         </g>
         <line id="tick" x1="60" y1="2" x2="60" y2="16" stroke="var(--fg)" stroke-width="2" stroke-linecap="round" opacity=".55"/>
       </svg>
@@ -458,6 +460,7 @@ const f = (v, d) => v == null || !isFinite(v) ? '—' : Number(v).toFixed(d);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function minutes(s) { if (s == null) return '—'; const m = Math.floor(s / 60); if (m < 1) return 'under a minute'; const h = Math.floor(m / 60); return h ? `${h} h ${m % 60} min` : `${m} min`; }
 function level(pts, limit) {
+  if (pts >= limit * 1.02) return ['Over the limit', 'var(--high)'];
   if (pts >= limit) return ['Limit reached', 'var(--high)'];
   if (pts >= 100) return ['Action level', 'var(--mid)'];
   return ['Low', 'var(--low)'];
@@ -479,9 +482,8 @@ function render() {
 
   const e = s.exposure, pts = e.points || 0, limit = e.limit || 400, lv = level(pts, limit);
   $('word').textContent = lv[0]; $('word').style.color = lv[1];
-  $('arc').setAttribute('stroke-dasharray', `${Math.max(0.001, Math.min(1, pts / limit)) * ARC} ${ARC}`);
-  $('arc').setAttribute('stroke', lv[1]);
-  $('arc').style.opacity = pts > 0.5 ? 1 : 0;
+  RING.target = pts; RING.limit = limit;
+  if (!RING.raf) RING.raf = requestAnimationFrame(ringLoop);
   const a = 2 * Math.PI * Math.min(1, 100 / limit);
   $('tick').setAttribute('transform', `rotate(${a * 180 / Math.PI} 60 60)`);
   $('tick').style.display = limit > 100 ? '' : 'none';
@@ -514,6 +516,48 @@ function render() {
   renderOverview(s);
   renderSettings(s); renderWizard(); renderAlarm(s);
   if (s.toast && s.toastId !== lastToast) { lastToast = s.toastId; const el = $('toast'); el.textContent = s.toast; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 2600); }
+}
+
+/* ---------- today's ring: grows smoothly; past the limit a second lap in deepening red slides over the
+   first, its shadowed head eating its own tail ---------- */
+const RING = { shown: 0, target: 0, limit: 400, raf: 0, drawn: -1 };
+function lerpColor(a, b, t) {
+  const p = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const x = p(a), y = p(b);
+  return '#' + x.map((v, i) => Math.round(v + (y[i] - v) * t).toString(16).padStart(2, '0')).join('');
+}
+function ringPoint(frac) { const th = 2 * Math.PI * frac; return [60 + 52 * Math.cos(th), 60 + 52 * Math.sin(th)]; }
+function ringLoop() {
+  const d = RING.target - RING.shown;
+  RING.shown += Math.abs(d) < 0.05 ? d : d * 0.08;               // ease toward the reading, ~60 fps
+  if (Math.abs(RING.shown - RING.drawn) > 0.01) drawRing(RING.shown, RING.limit);
+  RING.raf = Math.abs(RING.target - RING.shown) > 0.001 ? requestAnimationFrame(ringLoop) : 0;
+}
+function drawRing(v, limit) {
+  RING.drawn = v;
+  const arc = $('arc'), over = $('over');
+  const lv = level(v, limit);
+  arc.style.opacity = v > 0.5 ? 1 : 0;
+  arc.setAttribute('stroke', lv[1]);
+  arc.setAttribute('stroke-dasharray', `${Math.max(0.001, Math.min(1, v / limit)) * ARC} ${ARC}`);
+  const laps = (v - limit) / limit;
+  if (laps <= 0) { over.innerHTML = ''; return; }
+  // completed overflow laps stay underneath in the deepest red; the current lap is the snake
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  const from = dark ? '#ff6b7d' : '#ff3048', to = dark ? '#8f0f24' : '#5c000f';
+  if (laps >= 1) arc.setAttribute('stroke', to);
+  const frac = Math.min(laps - Math.floor(laps), 0.999) || 0.999;
+  const N = Math.max(2, Math.ceil(frac * 90));
+  let svg = '';
+  for (let i = 0; i < N; i++) {
+    const a0 = frac * i / N, a1 = Math.min(frac, frac * (i + 1) / N + 0.004);   // tiny overlap: no seams
+    const [x0, y0] = ringPoint(a0), [x1, y1] = ringPoint(a1);
+    svg += `<path d="M${x0.toFixed(2)} ${y0.toFixed(2)} A52 52 0 0 1 ${x1.toFixed(2)} ${y1.toFixed(2)}" fill="none" stroke="${lerpColor(from, to, i / N)}" stroke-width="12" stroke-linecap="butt"/>`;
+  }
+  const [hx, hy] = ringPoint(frac), [tx, ty] = ringPoint(0);
+  svg = `<circle cx="${tx.toFixed(2)}" cy="${ty.toFixed(2)}" r="6" fill="${from}"/>` + svg +
+        `<circle cx="${hx.toFixed(2)}" cy="${hy.toFixed(2)}" r="6" fill="${to}" filter="url(#headShadow)"/>`;
+  over.innerHTML = svg;
 }
 
 /* ---------- full-screen setup: one step per screen, nothing moves on by itself ---------- */
