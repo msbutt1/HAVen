@@ -155,6 +155,28 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 .chip { display: inline-flex; align-items: center; gap: 6px; background: var(--low-soft); color: var(--low); border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: 15px; margin-bottom: 8px; animation: pop .4s cubic-bezier(.2,1.6,.4,1); }
 .ready { font-size: 96px; font-weight: 600; color: var(--primary); animation: beat 1s ease-out infinite; }
 @keyframes beat { 0% { transform: scale(1.25); opacity: .4; } 30% { transform: scale(1); opacity: 1; } }
+
+/* overview */
+.seg { display: flex; background: var(--bg); border-radius: 14px; padding: 4px; gap: 4px; }
+.seg button { flex: 1; min-height: 40px; border-radius: 11px; background: none; color: var(--muted); font-weight: 600; font-size: 15px; padding: 0; }
+.seg button.on { background: var(--surface); color: var(--fg); box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+.chart { margin: 20px 0 4px; }
+.chart svg { width: 100%; height: auto; display: block; overflow: visible; }
+.chart .bar { transition: height .5s cubic-bezier(.2,.8,.2,1), y .5s cubic-bezier(.2,.8,.2,1); }
+.chartkey { display: flex; gap: 16px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin-top: 8px; }
+.chartkey span { display: inline-flex; align-items: center; gap: 6px; }
+.chartkey i { width: 16px; border-top: 2px dashed currentColor; display: inline-block; }
+.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 16px 0; }
+.stat { background: var(--surface); border-radius: var(--r); padding: 18px 20px; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04); }
+.stat.wide2 { grid-column: span 2; }
+.stat .sv { font-size: 24px; font-weight: 600; margin-top: 4px; letter-spacing: -.3px; }
+.row-ic { display: inline-flex; align-items: center; gap: 12px; color: var(--fg); }
+.row-ic svg { color: var(--primary); }
+.nw { white-space: nowrap; }
+#dayList .item .right { display: flex; flex-direction: column; align-items: flex-end; white-space: nowrap; font-size: 15px; }
+#dayList .item .right b { font-weight: 600; }
+#dayList .item .right .muted { font-size: 13px; }
+.tagS { font-size: 12px; color: var(--sim); border: 1px solid currentColor; border-radius: 99px; padding: 0 6px; margin-left: 6px; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -207,11 +229,6 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
     </div>
   </div>
 
-  <div class="card list" id="days" style="display:none">
-    <div class="label" style="margin-bottom:4px">Earlier days</div>
-    <div id="dayList"></div>
-  </div>
-
   <div class="card list" id="again" style="display:none;padding:4px 24px">
     <button class="rowbtn" onclick="openWizard('grip')"><span>Set up the sleeve again</span><span class="muted">›</span></button>
   </div>
@@ -226,10 +243,58 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   </div>
 </main>
 
+<!-- OVERVIEW: your week -->
+<main id="tab-overview" style="display:none">
+  <div class="appbar"><div><p class="title">Overview</p><div class="date">Your last 7 days</div></div></div>
+  <div class="sim" id="sampleNote" style="display:none;margin-top:4px">Includes sample days for the demo, not real work</div>
+
+  <div class="card">
+    <div class="seg" role="tablist">
+      <button id="segPts" class="on" onclick="setMetric('points')">Points</button>
+      <button id="segTool" onclick="setMetric('tool')">Tool time</button>
+    </div>
+    <div class="chart" id="chart"></div>
+    <div class="chartkey" id="chartKey"></div>
+  </div>
+
+  <div class="stats">
+    <div class="stat"><div class="label">Tool time this week</div><div class="sv" id="stTool">—</div></div>
+    <div class="stat"><div class="label">Days over the action level</div><div class="sv" id="stOver">—</div></div>
+    <div class="stat wide2"><div class="label">Highest day</div><div class="sv" id="stMax">—</div></div>
+  </div>
+
+  <div class="card" id="weekCard">
+    <div class="label">This week on average</div>
+    <div class="sv" id="wkAvg" style="font-size:24px;font-weight:600;margin-top:4px">—</div>
+    <p class="muted" id="wkLong" style="font-size:15px;margin-bottom:0"></p>
+  </div>
+
+  <div class="card list" id="dayCard">
+    <div class="label" style="margin-bottom:4px">Day by day</div>
+    <div id="dayList"></div>
+  </div>
+
+  <div class="card list" style="padding:4px 24px">
+    <button class="rowbtn" onclick="openHow()"><span class="row-ic"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg>How it works</span><span class="muted">›</span></button>
+  </div>
+</main>
+
+<nav>
+  <button id="nav-today" class="on" onclick="tab('today')"><span class="ind"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l4-4"/></svg></span>Today</button>
+  <button id="nav-overview" onclick="tab('overview')"><span class="ind"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>Overview</button>
+</nav>
+
+<!-- FULL-SCREEN SETUP -->
+<div id="wizard" role="dialog" aria-label="Set up the sleeve">
+  <div class="wtop"><div class="dots" id="wdots"></div><button class="text" onclick="closeWizard()">Close</button></div>
+  <div class="wstage" id="wstage"></div>
+</div>
+
 <!-- HOW IT WORKS -->
-<main id="tab-how" class="article" style="display:none">
-  <h1 class="ahead">How it works</h1>
-  <p class="lead">The ring on your Today screen shows how much tool vibration your hands and arms have taken today.</p>
+<div class="sheet" id="howSheet">
+  <div class="bar"><h2>How it works</h2><button class="text" onclick="closeHow()">Back</button></div>
+<main class="article" style="padding-bottom:48px">
+    <p class="lead">The ring on your Today screen shows how much tool vibration your hands and arms have taken today.</p>
 
   <section class="sec">
     <div class="eyeicon" style="color:var(--high)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
@@ -262,6 +327,13 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   </section>
 
   <section class="sec">
+    <div class="eyeicon" style="color:var(--mid)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></div>
+    <h2>An example</h2>
+    <p>A grinder that shakes your arm hard adds about 72 points an hour. You reach the action level after about <b>1 hour 23 minutes</b>, and the daily limit after about <b>5 and a half hours</b>. A gentler tool takes much longer.</p>
+    <p>Two tools in one day add up. So does the same tool used again after a break.</p>
+  </section>
+
+  <section class="sec">
     <div class="eyeicon" style="color:var(--mid)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div>
     <h2>Tool time</h2>
     <p>The phone knows when you are using a power tool. While it runs, the Today screen tells you how long until the next level. When you reach the action level or the daily limit, the phone sounds an alarm, even when the app is in the background.</p>
@@ -278,22 +350,19 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
     </ol>
   </section>
 
+  <section class="sec">
+    <div class="eyeicon" style="color:var(--primary)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
+    <h2>Over months and years</h2>
+    <p>The Overview shows your average over the week. Experts estimate how many years of days like that it takes before about 1 in 10 workers get white, numb fingers. The higher your daily points, the sooner. It is a guide for groups of workers, not a test of your own hands.</p>
+  </section>
+
   <section class="sec last">
     <h2>Good to know</h2>
     <p>Each day is saved on its own and starts again at midnight. Set up the sleeve each time you put it on.</p>
-    <p class="fine">This is an estimate from a sensor on your wrist, not an official measurement, and staying under the action level does not make vibration safe. VibeGuard is a test version, not a medical device.</p>
+    <p class="fine">This is an estimate from a sensor on your wrist, not an official measurement: official checks measure at the hand. Staying under the action level does not make vibration safe. VibeGuard is a test version, not a medical device.</p>
+    <p class="fine">Based on: EU Directive 2002/44/EC; UK Control of Vibration at Work Regulations 2005 and HSE's points system; ISO 5349-1 (daily exposure and Annex C); ISO/TS 22270 (wrist-worn monitoring).</p>
   </section>
 </main>
-
-<nav>
-  <button id="nav-today" class="on" onclick="tab('today')"><span class="ind"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 21a9 9 0 1 1 9-9"/><path d="M12 12l4-4"/></svg></span>Today</button>
-  <button id="nav-how" onclick="tab('how')"><span class="ind"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg></span>How it works</button>
-</nav>
-
-<!-- FULL-SCREEN SETUP -->
-<div id="wizard" role="dialog" aria-label="Set up the sleeve">
-  <div class="wtop"><div class="dots" id="wdots"></div><button class="text" onclick="closeWizard()">Close</button></div>
-  <div class="wstage" id="wstage"></div>
 </div>
 
 <!-- SETTINGS (for the wearer) -->
@@ -332,6 +401,10 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
       <p style="font-weight:600;margin-top:12px" id="dEta"></p>
       <p class="muted" style="font-size:15px">For short demos with the massage gun. The vibration reading and the formula are unchanged; only the clock runs faster for points and tool time. The Today screen says so while it is on.</p>
       <button class="wide" onclick="if (confirm('Clear today\'s points and tool time?')) cmd('day:clear')">Clear today's points</button></div>
+    <div class="card"><h2>Overview sample week</h2>
+      <p class="muted" style="font-size:15px">Adds six earlier days of made-up usage so the weekly Overview has something to show in a demo. They are marked as sample data there, and never replace a real day.</p>
+      <button class="wide" onclick="cmd('week:sample')">Fill the week with sample days</button>
+      <button class="wide" style="margin-top:10px" onclick="cmd('week:clearSample')">Remove sample days</button></div>
     <div class="card"><h2>Tool calibration (IMU)</h2>
       <p class="muted" style="font-size:15px" id="tcStatus"></p>
       <button class="primary wide" onclick="closeDev(); closeSheet(); openWizard('tool')">Calibrate the tool</button>
@@ -367,13 +440,16 @@ const ARC = 2 * Math.PI * 52;
 function cmd(c) { VGB.command(c); setTimeout(tick, 60); }
 function demo(k, on) { cmd('demo:' + k + '=' + on); }
 function demoToggle(k, el) { const on = !el.classList.contains('on'); el.classList.toggle('on', on); demo(k, on ? 1 : 0); }
-function tab(t) { for (const n of ['today', 'how']) { $('tab-' + n).style.display = n === t ? '' : 'none'; $('nav-' + n).classList.toggle('on', n === t); } scrollTo(0, 0); }
+function openHow() { $('howSheet').classList.add('open'); }
+function closeHow() { $('howSheet').classList.remove('open'); }
+function tab(t) { for (const n of ['today', 'overview']) { $('tab-' + n).style.display = n === t ? '' : 'none'; $('nav-' + n).classList.toggle('on', n === t); } scrollTo(0, 0); }
 function openSheet() { $('sheet').classList.add('open'); }
 function closeSheet() { $('sheet').classList.remove('open'); }
 function openDev() { $('dev').classList.add('open'); }
 function closeDev() { $('dev').classList.remove('open'); }
 window.vgBack = () => {
   if ($('wizard').classList.contains('open')) { closeWizard(); return true; }
+  if ($('howSheet').classList.contains('open')) { closeHow(); return true; }
   if ($('dev').classList.contains('open')) { closeDev(); return true; }
   if ($('sheet').classList.contains('open')) { closeSheet(); return true; }
   return false;
@@ -435,13 +511,7 @@ function render() {
   $('setup').style.display = s.connected && !s.gripCalibrated ? '' : 'none';
   $('again').style.display = s.connected && s.gripCalibrated ? '' : 'none';
   $('demoPanel').style.display = s.source === 'demo' ? '' : 'none';
-  const h = (s.history || []).slice(0, 7);
-  $('days').style.display = h.length ? '' : 'none';
-  $('dayList').innerHTML = h.map(d => {
-    const l = level(d.points, limit);
-    const label = new Date(d.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-    return `<div class="item"><div class="left"><i class="dot" style="background:${l[1]}"></i><span>${label}</span></div><span class="muted">${Math.round(d.points)} points · tool ${minutes(d.tool)}</span></div>`;
-  }).join('');
+  renderOverview(s);
   renderSettings(s); renderWizard(); renderAlarm(s);
   if (s.toast && s.toastId !== lastToast) { lastToast = s.toastId; const el = $('toast'); el.textContent = s.toast; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 2600); }
 }
@@ -610,6 +680,91 @@ function renderWizard() {
   }
 }
 
+
+/* ---------- overview: the last 7 days ---------- */
+let METRIC = 'points';
+function setMetric(m) { METRIC = m; $('segPts').classList.toggle('on', m === 'points'); $('segTool').classList.toggle('on', m === 'tool'); renderOverview(S); }
+function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
+function hm(sec) { if (!sec) return '0 min'; const m = Math.round(sec / 60); if (m < 60) return `${m} min`; return m % 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m / 60} h`; }
+
+function renderOverview(s) {
+  if (!s.exposure) return;
+  const limit = s.exposure.limit || 400;
+  const byDate = {};
+  for (const d of s.history || []) byDate[d.date] = d;
+  const todayKey = s.day || ymd(new Date());
+  byDate[todayKey] = { date: todayKey, points: s.exposure.points || 0, tool: s.tool.toolTime || 0, today: true };
+  const days = [];
+  const base = new Date(todayKey + 'T12:00:00');
+  for (let i = 6; i >= 0; i--) { const d = new Date(base); d.setDate(d.getDate() - i); const k = ymd(d); days.push({ key: k, d, e: byDate[k] }); }
+  const anySample = days.some(x => x.e && x.e.sample);
+  $('sampleNote').style.display = anySample ? '' : 'none';
+
+  // chart
+  const W = 340, H = 190, top = 18, bottom = 26, left = 4, right = 4;
+  const vals = days.map(x => x.e ? (METRIC === 'points' ? x.e.points : x.e.tool / 3600) : 0);
+  const maxV = METRIC === 'points' ? Math.max(limit * 1.08, ...vals) : Math.max(2.2, ...vals) * 1.1;
+  const y = v => top + (H - top - bottom) * (1 - v / maxV);
+  const bw = (W - left - right) / 7, gap = 10;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${METRIC === 'points' ? 'Points' : 'Tool time'} per day, last 7 days">`;
+  const line = (v, color, label) => `<line x1="${left}" x2="${W - right}" y1="${y(v)}" y2="${y(v)}" stroke="${color}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".9"/>
+    <text x="${W - right}" y="${y(v) - 5}" text-anchor="end" font-size="10" fill="${color}">${label}</text>`;
+  if (METRIC === 'points') { svg += line(100, 'var(--mid)', '100'); svg += line(limit, 'var(--high)', String(Math.round(limit))); }
+  else svg += line(2, 'var(--faint)', '2 h');
+  days.forEach((x, i) => {
+    const v = vals[i], bx = left + i * bw + gap / 2, w = bw - gap;
+    const col = METRIC === 'tool' ? 'var(--primary)' : !x.e ? 'var(--line)' : x.e.points >= limit ? 'var(--high)' : x.e.points >= 100 ? 'var(--mid)' : 'var(--low)';
+    const h = Math.max(v > 0 ? 3 : 0, (H - top - bottom) - (y(v) - top));
+    svg += `<rect class="bar" x="${bx}" y="${H - bottom - h}" width="${w}" height="${h}" rx="6" fill="${col}" opacity="${x.e && x.e.sample ? .55 : 1}"/>`;
+    if (!x.e) svg += `<rect x="${bx}" y="${H - bottom - 3}" width="${w}" height="3" rx="1.5" fill="var(--line)"/>`;
+    const lbl = x.e ? (METRIC === 'points' ? Math.round(v) : (v < 1 ? Math.round(v * 60) + 'm' : v.toFixed(1) + 'h')) : '';
+    if (lbl !== '') svg += `<text x="${bx + w / 2}" y="${H - bottom - h - 6}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--fg)">${lbl}</text>`;
+    const wd = x.d.toLocaleDateString([], { weekday: 'narrow' });
+    svg += `<text x="${bx + w / 2}" y="${H - 8}" text-anchor="middle" font-size="12" font-weight="${x.e && x.e.today ? 700 : 500}" fill="${x.e && x.e.today ? 'var(--primary)' : 'var(--muted)'}">${x.e && x.e.today ? 'Today' : wd}</text>`;
+  });
+  svg += '</svg>';
+  $('chart').innerHTML = svg;
+  $('chartKey').innerHTML = METRIC === 'points'
+    ? '<span style="color:var(--mid)"><i></i>action level</span><span style="color:var(--high)"><i></i>daily limit</span>'
+    : '<span><i></i>2 hours</span>';
+
+  // stats
+  const real = days.filter(x => x.e);
+  const toolWeek = real.reduce((a, x) => a + (x.e.tool || 0), 0);
+  const over = real.filter(x => x.e.points >= 100).length;
+  const top1 = real.reduce((m, x) => !m || x.e.points > m.e.points ? x : m, null);
+  $('stTool').textContent = hm(toolWeek);
+  $('stOver').textContent = `${over} of 7`;
+  $('stMax').textContent = top1 && top1.e.points > 0 ? `${Math.round(top1.e.points)} points, ${top1.e.today ? 'today' : top1.d.toLocaleDateString([], { weekday: 'long' })}` : '—';
+
+  // the week on average (backend exposure.py daily_exposure: energy mean A(8) over the exposed days of the
+  // last 7; ISO 5349-1 Annex C years-to-risk group estimate, not shown below A(8) 1 m/s^2)
+  const exposed = real.filter(x => x.e.points > 0);
+  if (!exposed.length) { $('wkAvg').textContent = 'No tool use yet'; $('wkLong').textContent = 'Days with tool use are counted here.'; }
+  else {
+    const a8 = x => x.e.a8 != null ? x.e.a8 : 2.5 * Math.sqrt(x.e.points / 100);
+    const meanA8 = Math.sqrt(exposed.reduce((a, x) => a + a8(x) ** 2, 0) / exposed.length);
+    const avgPts = 100 * (meanA8 / 2.5) ** 2;
+    $('wkAvg').textContent = `${Math.round(avgPts)} points a day`;
+    let long = `Over ${exposed.length} day${exposed.length === 1 ? '' : 's'} with tool use.`;
+    if (meanA8 >= 1) {
+      const yrs = 31.8 * Math.pow(meanA8, -1.06);
+      long += ` If every working day were like this, about 1 in 10 people would get white, numb fingers after about ${Math.round(yrs)} years. That is an estimate for a group of workers, not a prediction for you.`;
+    } else long += ' At this level, the long-term estimate does not apply.';
+    $('wkLong').textContent = long;
+    S.weekA8 = meanA8;
+  }
+
+  // day by day (newest first)
+  const listDays = [...days].reverse().filter(x => x.e);
+  $('dayList').innerHTML = listDays.map(x => {
+    const p = x.e.points, l = level(p, limit);
+    const label = x.e.today ? 'Today' : x.d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+    return `<div class="item"><div class="left"><i class="dot" style="background:${l[1]}"></i><span class="nw">${label}</span>${x.e.sample ? '<span class="tagS">sample</span>' : ''}</div>
+      <div class="right"><b>${Math.round(p)} points</b><span class="muted">${hm(x.e.tool)} tool</span></div></div>`;
+  }).join('') || '<p class="muted">Nothing logged yet. Days are saved by themselves.</p>';
+}
+
 function renderSettings(s) {
   if (document.activeElement !== $('sSource')) $('sSource').value = s.settings.source;
   if (document.activeElement !== $('sCpg')) $('sCpg').value = String(Math.round(s.settings.countsPerG));
@@ -626,6 +781,7 @@ function renderSettings(s) {
     kv('Link', s.linkDetail || 'stopped') + kv('Device', s.device || '—') + kv('Firmware', s.firmware || '—') +
     kv('Records per second', f(s.linesPerS, 0)) + kv('Lost records', s.lost) +
     kv('Exposure today', `${f(e.points, 2)} points, A(8) ${f(e.a8, 3)} m/s², contact ${minutes(e.contact)}`) +
+    kv('Week (exposed days)', S.weekA8 ? `A(8) ${f(S.weekA8, 2)} m/s² energy mean, years to 10 % VWF ${S.weekA8 >= 1 ? f(31.8 * Math.pow(S.weekA8, -1.06), 1) : 'n/a (A(8) < 1)'}` : '—') +
     kv('Exposure now', e.counting ? `${f(e.pointsPerHour, 1)} points/h` : `not counting (${(e.reasons || []).join(', ') || 'no tool'})`) +
     kv('Grip unknown during contact', minutes(e.gripUnknown)) +
     kv('Grip effort', s.activation == null ? '—' : f(Math.max(0, s.activation) * 100, 0) + ' % of calibrated squeeze') +

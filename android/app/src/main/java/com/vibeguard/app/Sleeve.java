@@ -142,7 +142,7 @@ final class Sleeve {
         try {
             JSONObject days = new JSONObject(prefs.getString("days", "{}"));
             days.put(date, new JSONObject().put("points", Exposure.pointsFromEnergy(energy))
-                    .put("a8", Exposure.a8FromEnergy(energy, 8 * 3600)).put("tool", tool));
+                    .put("a8", Exposure.a8FromEnergy(energy, 8 * 3600)).put("tool", tool).put("limit", personalLimit));
             // keep the last 30 days
             java.util.List<String> keys = new java.util.ArrayList<>();
             for (java.util.Iterator<String> it = days.keys(); it.hasNext(); ) keys.add(it.next());
@@ -459,6 +459,30 @@ final class Sleeve {
             firedAction = false; firedLimit = false; alarm = null;
             saveDay();
             showToast("Today's points cleared");
+        } else if (c.equals("week:sample") || c.equals("week:clearSample")) {
+            // developer: SAMPLE days for demos, marked "sample" and shown as sample data on the Overview
+            try {
+                JSONObject days = new JSONObject(prefs.getString("days", "{}"));
+                java.util.List<String> drop = new java.util.ArrayList<>();
+                for (java.util.Iterator<String> it = days.keys(); it.hasNext(); ) {
+                    String k = it.next();
+                    if (days.getJSONObject(k).optBoolean("sample")) drop.add(k);
+                }
+                for (String k : drop) days.remove(k);
+                if (c.equals("week:sample")) {
+                    double[][] v = {{132, 5400}, {41, 1900}, {218, 7300}, {86, 3600}, {405, 11800}, {12, 600}};   // points, tool s
+                    java.util.Calendar cal = java.util.Calendar.getInstance();
+                    java.text.SimpleDateFormat f = new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US);
+                    for (double[] d : v) {
+                        cal.add(java.util.Calendar.DAY_OF_MONTH, -1);
+                        String k = f.format(cal.getTime());
+                        if (!days.has(k)) days.put(k, new JSONObject().put("points", d[0]).put("tool", d[1])
+                                .put("a8", 2.5 * Math.sqrt(d[0] / 100)).put("limit", 400).put("sample", true));
+                    }
+                }
+                prefs.edit().putString("days", days.toString()).apply();
+                showToast(c.equals("week:sample") ? "Sample week added (marked as sample)" : "Sample days removed");
+            } catch (Exception ignored) {}
         } else if (c.startsWith("speed:")) {
             demoSpeed = Math.max(1, Math.min(960, Double.parseDouble(c.substring(6))));
             prefs.edit().putFloat("demoSpeed", (float) demoSpeed).apply();
