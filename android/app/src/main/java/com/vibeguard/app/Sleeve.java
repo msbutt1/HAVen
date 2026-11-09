@@ -85,6 +85,7 @@ final class Sleeve {
     // clock runs faster: each real second of tool use counts as `demoSpeed` seconds (60 = a minute counts as
     // an hour). Shown on the Today screen while it is on.
     private double demoSpeed;
+    private boolean gripGate;
 
     // alarms: each level fires once a day; the screen shows it until the wearer taps OK
     interface Listener { void alert(String kind, String title, String text); void silence(); }
@@ -107,6 +108,9 @@ final class Sleeve {
         countsPerG = prefs.getFloat("countsPerG", 4096);
         personalLimit = prefs.getFloat("personalLimit", 400);
         demoSpeed = prefs.getFloat("demoSpeed", 480);
+        // a light hold on a massage gun is often under 10 % of a hard squeeze, so for the demo points count
+        // whenever the tool is detected (exposure.py's tool_on total); the grip rule is a Developer option
+        gripGate = prefs.getBoolean("gripGate", false);
         proc = newProcessor();
         loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);   // the page reads the state 10x a second
@@ -226,6 +230,7 @@ final class Sleeve {
     private Processor newProcessor() {
         Processor p = new Processor(countsPerG);
         p.setPersonalLimit(personalLimit);
+        p.setGripGate(gripGate);
         String saved = prefs.getString("toolCalibration", null);
         if (saved != null) {
             try {
@@ -517,6 +522,11 @@ final class Sleeve {
                 prefs.edit().putString("days", days.toString()).apply();
                 showToast(c.equals("week:sample") ? "Sample week added (marked as sample)" : "Sample days removed");
             } catch (Exception ignored) {}
+        } else if (c.startsWith("gripgate:")) {
+            gripGate = c.endsWith("1");
+            proc.setGripGate(gripGate);
+            prefs.edit().putBoolean("gripGate", gripGate).apply();
+            showToast(gripGate ? "Points count only while gripping" : "Points count whenever the tool is detected");
         } else if (c.startsWith("speed:")) {
             demoSpeed = Math.max(1, Math.min(960, Double.parseDouble(c.substring(6))));
             prefs.edit().putFloat("demoSpeed", (float) demoSpeed).apply();
@@ -614,7 +624,7 @@ final class Sleeve {
                         : (x.personalLimit - Math.min(points, x.personalLimit)) / (2 * x.aHvNow * x.aHvNow) * 60 / demoSpeed));
         o.put("alarm", alarm == null ? JSONObject.NULL : alarm).put("alarmId", alarmId);
         o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit)
-                .put("demoSpeed", demoSpeed));
+                .put("demoSpeed", demoSpeed).put("gripGate", gripGate));
         o.put("events", new JSONArray(log));
         JSONArray hist = new JSONArray();
         try {

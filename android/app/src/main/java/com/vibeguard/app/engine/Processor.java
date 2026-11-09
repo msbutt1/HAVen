@@ -209,6 +209,12 @@ public final class Processor {
         exposure.personalLimitPoints = points;
     }
 
+    /**
+     * exposure.py grip_gate: true (its default) counts a second only while the wearer is not known to be relaxed
+     * (grip under 10 % of the calibrated squeeze); false counts every second the tool detector says "tool".
+     */
+    public void setGripGate(boolean on) { exposure.gripGate = on; }
+
     /** A new day (or shift): the daily exposure starts again from zero. */
     public void resetExposure() { exposure.resetAccumulation(); snapshot.exposure = exposure.snapshot(null); }
     public void resetScore() { score.resetAccumulation(); snapshot.scoreTotal = 0; snapshot.scoredS = 0; }

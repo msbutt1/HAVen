@@ -403,6 +403,11 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
       <p style="font-weight:600;margin-top:12px" id="dEta"></p>
       <p class="muted" style="font-size:15px">For short demos with the massage gun. The vibration reading and the formula are unchanged; only the clock runs faster for points and tool time. The Today screen says so while it is on.</p>
       <button class="wide" onclick="if (confirm('Clear today\'s points and tool time?')) cmd('day:clear')">Clear today's points</button></div>
+    <div class="card"><h2>Count only while gripping</h2>
+      <select id="dGrip" onchange="cmd('gripgate:'+this.value)">
+        <option value="0">Off: count whenever the tool is detected</option>
+        <option value="1">On: skip time when the grip is under 10 % of the setup squeeze</option></select>
+      <p class="muted" style="font-size:15px">The exposure formula's grip rule (exposure.py grip_gate). On, a light hold on the tool may not count. Off suits the massage-gun demo. Changing it only affects points from now on.</p></div>
     <div class="card"><h2>Overview sample week</h2>
       <p class="muted" style="font-size:15px">Adds six earlier days of made-up usage so the weekly Overview has something to show in a demo. They are marked as sample data there, and never replace a real day.</p>
       <button class="wide" onclick="cmd('week:sample')">Fill the week with sample days</button>
@@ -414,7 +419,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
     <div class="card"><h2>Readings</h2>
       <div id="tech"></div>
       <p style="margin-top:16px"><label class="label">Accelerometer range</label><select id="sCpg" onchange="cmd('cpg:'+this.value)"><option value="4096">±8 g (4096 counts per g)</option><option value="2048">±16 g (2048 counts per g)</option></select></p>
-      <p class="muted" style="font-size:13px">Daily exposure estimate (signals exposure.py): A(8) = √(Σ a_hv² Δt / 8 h), points = 2 · a_hv² · hours = 100 · (A(8)/2.5)². Counted only while the tool detector says tool and the wearer is not known to be relaxed (grip &lt; 0.10). EU 2002/44/EC and UK CVWR 2005: action value 2.5 m/s² (100 points), limit value 5.0 m/s² (400 points). Wrist-worn, unweighted IMU estimate (monitoring, not ISO 5349-2).</p></div>
+      <p class="muted" style="font-size:13px">Daily exposure estimate (signals exposure.py): A(8) = √(Σ a_hv² Δt / 8 h), points = 2 · a_hv² · hours = 100 · (A(8)/2.5)². Counted only while the tool detector says tool; with "Count only while gripping" on, also only while the wearer is not known to be relaxed (grip &lt; 0.10 of the setup squeeze). EU 2002/44/EC and UK CVWR 2005: action value 2.5 m/s² (100 points), limit value 5.0 m/s² (400 points). Wrist-worn, unweighted IMU estimate (monitoring, not ISO 5349-2).</p></div>
     <div class="card"><h2>Events</h2><div class="mono muted" id="sEvents"></div></div>
     <div class="card"><button class="wide" onclick="cmd('laptop')">Use a laptop instead</button>
       <p class="muted" style="font-size:13px">Opens the laptop mode (vg-backend serve --device wifi): the laptop reads the sleeve, this phone shows it.</p></div>
@@ -817,6 +822,7 @@ function renderSettings(s) {
   if (document.activeElement !== $('sSource')) $('sSource').value = s.settings.source;
   if (document.activeElement !== $('sCpg')) $('sCpg').value = String(Math.round(s.settings.countsPerG));
   if (document.activeElement !== $('dSpeed')) $('dSpeed').value = String(Math.round(s.settings.demoSpeed));
+  if (document.activeElement !== $('dGrip')) $('dGrip').value = s.settings.gripGate ? '1' : '0';
   $('tcStatus').textContent = s.tool.calibrated ? 'Calibrated for the tool used during calibration.' : 'Using the default (provisional) thresholds. Calibrate with the tool you will use.';
   $('tcReset').style.display = s.tool.calibrated ? '' : 'none';
   const m = s.exposure.demoMinutesToLimit;
