@@ -14,10 +14,10 @@ from pathlib import Path
 import pytest
 from conftest import ScriptedAdapter, sim_frames, wait_until
 
-from vibeguard_backend.cli import main as cli_main
-from vibeguard_backend.hardware import (FakeDevice, ProfileError, find_baud, list_ports, load_profile,
+from haven_backend.cli import main as cli_main
+from haven_backend.hardware import (FakeDevice, ProfileError, find_baud, list_ports, load_profile,
                                         render_ports, serial_check)
-from vibeguard_backend.preflight import FAIL, PASS, WARN
+from haven_backend.preflight import FAIL, PASS, WARN
 
 pytestmark = pytest.mark.skipif(not hasattr(os, "openpty"), reason="needs pseudo-terminals")
 
@@ -126,7 +126,7 @@ def test_saved_capture_is_the_raw_stream_and_validates(device, tmp_path):
     res = serial_check(dev.path, BAUD, seconds=3, save=out)
     lines = out.read_bytes().splitlines()
     assert len(lines) == res.stats["lines"] > 20
-    from vibeguard_signals import contract
+    from haven_signals import contract
     assert all(contract.parse_line(x)[1] == [] for x in lines[1:])  # the first line may be a tail
 
 
@@ -257,7 +257,7 @@ def test_serve_with_a_profile_reads_a_serial_device_and_cites_the_conversion(dev
         "imu": {"model": "simulated", "counts_per_g": 4096,
                 "conversion_source": "simulator synthetic scale 4096 counts per g (SIMULATED)"}}))
     port = _free_port()
-    proc = subprocess.Popen([sys.executable, "-m", "vibeguard_backend.cli", "--data-dir", str(tmp_path / "data"),
+    proc = subprocess.Popen([sys.executable, "-m", "haven_backend.cli", "--data-dir", str(tmp_path / "data"),
                              "serve", "--profile", str(profile), "--http-port", str(port), "--log-level", "warning"],
                             stdout=subprocess.DEVNULL, stderr=subprocess.PIPE)
     try:

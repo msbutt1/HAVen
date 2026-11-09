@@ -13,10 +13,10 @@ from pathlib import Path
 
 import pytest
 
-from vibeguard_signals import contract
-from vibeguard_signals.processing import ProcessingConfig, Processor, StreamConfig
-from vibeguard_signals.sim_cli import main as sim_main
-from vibeguard_signals.simulator import SimConfig, Simulation
+from haven_signals import contract
+from haven_signals.processing import ProcessingConfig, Processor, StreamConfig
+from haven_signals.sim_cli import main as sim_main
+from haven_signals.simulator import SimConfig, Simulation
 
 HAPPY = Path(__file__).resolve().parents[1] / "contract" / "fixtures" / "sim" / "happy_path_seed1_3s.ndjson"
 
@@ -164,7 +164,7 @@ def test_device_clipping_flag_degrades_when_values_inside_limits():
 def test_open_silent_stdin_triggers_stale_before_eof():
     lines = HAPPY.read_bytes().splitlines(keepends=True)[:40]
     proc = subprocess.Popen(
-        [sys.executable, "-m", "vibeguard_signals.process_cli", "--clock", "host",
+        [sys.executable, "-m", "haven_signals.process_cli", "--clock", "host",
          "--poll-interval", "0.05", "-"],
         stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL)
     got, seen = [], threading.Event()
@@ -251,6 +251,6 @@ def test_supported_rate_extremes_produce_valid_timestamps(imu_rate, emg_rate, du
     ["--scenario", "vibration", "--imu-rate", "0.1"],
 ])
 def test_unsupported_config_fails_before_any_output(args):
-    proc = subprocess.run([sys.executable, "-m", "vibeguard_signals.sim_cli", "--fast", *args],
+    proc = subprocess.run([sys.executable, "-m", "haven_signals.sim_cli", "--fast", *args],
                           capture_output=True, text=True)
     assert proc.returncode == 2 and proc.stdout == "" and "vg-sim:" in proc.stderr

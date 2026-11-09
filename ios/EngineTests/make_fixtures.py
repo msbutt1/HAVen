@@ -14,9 +14,9 @@ import json
 import sys
 from pathlib import Path
 
-from vibeguard_signals import contract
-from vibeguard_signals.bridge import live_config
-from vibeguard_signals.processing import Processor
+from haven_signals import contract
+from haven_signals.bridge import live_config
+from haven_signals.processing import Processor
 
 OUT = Path(__file__).parent / "Fixtures"
 # (name, first seq, last seq) of the slices; all from one boot of board W, 2026-11-08

@@ -1,4 +1,4 @@
-# VibeGuard backend
+# HAVen backend
 
 **Owner:** Abduljabbar (device adapters, serial ingestion, sessions, storage, live
 delivery, recording/replay, history, reconnect handling).

@@ -26,13 +26,13 @@ sys.path.insert(0, str(HERE.parent / "tests"))
 
 from conftest import ScriptedAdapter, sim_frames, wait_until  # noqa: E402
 
-from vibeguard_backend import __version__  # noqa: E402
-from vibeguard_backend.adapters import SimAdapter  # noqa: E402
-from vibeguard_backend.backup import export_backup, start_backup_replay  # noqa: E402
-from vibeguard_backend.history import seed_history  # noqa: E402
-from vibeguard_backend.hub import Hub  # noqa: E402
-from vibeguard_backend.service import Backend, processing_config_for  # noqa: E402
-from vibeguard_backend.station import MockStationController, StationEngine  # noqa: E402
+from haven_backend import __version__  # noqa: E402
+from haven_backend.adapters import SimAdapter  # noqa: E402
+from haven_backend.backup import export_backup, start_backup_replay  # noqa: E402
+from haven_backend.history import seed_history  # noqa: E402
+from haven_backend.hub import Hub  # noqa: E402
+from haven_backend.service import Backend, processing_config_for  # noqa: E402
+from haven_backend.station import MockStationController, StationEngine  # noqa: E402
 
 CFG = processing_config_for("sim")
 ROWS: list[dict] = []
@@ -119,7 +119,7 @@ def _():
           "every record the simulated transport lost appears as a seq_gap count",
           "Gap detection relies on the device's seq counter; firmware must keep it per boot.")
 def _():
-    from vibeguard_signals.simulator import SimConfig, Simulation
+    from haven_signals.simulator import SimConfig, Simulation
     sim = Simulation(SimConfig(scenario="missing_batches", duration_s=10, seed=1), run_id="acc")
     list(sim.records())
     lost = sim.summary.records_lost
@@ -178,7 +178,7 @@ def _():
           "simulated stays simulated; a replay says replay + original source + recording id; a live stream recorded then replayed says original_source live",
           "No real live device has been connected; 'live' was produced by relabelling simulated frames.")
 def _():
-    from vibeguard_signals import contract
+    from haven_signals import contract
     b, d = fresh()
     row, rt = calibrated_session(b, "prov", tail_s=12)
     sim_ok = row["source"] == "simulated" and all(o["provenance"]["source"] == "simulated" for o in derived_of(row))
@@ -403,8 +403,8 @@ def _():
 def _():
     from fastapi.testclient import TestClient
     from starlette.websockets import WebSocketDisconnect
-    from vibeguard_backend.app import create_app
-    from vibeguard_backend.status_page import STATUS_PAGE
+    from haven_backend.app import create_app
+    from haven_backend.status_page import STATUS_PAGE
     b, d = fresh()
     with TestClient(create_app(b), base_url="http://localhost") as c:
         csrf = c.post("/api/station/sessions", json={}, headers={"Origin": "https://evil.example"}).status_code
@@ -449,7 +449,7 @@ def write_log(path: Path) -> None:
     passed = sum(r["ok"] for r in ROWS)
     lines = [
         "# Backend acceptance evidence", "",
-        f"- **Build:** vibeguard-backend {__version__}, git `{commit}` on `{branch}`{dirty}",
+        f"- **Build:** haven-backend {__version__}, git `{commit}` on `{branch}`{dirty}",
         f"- **Python:** {sys.version.split()[0]}   **Platform:** {sys.platform}",
         "- **Owner:** abduljabbar (backend)",
         "- **Data:** SIMULATED, in-process, offline. Nothing here was measured on hardware or a person.",

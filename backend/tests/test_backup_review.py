@@ -13,11 +13,11 @@ from pathlib import Path
 import pytest
 from conftest import ScriptedAdapter, sim_frames, wait_until
 
-from vibeguard_backend import cli
-from vibeguard_backend.adapters import ReplayAdapter
-from vibeguard_backend.backup import BackupError, export_backup, start_backup_replay, verify_backup
-from vibeguard_backend.preflight import FAIL, PASS, run_preflight
-from vibeguard_backend.service import processing_config_for
+from haven_backend import cli
+from haven_backend.adapters import ReplayAdapter
+from haven_backend.backup import BackupError, export_backup, start_backup_replay, verify_backup
+from haven_backend.preflight import FAIL, PASS, run_preflight
+from haven_backend.service import processing_config_for
 
 
 @pytest.fixture
@@ -118,7 +118,7 @@ def test_verify_backup_reports_malformed_metadata_as_backup_error(backend, sessi
 @pytest.mark.parametrize("speed", ["nan", "inf"])
 def test_serve_backup_refuses_a_non_finite_speed(backend, session, tmp_path, monkeypatch, speed):
     export_backup(backend, session["session_id"], tmp_path / "bk")
-    import vibeguard_backend.app as appmod
+    import haven_backend.app as appmod
 
     captured = []
     real_create = appmod.create_app

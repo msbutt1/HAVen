@@ -1,0 +1,600 @@
+"""vg-backend: run and operate the HAVen local backend.
+
+    vg-backend serve                                   # simulated wearable (default)
+    vg-backend serve --device serial --port '/dev/cu.usbmodem*' --baud 921600
+    vg-backend serve --device none                     # API only (station, history, replay)
+    vg-backend serve --backup backup/demo-session      # labelled REPLAY fallback as the 'wearable'
+    vg-backend preflight --backup backup/demo-session  # demo-day readiness checklist
+    vg-backend export-backup SESSION_ID backup/my-run  # keep a known-good recording
+    vg-backend seed-history --days 14                  # labelled SIMULATED history
+
+Hardware bring-up (see HARDWARE_BRINGUP.md):
+    vg-backend ports                                   # what is plugged in
+    vg-backend serial-check --port '/dev/cu.usbmodem*' --baud 921600   # is the link good?
+    vg-backend fake-device                             # a pseudo-serial port that acts like the firmware
+    vg-backend serve --profile hardware.json           # port, baud, IMU conversion from one file
+
+``--data-dir`` (or $VG_DATA_DIR) works before or after the subcommand.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import logging
+import math
+import time
+import os
+import sys
+from pathlib import Path
+
+DEFAULT_DATA_DIR = Path(os.environ.get("VG_DATA_DIR", Path(__file__).resolve().parents[2] / "data"))
+
+
+def _common() -> argparse.ArgumentParser:
+    """Options every subcommand accepts. SUPPRESS keeps a value given before the subcommand."""
+    p = argparse.ArgumentParser(add_help=False)
+    p.add_argument("--data-dir", type=Path, default=argparse.SUPPRESS,
+                   help=f"SQLite + session files (default {DEFAULT_DATA_DIR}, or $VG_DATA_DIR)")
+    return p
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(prog="vg-backend", description=__doc__.splitlines()[0])
+    p.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR,
+                   help=f"SQLite + session files (default {DEFAULT_DATA_DIR}, or $VG_DATA_DIR)")
+    common = _common()
+    sub = p.add_subparsers(dest="cmd", required=True)
+
+    s = sub.add_parser("serve", parents=[common], help="run the HTTP/WebSocket API and the wearable runtime")
+    s.add_argument("--host", default="127.0.0.1")
+    s.add_argument("--allow-host", action="append", default=[],
+                   help="extra Host header value to accept (when listening beyond localhost)")
+    s.add_argument("--http-port", type=int, default=8000)
+    s.add_argument("--app-discovery-port", type=int, default=8767,
+                   help="when the API listens beyond this computer (--host 0.0.0.0 or a LAN address): UDP port where "
+                        "the HAVen phone app's 'Find on this Wi-Fi' is answered (default 8767; 0 turns it off)")
+    s.add_argument("--no-qr", action="store_true",
+                   help="do not print the QR code phones scan to connect (printed when --host is not loopback and the "
+                        "output is a terminal)")
+    s.add_argument("--no-bonjour", action="store_true",
+                   help="do not announce this backend on Bonjour (_vibeguard._tcp), which the iPhone app uses to find "
+                        "it; like --app-discovery-port, it only runs with a non-loopback --host")
+    s.add_argument("--dashboard", default=None, metavar="DIR|none",
+                   help="serve the dashboard from DIR at /dashboard/ (default: ../dashboard next to backend/, or "
+                        "$VG_DASHBOARD_DIR; 'none' turns it off)")
+    s.add_argument("--device", choices=("sim", "serial", "stream", "wifi", "none"), default="sim",
+                   help="wifi: the wearable over Wi-Fi (it finds this laptop by UDP broadcast and streams to TCP --wifi-port)")
+    s.add_argument("--wifi-port", type=int, default=8765, help="with --device wifi: TCP port the wearable streams to (default 8765)")
+    s.add_argument("--discovery-port", type=int, default=8766,
+                   help="with --device wifi: UDP port answering the wearable's discovery broadcast (default 8766)")
+    s.add_argument("--wifi-host", default="0.0.0.0",
+                   help="with --device wifi: address to listen on for the wearable (default all interfaces; the web API "
+                        "stays on --host)")
+    s.add_argument("--accel-lsb-per-g", type=float, default=4096.0,
+                   help="with --device wifi: accelerometer sensitivity (default 4096 LSB/g: MPU-6500 at +-8 g, the "
+                        "firmware's setting, per TDK PS-MPU-9250A-01)")
+    s.add_argument("--stream", default=None, metavar="FILE|-",
+                   help="with --device stream: read device telemetry from a file or stdin (-), e.g. the output of "
+                        "the firmware's vg-fake-device; records keep the provenance the producer gave them")
+    s.add_argument("--paced", action="store_true", help="with --device stream: play at the device's own speed")
+    s.add_argument("--device-id", default=None,
+                   help="serial: only accept the port whose stream carries this device_id (the two wearable boards share "
+                        "one USB serial number; the firmware's device_id, vg-w-<MAC>, tells them apart)")
+    s.add_argument("--backup", type=Path, default=None,
+                   help="start with this backup recording as the 'wearable' (labelled REPLAY); overrides --device")
+    s.add_argument("--loop", action="store_true",
+                   help="with --backup: play the recording again each time it ends (each pass is labelled REPLAY)")
+    s.add_argument("--scenario", default="demo", help="simulated scenario (vg-sim --list)")
+    s.add_argument("--seed", type=int, default=1)
+    s.add_argument("--duration", type=float, default=30.0,
+                   help="simulated run length; the simulator then 'reboots' and continues")
+    s.add_argument("--speed", type=float, default=1.0, help="simulated/backup pacing factor")
+    s.add_argument("--profile", type=Path, default=None,
+                   help="hardware profile JSON (port, baud, IMU sensitivity + source, EMG output); implies "
+                        "--device serial; flags given on the command line override it")
+    s.add_argument("--port", help="serial port or glob, e.g. '/dev/cu.usbmodem*'")
+    s.add_argument("--baud", type=int, default=None, help="serial baud rate (default 921600)")
+    s.add_argument("--no-dtr", action="store_true",
+                   help="do not assert DTR/RTS when opening the serial port (avoids resetting auto-reset boards "
+                        "on every reconnect; native-USB boards that wait for DTR need it left on)")
+    s.add_argument("--imu-counts-per-g", type=float, default=None,
+                   help="confirmed accelerometer sensitivity (counts per g) for m/s^2 output")
+    s.add_argument("--imu-conversion-source", default=None,
+                   help="where the sensitivity comes from (datasheet, configured range)")
+    s.add_argument("--log-level", default="info")
+
+    h = sub.add_parser("seed-history", parents=[common], help="add labelled SIMULATED history sessions")
+    h.add_argument("--days", type=int, default=14)
+    h.add_argument("--seed", type=int, default=7)
+
+    f = sub.add_parser("preflight", parents=[common], help="demo-day readiness checklist for a running backend")
+    f.add_argument("--url", default="http://127.0.0.1:8000")
+    f.add_argument("--runtime", default="wearable")
+    f.add_argument("--expect", choices=("any", "live", "simulated", "replay"), default="any",
+                   help="fail unless the data source is this (default: just report it)")
+    f.add_argument("--backup", type=Path, default=None, help="also verify this backup recording")
+
+    e = sub.add_parser("export-backup", parents=[common], help="export a finished session as a verified backup")
+    e.add_argument("session_id")
+    e.add_argument("dest", type=Path)
+    e.add_argument("--note", default=None)
+
+    sub.add_parser("ports", parents=[common], help="list serial ports and likely microcontroller boards")
+
+    c = sub.add_parser("serial-check", parents=[common],
+                       help="read a real serial link and report what the backend will see")
+    c.add_argument("--port", required=True)
+    c.add_argument("--baud", type=int, default=None, help="serial baud rate (default: the profile's, else 921600)")
+    c.add_argument("--seconds", type=float, default=20.0)
+    c.add_argument("--save", type=Path, default=None, help="also save the raw bytes (NDJSON) for vg-process / vg-validate")
+    c.add_argument("--mains-hz", type=int, choices=(50, 60), default=None)
+    c.add_argument("--try-bauds", default=None, help="comma-separated baud rates to try first (finds the right one)")
+    c.add_argument("--probe-seconds", type=float, default=3.0,
+                   help="with --try-bauds: how long each rate may talk (a board that resets on open gets up to 10 s "
+                        "to start)")
+    c.add_argument("--device-id", default=None,
+                   help="only read the port whose stream carries this device_id (with a glob that matches several boards)")
+    c.add_argument("--no-dtr", action="store_true",
+                   help="do not assert DTR/RTS when opening: auto-reset boards (Arduino-style, ESP32 dev kits) are "
+                        "not restarted by every check or probe")
+    c.add_argument("--profile", type=Path, default=None,
+                   help="hardware profile: takes mains_hz and dtr/rts from it and compares channels with the hello")
+    c.add_argument("--json", action="store_true", help="print the measurements as JSON too")
+
+    w = sub.add_parser("fake-wifi", parents=[common],
+                       help="a SIMULATED Wi-Fi wearable: discovers the backend and streams simulator data (labelled simulated)")
+    w.add_argument("--scenario", default="tool_vs_arm", help="simulator scenario (default tool_vs_arm: tool vs arm use)")
+    w.add_argument("--duration", type=float, default=60.0, help="seconds per pass; each pass is a new boot")
+    w.add_argument("--seed", type=int, default=1)
+    w.add_argument("--speed", type=float, default=1.0)
+    w.add_argument("--discovery-host", default="127.0.0.1",
+                   help="where to send the discovery packet (default this machine; 255.255.255.255 broadcasts like the board)")
+    w.add_argument("--discovery-port", type=int, default=8766)
+    w.add_argument("--stop-after", type=float, default=None, help="stop sending after N s (like pulling the power)")
+
+    d = sub.add_parser("fake-device", parents=[common],
+                       help="a pseudo-serial port that behaves like the firmware (rehearse without hardware)")
+    d.add_argument("--scenario", default="happy_path",
+                   help="simulator scenario (vg-sim --list). The default has no injected faults; 'demo' and "
+                        "'fault_mix' do, on purpose")
+    d.add_argument("--duration", type=float, default=120.0,
+                   help="seconds before the simulated firmware restarts with a new boot (default 120; a longer run "
+                        "takes longer to start)")
+    d.add_argument("--seed", type=int, default=1)
+    d.add_argument("--speed", type=float, default=1.0)
+    d.add_argument("--baud-limit", type=int, default=None, help="throttle to this baud rate (e.g. 115200)")
+    d.add_argument("--mode", choices=("frames", "garbage", "silent"), default="frames",
+                   help="garbage = wrong-baud symptoms; silent = link up but no data")
+    d.add_argument("--hang-after", type=float, default=None, help="stop sending after N s (hung MCU)")
+    d.add_argument("--unplug-after", type=float, default=None, help="pull the cable after N s")
+    d.add_argument("--no-hello", action="store_true")
+    d.add_argument("--rate-error", type=float, default=0.0,
+                   help="stretch the device clock of both streams (0.05 = 5%% slow); at most 0.10")
+    d.add_argument("--once", action="store_true", help="play the run once instead of looping")
+
+    v = sub.add_parser("verify-backup", parents=[common], help="check a backup folder is complete and unmodified")
+    v.add_argument("path", type=Path)
+    return p
+
+
+def main(argv: list[str] | None = None) -> int:
+    args = build_parser().parse_args(argv)
+    logging.basicConfig(level=getattr(args, "log_level", "info").upper(),
+                        format="%(asctime)s %(levelname)s %(name)s: %(message)s")
+
+    if args.cmd == "preflight":
+        from .preflight import run_preflight
+
+        report = run_preflight(args.url, args.runtime, args.expect, args.backup)
+        print(report.render())
+        return 1 if report.failed else 0
+
+    if args.cmd == "ports":
+        from .hardware import list_ports, render_ports
+
+        print(render_ports(list_ports()))
+        return 0
+
+    if args.cmd == "fake-wifi":
+        import signal
+
+        from .fake_wifi import FakeWifiWearable
+
+        try:
+            dev = FakeWifiWearable(args.scenario, args.seed, args.duration, args.speed, args.discovery_host,
+                                   args.discovery_port, args.stop_after).start()
+        except (OSError, ValueError) as exc:
+            print(f"vg-backend: {exc}", file=sys.stderr)
+            return 2
+        signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
+        print(f"fake Wi-Fi wearable (SIMULATED, scenario {args.scenario}): discovering the backend on UDP "
+              f"{args.discovery_host}:{args.discovery_port}. Start the backend with --device wifi. Ctrl-C to stop.", flush=True)
+        last = None
+        try:
+            while dev.alive:
+                if dev.state != last:
+                    print(f"  {dev.state}" + (f" to {dev.connected_to[0]}:{dev.connected_to[1]}" if dev.state == "streaming" and dev.connected_to else ""), flush=True)
+                    last = dev.state
+                time.sleep(0.5)
+        except KeyboardInterrupt:
+            pass
+        finally:
+            dev.stop()
+        print(f"fake Wi-Fi wearable stopped after {dev.sent} records", file=sys.stderr)
+        return 0
+
+    if args.cmd == "fake-device":
+        import signal
+
+        from .hardware import FakeDevice
+
+        try:
+            dev = FakeDevice(args.scenario, args.seed, duration_s=args.duration, speed=args.speed,
+                             baud_limit=args.baud_limit, mode=args.mode, hang_after_s=args.hang_after,
+                             unplug_after_s=args.unplug_after, loop=not args.once, drop_hello=args.no_hello,
+                             rate_error=args.rate_error).start()
+        except (OSError, ValueError) as exc:
+            print(f"vg-backend: {exc}", file=sys.stderr)
+            return 2
+        signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(KeyboardInterrupt()))
+        print(f"fake device (SIMULATED firmware, mode {args.mode}, scenario {args.scenario}) on  {dev.path}\n"
+              f"  try:  uv run vg-backend serial-check --port {dev.path} --baud 230400 --seconds 10\n"
+              f"        uv run vg-backend serve --device serial --port {dev.path} --baud 230400\n"
+              "  A pseudo-port only accepts some baud rates (230400 and 115200 work; 460800 and up fail on macOS) and does\n"
+              "  not throttle, so the check's link-bandwidth line will FAIL here: that is the real finding (this stream\n"
+              "  needs ~31 kB/s). Judge the other lines. It restarts as a new boot (hello first) every time a program\n"
+              "  opens the port. Ctrl-C to stop.", flush=True)
+        code = 0
+        try:
+            while dev.alive:
+                time.sleep(0.5)
+            print(f"fake device stopped: {dev.ended_because or 'the device thread ended'}", file=sys.stderr)
+            code = 1 if (dev.ended_because or "").startswith("error") else 0
+        except KeyboardInterrupt:
+            pass
+        finally:
+            dev.stop()
+        return code
+
+    if args.cmd == "serial-check":
+        from .hardware import ProfileError, find_baud, load_profile, serial_check
+
+        if not math.isfinite(args.seconds) or not 1 <= args.seconds <= 3600:
+            print("vg-backend: --seconds must be between 1 and 3600", file=sys.stderr)
+            return 2
+        if not math.isfinite(args.probe_seconds) or not 0.5 <= args.probe_seconds <= 60:
+            print("vg-backend: --probe-seconds must be between 0.5 and 60", file=sys.stderr)
+            return 2
+        profile = None
+        if args.profile is not None:
+            try:
+                profile = load_profile(args.profile)
+            except ProfileError as exc:
+                print(f"vg-backend: hardware profile: {exc}", file=sys.stderr)
+                return 2
+        dtr = False if args.no_dtr else (profile.dtr if profile else None)
+        rts = False if args.no_dtr else (profile.rts if profile else None)
+        if args.device_id is not None and not args.device_id.strip():
+            print("vg-backend: --device-id must not be empty", file=sys.stderr)
+            return 2
+        baud = args.baud or (profile.baud if profile is not None and profile.baud else None) or 921600
+        expect_id = args.device_id or (profile.device_id if profile else None)
+        if args.try_bauds:
+            try:
+                bauds = [int(x) for x in args.try_bauds.split(",") if x.strip()]
+            except ValueError:
+                print("vg-backend: --try-bauds must be comma-separated integers", file=sys.stderr)
+                return 2
+            print(f"trying {len(bauds)} baud rates on {args.port} ({args.probe_seconds:g} s each, longer while a board "
+                  "that resets on open is still starting)...")
+            bfactory = None
+            if expect_id:
+                from .serial_select import DeviceIdSerialAdapter
+                bfactory = lambda p, b: DeviceIdSerialAdapter(p, b, expect_id, dtr=dtr, rts=rts)  # noqa: E731
+            results = find_baud(args.port, bauds, probe_s=args.probe_seconds, progress=print, dtr=dtr, rts=rts,
+                                adapter_factory=bfactory)
+            good = [r for r in results if r.get("valid", 0) > 0]
+            if not good:
+                print("no baud rate produced valid frames. Run `vg-backend ports`; check the cable and that the firmware "
+                      "is sending contract v1 NDJSON. A board that resets on open can need longer: --probe-seconds 8")
+                return 1
+            best = max(good, key=lambda r: (r.get("share", 0), r["valid"]))
+            baud = best["baud"]
+            working = [r["baud"] for r in good if r.get("share", 0) >= 0.99]
+            if len(working) > 1:
+                print(f"several rates work ({', '.join(map(str, working))}): this is probably native USB, where the baud "
+                      "setting is ignored; any of them will do")
+            print(f"best: {baud} baud ({best['valid']}/{best['lines']} valid)\n")
+        print(f"checking {args.port} at {baud} baud for {args.seconds:g} s ...")
+        factory = None
+        if expect_id:
+            from .serial_select import DeviceIdSerialAdapter
+            factory = lambda p, b: DeviceIdSerialAdapter(p, b, expect_id, dtr=dtr, rts=rts)  # noqa: E731
+        res = serial_check(args.port, baud, args.seconds, args.save, args.mains_hz, progress=print, dtr=dtr, rts=rts,
+                           profile=profile, adapter_factory=factory, expect_device_id=expect_id)
+        print(res.report.render(not_ready="NOT READY - fix the FAIL lines before connecting this to the backend"))
+        if args.json:
+            print(json.dumps(res.stats, indent=2, default=str))
+        if args.save and Path(args.save).exists():
+            print(f"\nraw capture saved to {args.save}: analyse it with  uv run --project ../signals vg-validate {args.save}")
+        return 1 if res.report.failed else 0
+
+    if args.cmd == "verify-backup":
+        from .backup import BackupError, verify_backup
+
+        try:
+            meta = verify_backup(args.path)
+        except BackupError as exc:
+            print(f"vg-backend: {exc}", file=sys.stderr)
+            return 1
+        print(f"OK: {meta['frames']} frames, {meta['label_for_dashboard']}, recording {meta['recording_id']}")
+        return 0
+
+    from .service import Backend, DataDirInUse, NotFound, processing_config_for
+
+    if args.cmd == "seed-history":
+        from .history import seed_history
+
+        # recover=False: a running server owns recovery; seeding must never touch its sessions
+        backend = Backend(args.data_dir, recover=False)
+        created = seed_history(backend, days=args.days, seed=args.seed)
+        print(f"added {len(created['wearable_sessions'])} SIMULATED wearable sessions and "
+              f"{len(created['station_sessions'])} SIMULATED station sessions to {backend.data_dir}"
+              + (f" ({created['skipped']} days already present, skipped)" if created["skipped"] else ""))
+        backend.shutdown()
+        return 0
+
+    if args.cmd == "export-backup":
+        from .backup import BackupError, export_backup
+        from .runtime import RuntimeConflict
+
+        if not (Path(args.data_dir) / "vibeguard.sqlite3").is_file():
+            print(f"vg-backend: no HAVen data in {args.data_dir} (wrong --data-dir?)", file=sys.stderr)
+            return 1
+        backend = Backend(args.data_dir, recover=False)
+        try:
+            meta = export_backup(backend, args.session_id, args.dest, args.note)
+        except (BackupError, NotFound, RuntimeConflict, OSError) as exc:
+            print(f"vg-backend: {exc}", file=sys.stderr)
+            return 1
+        finally:
+            backend.shutdown()
+        if meta.get("interrupted"):
+            print("vg-backend: WARNING the session was cut off by a crash: this recording is truncated "
+                  "and was not calibrated by the end", file=sys.stderr)
+        print(f"exported {meta['frames']} frames ({meta['label_for_dashboard']}) to {args.dest}; "
+              f"replay it with: vg-backend serve --backup {args.dest}")
+        return 0
+
+    import uvicorn
+
+    from .adapters import SerialAdapter, SimAdapter
+    from .app import LOCAL_HOSTS, create_app
+    from .backup import BackupError
+
+    runtime_meta: dict = {}
+    try:  # validate everything before the data directory is touched
+        adapter = config = None
+        serial_mode = args.device == "serial" or args.profile is not None
+        for flag, given, ok in (("--port", args.port, serial_mode), ("--stream", args.stream, args.device == "stream"),
+                                ("--paced", args.paced, args.device == "stream")):
+            if given and not ok:
+                need = "serial" if flag == "--port" else "stream"
+                raise ValueError(f"{flag} is only used with --device {need}; add --device {need} (it would be ignored "
+                                 f"and the {args.device} device started instead)")
+        if args.backup is not None and args.profile is not None:
+            raise ValueError("--profile describes a serial device; it cannot be combined with --backup")
+        if args.backup is not None:
+            from .backup import BackupError, verify_backup
+            try:
+                verify_backup(args.backup)
+            except BackupError as exc:
+                raise ValueError(f"backup is not usable: {exc}") from exc
+        elif args.device == "sim" and args.profile is None:
+            adapter = SimAdapter(scenario=args.scenario, seed=args.seed, duration_s=args.duration,
+                                 speed=args.speed, loop=True)
+            config = processing_config_for("sim")
+        elif args.device == "wifi":
+            if args.port:
+                raise ValueError("--port is for --device serial; the Wi-Fi wearable connects to --wifi-port")
+            if args.profile is not None:
+                raise ValueError("--profile describes a serial device; it cannot be combined with --device wifi")
+            if args.wifi_port == args.http_port and args.wifi_host in ("0.0.0.0", args.host):
+                raise ValueError(f"--wifi-port {args.wifi_port} is also the web port; move one (--http-port)")
+            from .wifi import WifiAdapter
+            adapter = WifiAdapter(args.wifi_host, args.wifi_port, args.discovery_port)
+            src = args.imu_conversion_source if args.imu_conversion_source else None
+            config = processing_config_for("wifi", args.accel_lsb_per_g, src)
+            runtime_meta = {"wifi": {"tcp_port": args.wifi_port, "discovery_port": args.discovery_port,
+                                     "accel_lsb_per_g": args.accel_lsb_per_g}}
+        elif args.device == "stream":
+            if args.port:
+                raise ValueError("--port is for --device serial; --device stream reads --stream")
+            from .hardware import ProfileError as _SPE, validate_counts_per_g as _vcg
+            from .stream import StreamAdapter
+            if not args.stream:
+                raise ValueError("--device stream needs --stream FILE (or - for stdin)")
+            if args.stream != "-" and not Path(args.stream).exists():
+                raise ValueError(f"stream file not found: {args.stream}")
+            if args.profile is not None:
+                raise ValueError("--profile describes a serial device; it cannot be combined with --device stream")
+            cpg = src = None
+            if args.imu_counts_per_g is not None:
+                try:
+                    cpg = _vcg(args.imu_counts_per_g, "--imu-counts-per-g")
+                except _SPE as exc:
+                    raise ValueError(str(exc)) from exc
+                src = args.imu_conversion_source
+            adapter = StreamAdapter(args.stream, paced=args.paced, speed=args.speed)
+            config = processing_config_for("serial", cpg, src)
+            runtime_meta = {"stream_source": args.stream}
+        elif args.device == "none" and args.profile is not None:
+            from .hardware import ProfileError, load_profile
+            try:
+                load_profile(args.profile)  # still validated: a broken profile is an error even if unused
+            except ProfileError as exc:
+                raise ValueError(f"hardware profile: {exc}") from exc
+            print("vg-backend: --device none: the hardware profile is valid but no device is opened", file=sys.stderr)
+        elif args.device == "serial" or args.profile is not None:
+            profile = None
+            if args.profile is not None:
+                from .hardware import ProfileError, load_profile
+                try:
+                    profile = load_profile(args.profile)
+                except ProfileError as exc:
+                    raise ValueError(f"hardware profile: {exc}") from exc
+            from .hardware import ProfileError as _PE, validate_baud, validate_counts_per_g
+            try:
+                port = args.port or (profile.port if profile else None)
+                if args.baud is not None:
+                    baud = validate_baud(args.baud, "--baud")
+                elif profile and profile.baud:
+                    baud = profile.baud
+                elif profile is not None or args.device == "serial":
+                    raise _PE("the baud rate is not set: put \"baud\" in the profile or pass --baud (nothing is assumed; "
+                              "`serial-check --try-bauds` finds it)")
+                cpg = src = None
+                if args.imu_counts_per_g is not None:
+                    cpg = validate_counts_per_g(args.imu_counts_per_g, "--imu-counts-per-g")
+                    src = args.imu_conversion_source
+                    if not src:
+                        raise _PE("--imu-counts-per-g needs --imu-conversion-source: a command-line sensitivity must "
+                                  "cite its own source (the profile's citation is for the profile's number)")
+                elif args.imu_conversion_source:
+                    raise _PE("--imu-conversion-source without --imu-counts-per-g would cite a datasheet for no value")
+                elif profile and profile.imu_counts_per_g:
+                    cpg, src = profile.imu_counts_per_g, profile.imu_conversion_source
+            except _PE as exc:
+                raise ValueError(str(exc)) from exc
+            if not port:
+                raise ValueError("--device serial needs --port (or a profile with a port)")
+            dtr = False if args.no_dtr else (profile.dtr if profile else None)
+            rts = False if args.no_dtr else (profile.rts if profile else None)
+            if args.device_id is not None and not args.device_id.strip():
+                raise ValueError("--device-id must not be empty")
+            expect_id = args.device_id or (profile.device_id if profile else None)
+            if expect_id:
+                from .serial_select import DeviceIdSerialAdapter
+                # probing opens every matching port, the other board's too: never assert DTR/RTS there (auto-reset)
+                dtr = False if dtr is None else dtr
+                rts = False if rts is None else rts
+                adapter = DeviceIdSerialAdapter(port, baud, expect_id, dtr=dtr, rts=rts)
+            else:
+                adapter = SerialAdapter(port, baud, dtr=dtr, rts=rts)
+            config = processing_config_for("serial", cpg, src)
+            runtime_meta = {"effective_serial": {"port": port, "baud": baud, "counts_per_g": cpg,
+                                                 "conversion_source": src, "dtr": dtr, "rts": rts,
+                                                 "expect_device_id": expect_id}}
+            if profile:
+                runtime_meta.update({"hardware_profile": profile.describe(), "hardware_profile_name": profile.name})
+        if not math.isfinite(args.speed) or not 0 < args.speed <= 1000:
+            raise ValueError("--speed must be a number above 0 and at most 1000")
+        if args.loop and args.backup is None:
+            raise ValueError("--loop only applies to --backup")
+        if args.device_id is not None and args.device != "serial" and args.profile is None:
+            raise ValueError("--device-id only applies to a serial device")
+        backend = Backend(args.data_dir, exclusive=True)
+    except DataDirInUse as exc:
+        print(f"vg-backend: {exc}", file=sys.stderr)
+        return 1
+    except ValueError as exc:
+        print(f"vg-backend: {exc}", file=sys.stderr)
+        return 2
+    if args.backup is not None:
+        from .backup import start_backup_replay
+
+        try:
+            start_backup_replay(backend, args.backup, name="wearable", speed=args.speed)
+        except (BackupError, OSError, ValueError, KeyError) as exc:
+            backend.shutdown()
+            print(f"vg-backend: cannot start the backup: {exc}", file=sys.stderr)
+            return 2
+        if args.loop:
+            backend.loop_backup("wearable")
+        print(f"vg-backend: REPLAY FALLBACK from {args.backup} (labelled replay, not live)"
+              + (", looping" if args.loop else ", plays once: POST /api/runtimes/wearable/restart to replay"),
+              file=sys.stderr)
+    elif adapter is not None:
+        backend.add_runtime("wearable", adapter, config, meta=runtime_meta)
+
+    wildcard = args.host in ("0.0.0.0", "::", "")
+
+    def bracket(h: str) -> str:  # browsers send IPv6 literals as [addr]
+        return f"[{h}]" if h.count(":") >= 2 and not h.startswith("[") else h  # a bare IPv6 literal
+    allowed = None if wildcard else tuple({*LOCAL_HOSTS, bracket(args.host.lower()),
+                                           *(bracket(h.lower()) for h in args.allow_host)})
+    if wildcard:
+        print("vg-backend: WARNING listening on all interfaces; the Host check is off (cross-site requests are "
+              "still refused)" + ("" if os.environ.get("VG_BASIC_AUTH") else "; set VG_BASIC_AUTH to require a password"),
+              file=sys.stderr)
+    from .app import find_dashboard_dir
+    dash = None if args.dashboard == "none" else (Path(args.dashboard) if args.dashboard else find_dashboard_dir())
+    if dash is not None and not (dash / "index.html").is_file():
+        print(f"vg-backend: --dashboard {dash}: no index.html there, the dashboard is not served", file=sys.stderr)
+        dash = None
+    basic_auth = None
+    cred = os.environ.get("VG_BASIC_AUTH")  # "user:password"; an env var, so it is not visible in `ps`
+    if cred:
+        user, sep, pw = cred.partition(":")
+        if not sep or not user or not pw:
+            print("vg-backend: VG_BASIC_AUTH must look like user:password", file=sys.stderr)
+            return 2
+        basic_auth = (user, pw)
+    elif not args.host.startswith(("127.", "localhost", "::1")) or args.allow_host:
+        print("vg-backend: WARNING the API is reachable beyond this computer without a password; "
+              "set VG_BASIC_AUTH=user:password", file=sys.stderr)
+    app = create_app(backend, on_shutdown=backend.shutdown, allowed_hosts=allowed, dashboard_dir=dash,
+                     basic_auth=basic_auth)
+    if dash is not None:
+        print(f"vg-backend: dashboard at http://{args.host}:{args.http_port}/dashboard/", file=sys.stderr)
+    print(f"vg-backend: http://{args.host}:{args.http_port}  data={backend.data_dir}  "
+          f"source={'backup replay' if args.backup else (adapter.kind if adapter is not None else 'none')}",
+          file=sys.stderr)
+    lan = not args.host.startswith(("127.", "localhost", "::1"))
+    discovery = None
+    if args.app_discovery_port and lan:
+        from .appdiscovery import AppDiscovery
+        discovery = AppDiscovery(args.http_port, password=basic_auth is not None, port=args.app_discovery_port)
+        try:
+            discovery.start()
+            print(f"vg-backend: phones on this Wi-Fi: open the HAVen app and tap Find on this Wi-Fi (answered on "
+                  f"UDP {discovery.port}), or type this laptop's Wi-Fi address with :{args.http_port}", file=sys.stderr)
+        except OSError as e:
+            print(f"vg-backend: the phone app's discovery is off: UDP {args.app_discovery_port} is in use ({e}); "
+                  f"type the address in the app instead", file=sys.stderr)
+            discovery = None
+    bonjour = None
+    if lan and not args.no_bonjour:
+        from .bonjour import Announcer
+        bonjour = Announcer(args.http_port, password=basic_auth is not None)
+        if bonjour.start():
+            print(f"vg-backend: announced on Bonjour as {bonjour.name!r} for the iPhone app "
+                  f"({', '.join(bonjour.addresses)}:{args.http_port})", file=sys.stderr)
+        else:
+            print(f"vg-backend: Bonjour announcement off: {bonjour.error}", file=sys.stderr)
+            bonjour = None
+    if lan:
+        # the address phones open; a QR code for it (the HAVen app scans it, a phone camera opens the dashboard)
+        from .bonjour import lan_ipv4_addresses
+        from .phoneqr import phone_url, qr_lines
+        url = phone_url([args.host] if not wildcard else lan_ipv4_addresses(), args.http_port)
+        if url:
+            print(f"vg-backend: phones: scan this with the HAVen app, or open {url}", file=sys.stderr)
+            if sys.stderr.isatty() and not args.no_qr:
+                for line in qr_lines(url):
+                    print("  " + line, file=sys.stderr)
+    try:
+        # A client that never reads must not keep the server (and the open session) alive on Ctrl-C.
+        uvicorn.run(app, host=args.host, port=args.http_port, log_level=args.log_level,
+                    timeout_graceful_shutdown=3)
+    finally:
+        if discovery is not None:
+            discovery.stop()
+        if bonjour is not None:
+            bonjour.stop()
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

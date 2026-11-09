@@ -132,14 +132,17 @@ static void serializer_task(void *arg)
         if (now >= next_log) {
             const vg_wifi_stats_t *w = vg_wifi_link_stats();
             const vg_emg_stats_t *e = vg_emg_adc_stats();
+            int32_t lo = 0, hi = 0;
+            vg_emg_adc_take_range(&lo, &hi);
             ESP_LOGI(TAG, "seq=%" PRIu64 " wifi=%d tcp=%d bridge=%s sent=%" PRIu64 "B "
                      "offline_drops=%" PRIu64 " emg_drop=%" PRIu64 " imu_drop=%" PRIu64
                      " imu_fresh=%" PRIu32 "/%" PRIu32 " polls imu_resync=%" PRIu32
-                     " emg=%" PRIu32 " clip=%" PRIu32 " drift=%" PRId32 "us reanchor=%" PRIu32,
+                     " emg=%" PRIu32 " clip=%" PRIu32 " drift=%" PRId32 "us reanchor=%" PRIu32
+                     " | emg range %" PRId32 "..%" PRId32 " raw_at_rail=%" PRIu32,
                      s_link.tm.next_seq, w->wifi_up, w->connected, w->bridge_ip, w->bytes_sent,
                      w->frames_dropped_offline, vg_ring_dropped(&s_emg_ring),
                      vg_ring_dropped(&s_imu_ring), s_imu_fresh, s_imu_polls, s_imu_clk.resyncs,
-                     e->samples, e->clipped, e->last_drift_us, e->reanchors);
+                     e->samples, e->clipped, e->last_drift_us, e->reanchors, lo, hi, e->raw_rail_hits);
             next_log = now + 5000000;
         }
         vTaskDelayUntil(&last, pdMS_TO_TICKS(10));

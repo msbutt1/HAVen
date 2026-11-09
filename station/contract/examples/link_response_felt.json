@@ -1,0 +1,8 @@
+{
+  "schema": "vibeguard.station_link",
+  "version": 1,
+  "type": "response",
+  "response": "felt",
+  "trial_id": "sim-preview-001-t001",
+  "device_t_us": 1800000
+}

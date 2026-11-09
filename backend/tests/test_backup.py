@@ -10,9 +10,9 @@ from pathlib import Path
 import pytest
 from conftest import ScriptedAdapter, sim_frames, wait_until
 
-from vibeguard_backend.backup import BackupError, export_backup, start_backup_replay, verify_backup
-from vibeguard_backend.runtime import RuntimeConflict
-from vibeguard_backend.service import processing_config_for
+from haven_backend.backup import BackupError, export_backup, start_backup_replay, verify_backup
+from haven_backend.runtime import RuntimeConflict
+from haven_backend.service import processing_config_for
 
 
 def _index_at(frames, seconds):

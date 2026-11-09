@@ -9,10 +9,10 @@ from typing import Callable, Iterable
 
 import pytest
 
-from vibeguard_signals import contract
-from vibeguard_signals.simulator import SimConfig, Simulation
-from vibeguard_backend.adapters import AdapterDisconnected, DeviceAdapter, EndOfStream, SimAdapter
-from vibeguard_backend.service import Backend, processing_config_for
+from haven_signals import contract
+from haven_signals.simulator import SimConfig, Simulation
+from haven_backend.adapters import AdapterDisconnected, DeviceAdapter, EndOfStream, SimAdapter
+from haven_backend.service import Backend, processing_config_for
 
 FIXTURES = Path(__file__).resolve().parents[2] / "signals" / "contract" / "fixtures"
 
@@ -21,7 +21,7 @@ FIXTURES = Path(__file__).resolve().parents[2] / "signals" / "contract" / "fixtu
 def _no_bonjour_on_the_network(monkeypatch):
     """`serve` with a LAN --host announces itself by multicast DNS (bonjour.py). Tests never do: the announcer is
     replaced by one that does nothing (test_app_discovery.py checks the wiring with its own stand-in)."""
-    from vibeguard_backend import bonjour
+    from haven_backend import bonjour
 
     class QuietAnnouncer:
         def __init__(self, http_port, password, name=None, addresses=None):

@@ -1,6 +1,6 @@
-# VibeGuard phone app (Expo)
+# HAVen phone app (Expo)
 
-One app for iPhone and Android. It shows the laptop's VibeGuard over Wi-Fi: Live, Calibrate, Touch test,
+One app for iPhone and Android. It shows the laptop's HAVen over Wi-Fi: Live, Calibrate, Touch test,
 History and Summary, plus a practice mode with made-up data that needs no laptop. The laptop still talks to the
 sleeve and keeps every recording; the phone only shows and controls it.
 
@@ -33,7 +33,7 @@ phone follows the same rules as the browser dashboard. Metro watches that folder
    **Scan the QR code** and point it at that one. Or open **Can't connect?** and type the address printed under it.
 
 If `VG_BASIC_AUTH` is set on the laptop, the app asks for the user name and password once and keeps them in the
-phone's secure storage. The app sends `X-VibeGuard-Client`, so the backend answers a missing password with a plain
+phone's secure storage. The app sends `X-HAVen-Client`, so the backend answers a missing password with a plain
 401 instead of a browser sign-in challenge (iOS would otherwise hold the request open waiting for a prompt).
 
 ## Develop

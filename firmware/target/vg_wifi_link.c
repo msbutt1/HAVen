@@ -67,7 +67,7 @@ static bool discover(char *ip, uint16_t *port)
 }
 
 /* The Wi-Fi gateway's address. When the phone itself is the hotspot, the phone is the
- * gateway: the VibeGuard app listens on tcp_port there (iOS apps cannot receive the
+ * gateway: the HAVen app listens on tcp_port there (iOS apps cannot receive the
  * discovery broadcast without a special entitlement, so the app never answers it). */
 static bool gateway(char *ip)
 {

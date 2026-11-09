@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>VibeGuard dashboard</title>
+  <title>HAVen dashboard</title>
   <meta name="theme-color" content="#11151d" media="(prefers-color-scheme: dark)">
   <meta name="theme-color" content="#ffffff" media="(prefers-color-scheme: light)">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f8ff7'/%3E%3Cpath d='M5 16h5l3-7 4 14 3-9 2 2h5' fill='none' stroke='%23131826' stroke-width='2.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
@@ -13,7 +13,7 @@
 </head>
 <body>
   <header class="topbar">
-    <h1 class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg></span>VibeGuard<span class="crumb">dashboard</span></h1>
+    <h1 class="brand"><span class="mark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h4l2-5 3 10 3-7 2 2h4"/></svg></span>HAVen<span class="crumb">dashboard</span></h1>
     <div class="devices" aria-live="polite">
       <span class="device" id="dev-sleeve" data-state="disconnected"><span class="dot" aria-hidden="true"></span>Sleeve <b class="device-state">Disconnected</b></span>
       <span class="device" id="dev-station" data-state="disconnected" hidden><span class="dot" aria-hidden="true"></span>Station <b class="device-state">Disconnected</b></span>
@@ -246,7 +246,7 @@
     <!-- LIMITS (info page; static, so it also works on the mock feed and the landing demo) -->
     <section id="view-limits" class="view limits" role="tabpanel" aria-labelledby="tab-limits" hidden>
       <h2 class="section-title">Daily vibration limits</h2>
-      <p class="lead">VibeGuard compares each worker’s daily hand-arm vibration with the limits used in European and UK law. This page explains the numbers, where they come from, and what our wrist sensor can and cannot tell you.</p>
+      <p class="lead">HAVen compares each worker’s daily hand-arm vibration with the limits used in European and UK law. This page explains the numbers, where they come from, and what our wrist sensor can and cannot tell you.</p>
 
       <div class="lim-grid">
         <article class="panel lim-card"><h3>Action value</h3><p class="lim-num">2.5 <span>m/s² A(8)</span></p><p class="lim-pts">100 points</p><p>Above this, the employer must act to reduce exposure: rotate jobs, use lower-vibration tools, plan breaks, and offer health surveillance.</p></article>
@@ -273,7 +273,7 @@
       <p>ISO 5349-1 Annex C estimates the years of daily exposure after which <strong>10 % of a group</strong> of workers would develop vibration white finger: D<sub>y</sub> = 31.8 × A(8)<sup>−1.06</sup> years (A(8) 2.5 → about 12 years; 3.0 → 9.9; 5.0 → 5.8). It is a <strong>group estimate, not a diagnosis</strong>. Later research suggests it is conservative, and we do not show it for A(8) below 1 m/s².</p>
 
       <h3 class="ov-section">Where we measure</h3>
-      <p>HSE’s guidance says measurements away from the palm, including at the wrist, are unlikely to be representative, and that <strong>monitoring</strong> systems must not be confused with <strong>measurement</strong> systems (monitors can differ by up to 20 % on the same task). <strong>ISO/TS 22270:2026</strong> now gives guidance for monitoring daily exposure with sensors on the hand, wrist or arm, as a supplement to ISO 5349-1. VibeGuard is a monitoring tool: live alerts, trends, grip and tool comparisons. Formal risk assessments still use an ISO 5349-2 measurement or tool data. Next step: a per-tool wrist-to-hand calibration against a reference measurement.</p>
+      <p>HSE’s guidance says measurements away from the palm, including at the wrist, are unlikely to be representative, and that <strong>monitoring</strong> systems must not be confused with <strong>measurement</strong> systems (monitors can differ by up to 20 % on the same task). <strong>ISO/TS 22270:2026</strong> now gives guidance for monitoring daily exposure with sensors on the hand, wrist or arm, as a supplement to ISO 5349-1. HAVen is a monitoring tool: live alerts, trends, grip and tool comparisons. Formal risk assessments still use an ISO 5349-2 measurement or tool data. Next step: a per-tool wrist-to-hand calibration against a reference measurement.</p>
 
       <h3 class="ov-section">Limitations</h3>
       <ul class="lim-list">

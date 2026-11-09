@@ -1,4 +1,4 @@
-# VibeGuard: shared project brief
+# HAVen: shared project brief
 
 ## Objective
 Build a reliable hackathon prototype combining forearm muscle activity, wrist vibration, a fingertip vibration-perception workflow, and a local dashboard. Demonstrate a complete measurement-to-record workflow rather than clinical accuracy.
@@ -30,4 +30,4 @@ Bluetooth/mobile app, adaptive cancellation, custom electrodes, production authe
 Keep measured vibration, normalized muscle activity, and experimental combined score separate. Increasing a score with grip demonstrates the chosen algorithm, not validated physical transmission. The station is a vibration-perception prototype; it does not establish early nerve-damage detection. Motor settings are not measured physical amplitudes. Cold is an optional contextual flag, not a validated dose multiplier. Historical demo data is simulated and labeled.
 
 ## Source context
-Adapted from the supplied “natHacks 2026 — VibeGuard HAVS Dose + Nerve-Check Wearable-2.pdf” and the subsequent 50-hour planning discussion. The PDF's original 64-hour schedule, sewing tasks, and stronger medical/product claims are superseded by this plan. Its epidemiology, prices, competition claims, and standards references need independent verification before use in slides. These files are an implementation plan, not a verbatim PDF transcription.
+Adapted from the supplied “natHacks 2026 — HAVen HAVS Dose + Nerve-Check Wearable-2.pdf” and the subsequent 50-hour planning discussion. The PDF's original 64-hour schedule, sewing tasks, and stronger medical/product claims are superseded by this plan. Its epidemiology, prices, competition claims, and standards references need independent verification before use in slides. These files are an implementation plan, not a verbatim PDF transcription.

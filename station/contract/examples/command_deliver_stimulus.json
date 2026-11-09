@@ -1,0 +1,9 @@
+{
+  "schema": "vibeguard.station_command",
+  "version": 1,
+  "command_id": "c00001",
+  "type": "deliver_stimulus",
+  "trial_id": "sim-preview-001-t001",
+  "setting": 60,
+  "duration_ms": 1000
+}

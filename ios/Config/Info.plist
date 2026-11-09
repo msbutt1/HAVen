@@ -9,6 +9,6 @@
 		<true/>
 	</dict>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>VibeGuard receives the sleeve's measurements over your phone's hotspot.</string>
+	<string>HAVen receives the sleeve's measurements over your phone's hotspot.</string>
 </dict>
 </plist>

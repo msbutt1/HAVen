@@ -1,4 +1,4 @@
-/* VibeGuard landing page, built on livops.uz's design system: the same colour tokens (light and dark),
+/* HAVen landing page, built on livops.uz's design system: the same colour tokens (light and dark),
    Onest + JetBrains Mono, rim-lit panels, the hero grid with a light passing behind it, the section rhythm and
    the footer. Fonts are self-hosted (SIL OFL, see assets/fonts): the page makes no third-party requests and
    runs no scripts (the header and the reveal effects use CSS scroll timelines where the browser has them). */
@@ -35,7 +35,7 @@
   --radius: 0.7rem;
   --elevation-sm: 0 1px 2px oklch(35% 0.04 265 / 0.06), 0 1px 3px oklch(35% 0.04 265 / 0.08);
   --elevation-lg: 0 8px 16px -8px oklch(35% 0.04 265 / 0.1), 0 24px 48px -16px oklch(35% 0.04 265 / 0.18);
-  /* VibeGuard's data-source labels, in the same palette */
+  /* HAVen's data-source labels, in the same palette */
   --live: var(--success);
   --replay: var(--primary);
   --sim: oklch(52% 0.17 300);

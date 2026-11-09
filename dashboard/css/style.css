@@ -1,4 +1,4 @@
-/* VibeGuard dashboard, on the same design system as the landing page (livops.uz's tokens for light and dark,
+/* HAVen dashboard, on the same design system as the landing page (livops.uz's tokens for light and dark,
    Onest + JetBrains Mono, rim-lit panels). Fonts are self-hosted (SIL OFL, see assets/fonts).
    The canvas charts read --font, --ink, --ink-2, --line, --danger and --c-act / --c-vib / --c-score: those stay
    plain colour values (no color-mix) so a canvas can parse them. */

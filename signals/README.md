@@ -1,6 +1,6 @@
-# vibeguard-signals
+# haven-signals
 
-Salaar-owned host-side reference package for VibeGuard. It holds the device telemetry
+Salaar-owned host-side reference package for HAVen. It holds the device telemetry
 contract, its validator, and a deterministic simulated wearable, and host processing (quality handling, EMG envelope, calibration, vibration features, experimental score).
 
 All data produced here is labelled simulated. Nothing here establishes clinical accuracy,

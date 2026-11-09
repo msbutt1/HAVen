@@ -87,8 +87,8 @@ function eventText(e: any): string {
   return EVENT_TEXT[e.event] || String(e.event).replace(/_/g, ' ');
 }
 
-/** Sent as X-VibeGuard-Client: the laptop then answers a missing password with a plain 401 (no iOS prompt). */
-const CLIENT = 'vibeguard-mobile';
+/** Sent as X-HAVen-Client: the laptop then answers a missing password with a plain 401 (no iOS prompt). */
+const CLIENT = 'haven-mobile';
 
 const KEY_LAST = 'vg.lastBase';
 const KEY_USER = 'vg.user';
@@ -198,19 +198,19 @@ class Store {
     const timer = setTimeout(() => abort.abort(), 6000);   // a laptop that drops packets would otherwise hang this
     try {
       const r = await fetch(base + '/api/health', { signal: abort.signal,
-        headers: { 'X-VibeGuard-Client': CLIENT, ...(authorization ? { Authorization: authorization } : {}) } });
+        headers: { 'X-HAVen-Client': CLIENT, ...(authorization ? { Authorization: authorization } : {}) } });
       if (r.status === 401) {
         needsPassword = true;
         problem = authorization ? 'Wrong user name or password.' : 'This laptop asks for a user name and password.';
       } else if (r.status === 403) {
-        problem = 'The laptop refused this phone. VibeGuard on the laptop needs to be started for phones (--host 0.0.0.0).';
+        problem = 'The laptop refused this phone. HAVen on the laptop needs to be started for phones (--host 0.0.0.0).';
       } else if (r.ok) {
-        problem = 'The laptop answers, but the live connection failed. Is it the VibeGuard backend?';
+        problem = 'The laptop answers, but the live connection failed. Is it the HAVen backend?';
       } else {
         problem = `The laptop answered with an error (HTTP ${r.status}).`;
       }
     } catch {
-      problem = `Could not reach ${label(base)}. Is the laptop on, with VibeGuard running, on the same Wi-Fi as this phone?`;
+      problem = `Could not reach ${label(base)}. Is the laptop on, with HAVen running, on the same Wi-Fi as this phone?`;
     } finally {
       clearTimeout(timer);
     }

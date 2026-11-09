@@ -1,4 +1,4 @@
-# VibeGuard signals — team handoff
+# HAVen signals — team handoff
 
 **Owner:** Salaar (firmware, signals, calibration, experimental scoring).
 **Status (2026-11-07):** the whole host-side signal path is built, tested and runnable
@@ -89,7 +89,7 @@ carries:
 
 Missing values are `null`, never 0.
 
-**Where:** `contract/TELEMETRY_CONTRACT.md` (spec), `src/vibeguard_signals/contract.py`
+**Where:** `contract/TELEMETRY_CONTRACT.md` (spec), `src/haven_signals/contract.py`
 (the validator), `uv run vg-validate FILE`. Example records:
 `contract/fixtures/valid/`. One broken example per error type: `contract/fixtures/invalid/`.
 
@@ -208,7 +208,7 @@ signals/
 │       ├── invalid_manifest.json  expected error code per invalid fixture
 │       └── sim/                happy_path_seed1_3s.ndjson, fault_mix_seed1_5s.ndjson
 ├── examples/embed_processor.py backend embedding example
-├── src/vibeguard_signals/
+├── src/haven_signals/
 │   ├── contract.py             validator (parse_line, validate_record, serialize_record)
 │   ├── simulator.py, sim_cli.py            vg-sim
 │   ├── validate_cli.py                     vg-validate
@@ -256,7 +256,7 @@ available: `contract/fixtures/sim/*.ndjson`, `out/demo/telemetry.ndjson`.
 **Decode and validate each line:**
 
 ```python
-from vibeguard_signals import contract
+from haven_signals import contract
 record, issues = contract.parse_line(raw_line)   # bytes or str
 if issues:            # invalid → reject the whole record, never use part of it
     ...
@@ -272,9 +272,9 @@ if issues:            # invalid → reject the whole record, never use part of i
 
 ```python
 import dataclasses, time
-from vibeguard_signals import contract
-from vibeguard_signals.demo import demo_processing_config
-from vibeguard_signals.processing import Processor, to_ndjson_line
+from haven_signals import contract
+from haven_signals.demo import demo_processing_config
+from haven_signals.processing import Processor, to_ndjson_line
 
 # demo config cites the SIMULATOR's accelerometer scale; swap in the real one later
 config = dataclasses.replace(demo_processing_config(), clock="host")
@@ -558,7 +558,7 @@ All of these are config values, not code changes.
 
 **Key decisions:**
 - **Scope.** Only `signals/` is touched. There is one implementation, in
-  `src/vibeguard_signals/`.
+  `src/haven_signals/`.
 - **Processing location.** The device only acquires; all processing runs on the host.
 - **Contract.** The device contract is separate from the backend API. Its physical wire
   format stays open until the board is known.

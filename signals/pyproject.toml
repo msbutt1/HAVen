@@ -1,7 +1,7 @@
 [project]
-name = "vibeguard-signals"
+name = "haven-signals"
 version = "0.1.0"
-description = "VibeGuard host-side reference: device telemetry contract, simulation, and signal processing (Salaar-owned)."
+description = "HAVen host-side reference: device telemetry contract, simulation, and signal processing (Salaar-owned)."
 readme = "README.md"
 authors = [
     { name = "msbutt1", email = "msbutt112004@gmail.com" }
@@ -13,14 +13,14 @@ dependencies = [
 ]
 
 [project.scripts]
-vg-validate = "vibeguard_signals.validate_cli:main"
-vg-bandwidth = "vibeguard_signals.bandwidth:main"
-vg-sim = "vibeguard_signals.sim_cli:main"
-vg-process = "vibeguard_signals.process_cli:main"
-vg-replay = "vibeguard_signals.replay_cli:main"
-vg-demo = "vibeguard_signals.demo_cli:main"
-vg-bridge = "vibeguard_signals.bridge:main"
-vg-live = "vibeguard_signals.live_cli:main"
+vg-validate = "haven_signals.validate_cli:main"
+vg-bandwidth = "haven_signals.bandwidth:main"
+vg-sim = "haven_signals.sim_cli:main"
+vg-process = "haven_signals.process_cli:main"
+vg-replay = "haven_signals.replay_cli:main"
+vg-demo = "haven_signals.demo_cli:main"
+vg-bridge = "haven_signals.bridge:main"
+vg-live = "haven_signals.live_cli:main"
 
 [build-system]
 requires = ["uv_build>=0.11.14,<0.12.0"]

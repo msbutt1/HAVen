@@ -16,13 +16,13 @@ import pytest
 from conftest import ScriptedAdapter, sim_frames, wait_until
 from test_backup_review import _check, _runtime, fake  # noqa: F401  (fixture)
 
-from vibeguard_backend.adapters import SerialAdapter
-from vibeguard_backend.backup import export_backup, start_backup_replay
-from vibeguard_backend.cli import main as cli_main
-from vibeguard_backend.hardware import ProfileError, load_profile
-from vibeguard_backend.preflight import FAIL, PASS, WARN, run_preflight
-from vibeguard_backend.service import Backend, processing_config_for
-from vibeguard_backend.status_page import STATUS_PAGE
+from haven_backend.adapters import SerialAdapter
+from haven_backend.backup import export_backup, start_backup_replay
+from haven_backend.cli import main as cli_main
+from haven_backend.hardware import ProfileError, load_profile
+from haven_backend.preflight import FAIL, PASS, WARN, run_preflight
+from haven_backend.service import Backend, processing_config_for
+from haven_backend.status_page import STATUS_PAGE
 
 ROOT = Path(__file__).resolve().parents[1]
 SRC = "MPU-6050 datasheet p.13, +/-2 g range"
@@ -206,7 +206,7 @@ def serve_env(monkeypatch):
     """Run ``serve`` in-process without opening sockets; record what it hands to the runtime."""
     import uvicorn
 
-    from vibeguard_backend import backup as backup_mod
+    from haven_backend import backup as backup_mod
 
     backends: list[Backend] = []
     orig_init = Backend.__init__
@@ -338,7 +338,7 @@ def test_backup_overrides_device_and_never_opens_serial(serve_env, tmp_path):
 # ============================================================================ port glob
 
 def test_a_glob_that_matches_nothing_names_the_pattern(tmp_path):
-    from vibeguard_backend.adapters import AdapterDisconnected
+    from haven_backend.adapters import AdapterDisconnected
 
     a = SerialAdapter(str(tmp_path / "cu.usbmodem*"))
     with pytest.raises(AdapterDisconnected, match=r"no port matches .*cu\.usbmodem\*"):

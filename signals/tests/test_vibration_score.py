@@ -10,11 +10,11 @@ import math
 
 import pytest
 
-from vibeguard_signals import contract
-from vibeguard_signals.processing import ProcessingConfig, Processor, StreamConfig
-from vibeguard_signals.processing.config import CalibrationConfig, ScoreConfig, VibrationConfig
-from vibeguard_signals.processing.score import ScoreEngine
-from vibeguard_signals.simulator import SIM_COUNTS_PER_G, SimConfig, Simulation
+from haven_signals import contract
+from haven_signals.processing import ProcessingConfig, Processor, StreamConfig
+from haven_signals.processing.config import CalibrationConfig, ScoreConfig, VibrationConfig
+from haven_signals.processing.score import ScoreEngine
+from haven_signals.simulator import SIM_COUNTS_PER_G, SimConfig, Simulation
 
 G = 9.80665
 SIM_CONV = {a: (G / SIM_COUNTS_PER_G, 0.0) for a in ("ax", "ay", "az")}

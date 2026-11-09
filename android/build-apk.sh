@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build the VibeGuard Android app and put the APK in android/dist/.
+# Build the HAVen Android app and put the APK in android/dist/.
 #
 #   android/build-apk.sh             # debug-signed APK, installable by sideloading
 #
@@ -14,5 +14,5 @@ fi
 ./gradlew --no-daemon -q testDebugUnitTest assembleDebug
 version="$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)"
 mkdir -p dist
-cp app/build/outputs/apk/debug/app-debug.apk "dist/VibeGuard-$version-debug.apk"
-echo "dist/VibeGuard-$version-debug.apk"
+cp app/build/outputs/apk/debug/app-debug.apk "dist/HAVen-$version-debug.apk"
+echo "dist/HAVen-$version-debug.apk"

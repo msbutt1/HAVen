@@ -14,9 +14,9 @@ import pytest
 from conftest import ScriptedAdapter, sim_frames, wait_until
 from test_provenance_and_replay import calibration_points
 
-from vibeguard_signals import contract
-from vibeguard_backend import runtime as runtime_mod
-from vibeguard_backend.service import processing_config_for
+from haven_signals import contract
+from haven_backend import runtime as runtime_mod
+from haven_backend.service import processing_config_for
 
 CFG = processing_config_for("sim")
 

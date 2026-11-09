@@ -9,10 +9,10 @@ import pytest
 from conftest import wait_until
 from fastapi.testclient import TestClient
 
-from vibeguard_backend.app import create_app
-from vibeguard_backend.backup import export_backup, start_backup_replay, verify_backup
-from vibeguard_backend.history import seed_history
-from vibeguard_backend.runtime import RuntimeConflict
+from haven_backend.app import create_app
+from haven_backend.backup import export_backup, start_backup_replay, verify_backup
+from haven_backend.history import seed_history
+from haven_backend.runtime import RuntimeConflict
 
 
 @pytest.fixture
@@ -65,7 +65,7 @@ def test_exporting_a_crashed_session_is_flagged_as_truncated(backend, tmp_path):
 
 def test_crashed_session_reports_when_it_really_ended(tmp_path):
     """recover_after_restart used to stamp the restart time as ended_at; the last received frame is the truth."""
-    from vibeguard_backend.service import Backend
+    from haven_backend.service import Backend
 
     data = tmp_path / "data"
     a = Backend(data, recover=False)
@@ -87,7 +87,7 @@ def test_crashed_session_reports_when_it_really_ended(tmp_path):
 
 def test_a_session_started_with_only_the_relaxed_reference_is_flagged(backend):
     from conftest import ScriptedAdapter, sim_frames
-    from vibeguard_backend.service import processing_config_for
+    from haven_backend.service import processing_config_for
 
     frames = sim_frames(duration_s=10)
     import threading

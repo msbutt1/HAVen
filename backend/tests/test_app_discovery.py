@@ -3,9 +3,9 @@ import socket
 
 import pytest
 
-from vibeguard_backend.appdiscovery import MAX_REPLY, MIN_QUERY, AppDiscovery, clean_name, reply_for
-from vibeguard_backend.bonjour import Announcer as RealAnnouncer   # bound before conftest swaps in a quiet one
-from vibeguard_backend.cli import build_parser
+from haven_backend.appdiscovery import MAX_REPLY, MIN_QUERY, AppDiscovery, clean_name, reply_for
+from haven_backend.bonjour import Announcer as RealAnnouncer   # bound before conftest swaps in a quiet one
+from haven_backend.cli import build_parser
 
 Q = b"VGFIND 1".ljust(MIN_QUERY, b" ")
 
@@ -34,7 +34,7 @@ def test_only_padded_queries_are_answered_and_replies_never_amplify():
 def test_names_are_short_and_plain():
     assert clean_name("Abdujabbors-MacBook-Pro.local") == "Abdujabbors-MacBook-Pro"
     assert clean_name("lab pc (2)") == "lab-pc-2"
-    assert clean_name("...") == "vibeguard"
+    assert clean_name("...") == "haven"
     assert len(clean_name("x" * 99)) == 24
     assert clean_name("Abdujabbors-MacBook-Air-2") == "Abdujabbors-MacBook-Air"   # cut at 24, no dangling dash
 
@@ -94,7 +94,7 @@ def _ask(port: int) -> bytes | None:
 def test_serve_answers_the_app_only_when_it_listens_beyond_this_computer(monkeypatch, tmp_path, host, answers):
     import uvicorn
 
-    from vibeguard_backend.cli import main as cli_main
+    from haven_backend.cli import main as cli_main
 
     port = _free_udp_port()
     seen = {}
@@ -116,7 +116,7 @@ def test_serve_answers_the_app_only_when_it_listens_beyond_this_computer(monkeyp
 # ---------------------------------------------------------------- Bonjour, for the iPhone app
 
 def test_bonjour_announcement_says_port_password_and_path():
-    from vibeguard_backend.bonjour import SERVICE_TYPE, service_fields
+    from haven_backend.bonjour import SERVICE_TYPE, service_fields
 
     f = service_fields(8000, True, "Abdujabbors-MacBook-Air.local", ["192.168.43.20"])
     assert SERVICE_TYPE == "_vibeguard._tcp.local."
@@ -130,7 +130,7 @@ def test_bonjour_announcement_says_port_password_and_path():
 def test_bonjour_only_announces_lan_addresses(monkeypatch):
     import types
 
-    from vibeguard_backend import bonjour
+    from haven_backend import bonjour
 
     fake = [types.SimpleNamespace(ips=[types.SimpleNamespace(ip="127.0.0.1"), types.SimpleNamespace(ip="192.168.1.5"),
                                        types.SimpleNamespace(ip=("fe80::1", 0, 4)), types.SimpleNamespace(ip="8.8.8.8"),
@@ -146,8 +146,8 @@ def test_bonjour_only_announces_lan_addresses(monkeypatch):
 def test_serve_announces_on_bonjour_only_beyond_this_computer(monkeypatch, tmp_path, host, flags, announced):
     import uvicorn
 
-    from vibeguard_backend import bonjour
-    from vibeguard_backend.cli import main as cli_main
+    from haven_backend import bonjour
+    from haven_backend.cli import main as cli_main
 
     seen = []
 
@@ -174,7 +174,7 @@ def test_serve_announces_on_bonjour_only_beyond_this_computer(monkeypatch, tmp_p
 # ---------------------------------------------------------------- QR code for phones
 
 def test_phone_url_prefers_a_normal_lan_address():
-    from vibeguard_backend.phoneqr import phone_url
+    from haven_backend.phoneqr import phone_url
 
     assert phone_url(["169.254.3.4", "192.168.43.20"], 8000) == "http://192.168.43.20:8000/dashboard/"
     assert phone_url(["169.254.3.4"], 8010) == "http://169.254.3.4:8010/dashboard/"
@@ -182,7 +182,7 @@ def test_phone_url_prefers_a_normal_lan_address():
 
 
 def test_qr_is_drawn_in_explicit_black_and_white():
-    from vibeguard_backend.phoneqr import qr_lines
+    from haven_backend.phoneqr import qr_lines
 
     lines = qr_lines("http://192.168.43.20:8000/dashboard/")
     assert 15 <= len(lines) <= 30                                   # two modules per line
@@ -196,8 +196,8 @@ def test_qr_is_drawn_in_explicit_black_and_white():
 def test_serve_says_the_phone_address_only_beyond_this_computer(monkeypatch, tmp_path, capsys, host, shown):
     import uvicorn
 
-    from vibeguard_backend import bonjour
-    from vibeguard_backend.cli import main as cli_main
+    from haven_backend import bonjour
+    from haven_backend.cli import main as cli_main
 
     monkeypatch.setattr(bonjour, "lan_ipv4_addresses", lambda: ["192.168.43.20"])
     monkeypatch.setattr(uvicorn, "run", lambda app, **kw: None)

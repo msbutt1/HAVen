@@ -1,0 +1,6 @@
+{
+  "schema": "vibeguard.station_command",
+  "version": 1,
+  "command_id": "c00003",
+  "type": "stop_stimulus"
+}

@@ -2,8 +2,8 @@
 import threading
 
 from conftest import ScriptedAdapter, sim_frames, wait_until
-from vibeguard_backend.runtime import _ActiveSession, _readings_view
-from vibeguard_backend.service import Backend, processing_config_for
+from haven_backend.runtime import _ActiveSession, _readings_view
+from haven_backend.service import Backend, processing_config_for
 
 
 def test_readings_view_rounds_and_reports_nothing_it_did_not_see():

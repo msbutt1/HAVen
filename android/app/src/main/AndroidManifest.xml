@@ -22,7 +22,7 @@
         android:networkSecurityConfig="@xml/network_security_config"
         android:roundIcon="@mipmap/ic_launcher"
         android:supportsRtl="true"
-        android:theme="@style/Theme.VibeGuard">
+        android:theme="@style/Theme.HAVen">
 
         <!-- standalone: the sleeve connects to this phone (its hotspot) and the phone does all the processing -->
         <activity

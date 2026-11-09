@@ -1,6 +1,6 @@
 # Connect the wearable to your phone over Wi-Fi
 
-A step-by-step guide for setting up the VibeGuard wearable (board W), the laptop and the Android app on one Wi-Fi
+A step-by-step guide for setting up the HAVen wearable (board W), the laptop and the Android app on one Wi-Fi
 network. Part 1 is done once by whoever builds the firmware. Parts 2 to 4 are what you do every time.
 
 ## How it fits together
@@ -9,7 +9,7 @@ The phone does **not** talk to the wearable directly. The laptop sits in the mid
 works out grip effort, vibration and tool use, saves the recordings, and shows its dashboard to the phone.
 
 ```
-   wearable (board W)  ── Wi-Fi ──►  laptop (VibeGuard backend)  ◄── Wi-Fi ──  phone (VibeGuard app)
+   wearable (board W)  ── Wi-Fi ──►  laptop (HAVen backend)  ◄── Wi-Fi ──  phone (HAVen app)
    streams raw data                  processes and stores it                   shows the dashboard
 ```
 
@@ -27,7 +27,7 @@ You never type an address into the wearable. The phone only needs one if its sea
 - The wearable (board W), flashed with the Wi-Fi name and password (Part 1), electrodes, and power (USB power bank or
   cable).
 - A laptop with this repository, Python and `uv` (one-time: `cd backend && uv sync`).
-- An Android phone with the app: `android/dist/VibeGuard-0.1.0-debug.apk` (build it with `android/build-apk.sh`).
+- An Android phone with the app: `android/dist/HAVen-0.1.0-debug.apk` (build it with `android/build-apk.sh`).
 - A Wi-Fi network that meets all of these:
   - **2.4 GHz.** The wearable's ESP32 cannot see 5 GHz networks.
   - **A normal password** (WPA2-Personal). Networks that ask for a user name and password, like eduroam or most
@@ -91,7 +91,7 @@ networks, repeat it.
 ## Part 2 (every time): start the laptop
 
 1. Join the laptop to the Wi-Fi from Part 1.
-2. Start VibeGuard so the wearable **and** phones can reach it:
+2. Start HAVen so the wearable **and** phones can reach it:
 
    ```bash
    cd backend
@@ -106,11 +106,11 @@ networks, repeat it.
 4. You should see these lines:
 
    ```
-   vg-backend: phones on this Wi-Fi: open the VibeGuard app and tap Find on this Wi-Fi (answered on UDP 8767) …
+   vg-backend: phones on this Wi-Fi: open the HAVen app and tap Find on this Wi-Fi (answered on UDP 8767) …
    INFO:     Uvicorn running on http://0.0.0.0:8000
    ```
 
-Keep this terminal open while you work. `Ctrl+C` stops VibeGuard.
+Keep this terminal open while you work. `Ctrl+C` stops HAVen.
 
 ## Part 3 (every time): turn on the wearable
 
@@ -123,7 +123,7 @@ Keep this terminal open while you work. `Ctrl+C` stops VibeGuard.
 ## Part 4 (every time): connect the phone
 
 1. Join the phone to the **same** Wi-Fi.
-2. Open the **VibeGuard** app. It searches by itself and shows the laptop (for example *Abdujabbors-MacBook-Air*).
+2. Open the **HAVen** app. It searches by itself and shows the laptop (for example *Abdujabbors-MacBook-Air*).
    Tap **Open**. Next time it reopens the same laptop by itself.
 3. If it finds nothing, tap **Can't connect?** and type the laptop's address. Find it on the laptop with:
 
@@ -137,7 +137,7 @@ Keep this terminal open while you work. `Ctrl+C` stops VibeGuard.
 5. **Calibrate** (bottom menu): relax, then squeeze, as the screen says. Do this again after every wearable restart;
    the app will tell you.
 
-On an **iPhone** the VibeGuard iOS app works the same way (installed from Xcode for now; see `ios/README.md`):
+On an **iPhone** the HAVen iOS app works the same way (installed from Xcode for now; see `ios/README.md`):
 allow **Local Network** when iOS asks, then tap **Open**. Any phone's browser works too:
 `http://<laptop address>:8000/dashboard/`.
 
@@ -149,10 +149,10 @@ allow **Local Network** when iOS asks, then tap **Open**. Any phone's browser wo
 |---|---|---|
 | Wearable log shows `wifi=0` | Wrong name or password, a 5 GHz network, or a network that needs a user name (eduroam) | Check `wifi_secrets.h` (capitals matter), switch the hotspot to 2.4 GHz, then flash again (Part 1, step 4) |
 | `wifi=1 tcp=0` and it stays like that | The laptop is not running `--device wifi`, is on another network, or the network blocks broadcasts | Check Part 2; put the laptop on the same Wi-Fi; or set `VG_BRIDGE_HOST` to the laptop's address in `wifi_secrets.h` and flash again |
-| The laptop says the Wi-Fi port is already in use | Another VibeGuard (or `vg-bridge`) is still running | Stop it, then start again. To see who holds the port: `lsof -nP -iTCP:8765` |
+| The laptop says the Wi-Fi port is already in use | Another HAVen (or `vg-bridge`) is still running | Stop it, then start again. To see who holds the port: `lsof -nP -iTCP:8765` |
 | Laptop dashboard shows a violet **Simulated** band | It was started without `--device wifi` | Stop it (`Ctrl+C`) and start it with `--device wifi --host 0.0.0.0` |
-| The app finds no laptop, or says **The laptop did not answer** | VibeGuard is not running, was started without `--host 0.0.0.0`, the phone is on another Wi-Fi, macOS blocked Python, or the network keeps devices apart | Start it as in Part 2; check the phone's Wi-Fi name; allow Python (System Settings › Network › Firewall); use a hotspot; or type the address |
-| The app says **The laptop refused this phone** | VibeGuard was started with `--host` set to one address, and the phone used another | Restart it with `--host 0.0.0.0` as in Part 2 |
+| The app finds no laptop, or says **The laptop did not answer** | HAVen is not running, was started without `--host 0.0.0.0`, the phone is on another Wi-Fi, macOS blocked Python, or the network keeps devices apart | Start it as in Part 2; check the phone's Wi-Fi name; allow Python (System Settings › Network › Firewall); use a hotspot; or type the address |
+| The app says **The laptop refused this phone** | HAVen was started with `--host` set to one address, and the phone used another | Restart it with `--host 0.0.0.0` as in Part 2 |
 | The app opens, but readings are dashes and it says no new reading | The wearable lost power or Wi-Fi | Check its power; it reconnects by itself within seconds |
 | Grip effort is a dash and says **Calibrate** | Not calibrated yet, or the wearable restarted | Calibrate (Part 4, step 5) |
 

@@ -18,9 +18,9 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from vibeguard_backend.app import create_app
-from vibeguard_backend.cli import main as cli_main
-from vibeguard_backend.status_page import STATUS_PAGE
+from haven_backend.app import create_app
+from haven_backend.cli import main as cli_main
+from haven_backend.status_page import STATUS_PAGE
 
 
 @pytest.fixture

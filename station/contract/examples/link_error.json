@@ -1,0 +1,6 @@
+{
+  "schema": "vibeguard.station_link",
+  "version": 1,
+  "type": "error",
+  "message": "driver fault"
+}

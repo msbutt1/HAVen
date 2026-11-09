@@ -1,6 +1,6 @@
 /**
  * The connect screen, for people who may be new to phones. It starts on its own (the laptop used last time); the main
- * way in is scanning the QR code the laptop prints when VibeGuard starts for phones. Help and a typed address wait
+ * way in is scanning the QR code the laptop prints when HAVen starts for phones. Help and a typed address wait
  * behind "Can't connect?"; practice mode needs no laptop.
  */
 import { Ionicons } from '@expo/vector-icons';
@@ -58,7 +58,7 @@ export default function Connect() {
     if (text == null) return;
     const base = baseURL(text);
     if (base) open(base);
-    else setScanError('That QR code is not a VibeGuard laptop. Scan the code the laptop shows when VibeGuard starts.');
+    else setScanError('That QR code is not a HAVen laptop. Scan the code the laptop shows when HAVen starts.');
   }, [open]));
 
   // connected (by something started on this screen): on to the main screens
@@ -85,7 +85,7 @@ export default function Connect() {
           <View style={{ width: 40, height: 40, borderRadius: 11, backgroundColor: t.primary, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="pulse" size={26} color={t.onPrimary} />
           </View>
-          <Text style={{ color: t.foreground, fontSize: 24, fontWeight: '700' }}>VibeGuard</Text>
+          <Text style={{ color: t.foreground, fontSize: 24, fontWeight: '700' }}>HAVen</Text>
         </View>
         <Text accessibilityRole="header" style={{ color: t.foreground, fontSize: 32, fontWeight: '800' }}>Connect to the laptop</Text>
         <Muted size={17}>The laptop talks to the sleeve and keeps the recordings. This phone shows them over Wi-Fi. Phone and laptop must be on the same Wi-Fi.</Muted>
@@ -120,7 +120,7 @@ export default function Connect() {
           {!opening && !failed && (
             <View style={{ gap: 6 }}>
               <Text style={{ color: t.foreground, fontSize: 21, fontWeight: '700' }}>Scan the laptop’s QR code</Text>
-              <Muted size={17}>When VibeGuard starts on the laptop for phones, it shows a square QR code. Point this phone’s camera at it.</Muted>
+              <Muted size={17}>When HAVen starts on the laptop for phones, it shows a square QR code. Point this phone’s camera at it.</Muted>
             </View>
           )}
           {!!scanError && <Text style={{ color: t.destructive, fontSize: 16 }}>{scanError}</Text>}
@@ -136,7 +136,7 @@ export default function Connect() {
           <Panel style={{ padding: 20, gap: 12 }}>
             <Title>Getting connected</Title>
             <Text style={{ color: t.foreground, fontSize: 17, lineHeight: 24 }}>
-              1. Put the phone and the laptop on the same Wi-Fi.{'\n'}2. On the laptop, start VibeGuard for phones (the person who set up the laptop can do this):
+              1. Put the phone and the laptop on the same Wi-Fi.{'\n'}2. On the laptop, start HAVen for phones (the person who set up the laptop can do this):
             </Text>
             <Text selectable style={{ fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 15, color: t.foreground,
               backgroundColor: t.section, borderRadius: 10, padding: 12 }}>vg-backend serve --device wifi --host 0.0.0.0</Text>

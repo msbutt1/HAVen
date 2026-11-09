@@ -1,4 +1,4 @@
-/* VibeGuard bring-up DIAGNOSTIC (Prompt 3). Not the wearable or station app.
+/* HAVen bring-up DIAGNOSTIC (Prompt 3). Not the wearable or station app.
  *
  * Console on UART0 at 115200. Every result line starts with "VGD" and says
  * whether the value is MEASURED (read from hardware), CONFIGURED (written by
@@ -359,7 +359,7 @@ void app_main(void)
     vTaskDelay(pdMS_TO_TICKS(300));
     uint8_t mac[6];
     esp_read_mac(mac, ESP_MAC_BASE);
-    printf("\nVGD ===== VibeGuard diagnostic %s, board config %s =====\n", VG_FIRMWARE_VERSION,
+    printf("\nVGD ===== HAVen diagnostic %s, board config %s =====\n", VG_FIRMWARE_VERSION,
            VG_BOARD_NAME);
     printf("VGD MEASURED mac=%02x:%02x:%02x:%02x:%02x:%02x (W=28:05:a5:07:55:54 S=28:05:a5:07:fb:6c)\n",
            mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);

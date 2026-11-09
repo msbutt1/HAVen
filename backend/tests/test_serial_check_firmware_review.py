@@ -14,11 +14,11 @@ from pathlib import Path
 import pytest
 from conftest import sim_frames
 
-from vibeguard_backend import hardware, serial_select
-from vibeguard_backend.adapters import AdapterDisconnected
-from vibeguard_backend.hardware import SerialCheckResult, serial_check
-from vibeguard_backend.preflight import FAIL, PASS, WARN, Report
-from vibeguard_backend.serial_select import DeviceIdSerialAdapter
+from haven_backend import hardware, serial_select
+from haven_backend.adapters import AdapterDisconnected
+from haven_backend.hardware import SerialCheckResult, serial_check
+from haven_backend.preflight import FAIL, PASS, WARN, Report
+from haven_backend.serial_select import DeviceIdSerialAdapter
 
 DEV = "vg-w-2805a5075554"
 BOOT_A, BOOT_B = "b-0123456789abcdef", "b-fedcba9876543210"
@@ -440,7 +440,7 @@ def test_no_matching_board_gives_advice_about_the_device_id(two_ports):
 # ------------------------------------------------------------------------------ CLI wiring (serial-check)
 
 def _cli(monkeypatch, tmp_path, argv, profile=None):
-    from vibeguard_backend.cli import main
+    from haven_backend.cli import main
     seen = {}
 
     def fake_find(port, bauds, **kw):

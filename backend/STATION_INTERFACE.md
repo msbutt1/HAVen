@@ -3,7 +3,7 @@
 **Status: proposal.** Nothing in this file is agreed. The backend implements it against a
 simulated `MockStationController` so the station screens, the station engine and the backend
 can be built in parallel. If you need something different, tell abduljabbar; the engine
-(`src/vibeguard_backend/station.py`) is small and easy to change.
+(`src/haven_backend/station.py`) is small and easy to change.
 
 **Why this exists.** The project plan lists these commands in the shared contract: start/abort
 station test, deliver stimulus, submit response. The backend stores and broadcasts station

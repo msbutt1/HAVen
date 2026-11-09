@@ -4,8 +4,8 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from vibeguard_backend.app import DASHBOARD_CSP, create_app, find_dashboard_dir
-from vibeguard_backend.service import Backend
+from haven_backend.app import DASHBOARD_CSP, create_app, find_dashboard_dir
+from haven_backend.service import Backend
 
 REPO_DASH = Path(__file__).resolve().parents[2] / "dashboard"
 
@@ -20,7 +20,7 @@ def be(tmp_path):
 def test_dashboard_is_served_with_a_strict_csp(be):
     with TestClient(create_app(be, dashboard_dir=REPO_DASH), base_url="http://localhost") as c:
         r = c.get("/dashboard/", follow_redirects=False)
-        assert r.status_code == 200 and "VibeGuard dashboard" in r.text
+        assert r.status_code == 200 and "HAVen dashboard" in r.text
         assert r.headers["content-security-policy"] == DASHBOARD_CSP
         assert "script-src 'self'" in DASHBOARD_CSP and "unsafe-inline'; img" in DASHBOARD_CSP
         assert "'unsafe-eval'" not in DASHBOARD_CSP and "connect-src 'self'" in DASHBOARD_CSP
@@ -76,9 +76,9 @@ def test_basic_auth_protects_everything_including_the_websocket(be):
         assert c.delete("/api/runtimes/wearable").status_code == 401
         assert c.get("/api/runtimes", headers=_auth()).status_code == 200
         # an app that handles the password itself gets a plain 401, without the challenge iOS would hold
-        r = c.get("/api/health", headers={"x-vibeguard-client": "expo"})
+        r = c.get("/api/health", headers={"x-haven-client": "expo"})
         assert r.status_code == 401 and "www-authenticate" not in r.headers
-        assert "VibeGuard dashboard" in c.get("/dashboard/", headers=_auth()).text
+        assert "HAVen dashboard" in c.get("/dashboard/", headers=_auth()).text
         from starlette.testclient import WebSocketDenialResponse
         for bad in ({}, _auth("demo", "wrong")):
             with pytest.raises(WebSocketDenialResponse) as denied:   # a challenge, so browsers retry with the password

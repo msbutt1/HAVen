@@ -21,9 +21,9 @@ from pathlib import Path
 import pytest
 
 from conftest import sim_frames, wait_until
-from vibeguard_signals import contract
-from vibeguard_backend.adapters import MAX_LINE_BYTES, SerialAdapter
-from vibeguard_backend.service import Backend, processing_config_for
+from haven_signals import contract
+from haven_backend.adapters import MAX_LINE_BYTES, SerialAdapter
+from haven_backend.service import Backend, processing_config_for
 
 pytestmark = pytest.mark.skipif(not hasattr(os, "openpty"), reason="needs pseudo-terminals")
 

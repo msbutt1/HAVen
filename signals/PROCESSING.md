@@ -1,6 +1,6 @@
 # Host processing — reference implementation (Prompts 3–5)
 
-`vibeguard_signals.processing` takes device-contract records in and produces derived
+`haven_signals.processing` takes device-contract records in and produces derived
 records out. It is a library plus a CLI for integration, **not** a backend service.
 Abduljabbar's backend can embed it. Outputs are kept separate:
 - `window_stats`: placeholder statistics, both streams.
@@ -37,7 +37,7 @@ stderr; `--summary-json FILE` saves it as well.
 ## API and lifecycle
 
 ```python
-from vibeguard_signals.processing import Processor, ProcessingConfig, to_ndjson_line
+from haven_signals.processing import Processor, ProcessingConfig, to_ndjson_line
 proc = Processor(ProcessingConfig())           # one Processor per device
 for record in decoded_records:                  # dicts from contract.parse_line
     for out in proc.feed(record):               # host clock: proc.feed(record, rx_time_s=t)

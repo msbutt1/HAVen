@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">VibeGuard</string>
+    <string name="app_name">HAVen</string>
     <string name="headline">Connect to the laptop</string>
     <string name="intro">The laptop talks to the sleeve and keeps the recordings. This phone shows them over Wi-Fi. Phone and laptop must be on the same Wi-Fi.</string>
 
     <string name="searching">Looking for the laptop…</string>
-    <string name="searching_detail">Searching this Wi-Fi for VibeGuard. This takes a few seconds.</string>
+    <string name="searching_detail">Searching this Wi-Fi for HAVen. This takes a few seconds.</string>
     <string name="trying_last">Opening %1$s…</string>
     <string name="trying_last_detail">The laptop you used last time.</string>
     <string name="connecting">Opening %1$s…</string>
@@ -15,7 +15,7 @@
     </plurals>
     <string name="found_detail">Tap it to open the dashboard.</string>
     <string name="found_none">No laptop found</string>
-    <string name="found_none_detail">Check that the laptop is on and VibeGuard is running on it, and that both are on the same Wi-Fi. Then search again, or open “Can’t connect?” below.</string>
+    <string name="found_none_detail">Check that the laptop is on and HAVen is running on it, and that both are on the same Wi-Fi. Then search again, or open “Can’t connect?” below.</string>
     <string name="find_failed">Could not search this network (%1$s). Open “Can’t connect?” below and type the address.</string>
     <string name="opened">Connected to %1$s</string>
     <string name="opened_detail">Tap it to open the dashboard again, or search for another laptop.</string>
@@ -27,7 +27,7 @@
     <string name="help_show">Can’t connect?</string>
     <string name="help_hide">Hide help</string>
     <string name="help_title">Getting connected</string>
-    <string name="help_steps">1. Put the phone and the laptop on the same Wi-Fi.\n2. On the laptop, start VibeGuard for phones (the person who set up the laptop can do this):</string>
+    <string name="help_steps">1. Put the phone and the laptop on the same Wi-Fi.\n2. On the laptop, start HAVen for phones (the person who set up the laptop can do this):</string>
     <string name="serve_command" translatable="false">vg-backend serve --host 0.0.0.0</string>
     <string name="help_network">3. If the laptop asks whether Python may accept incoming connections, choose Allow.\n\nSome networks keep devices apart (eduroam, guest or company Wi-Fi). Then use a phone hotspot or a separate router.</string>
     <string name="type_title">Type the laptop’s address</string>
@@ -36,10 +36,10 @@
     <string name="connect">Connect</string>
     <string name="bad_address">Type the laptop’s address, for example 192.168.1.23 or 192.168.1.23:8000.</string>
     <string name="unreachable_title">Could not open %1$s</string>
-    <string name="unreachable">The laptop did not answer. Is it on, with VibeGuard running, on the same Wi-Fi as this phone?</string>
-    <string name="not_vibeguard">Something answered at that address, but it is not VibeGuard.</string>
+    <string name="unreachable">The laptop did not answer. Is it on, with HAVen running, on the same Wi-Fi as this phone?</string>
+    <string name="not_haven">Something answered at that address, but it is not HAVen.</string>
     <string name="http_error">It answered with an error (HTTP %1$d).</string>
-    <string name="refused">The laptop refused this phone. VibeGuard on the laptop needs to be started for phones: see “Can’t connect?” below.</string>
+    <string name="refused">The laptop refused this phone. HAVen on the laptop needs to be started for phones: see “Can’t connect?” below.</string>
 
     <string name="demo_title">No laptop nearby?</string>
     <string name="demo_body">Try every screen with made-up data that runs on this phone. Nothing in it is a measurement from a person.</string>
@@ -49,7 +49,7 @@
 
     <string name="page_error_title">The dashboard did not open</string>
     <string name="page_error">Could not load %1$s (%2$s). The laptop may be off, asleep or on another Wi-Fi.</string>
-    <string name="no_dashboard">%1$s is a VibeGuard backend but does not serve the dashboard (was it started with --dashboard none?).</string>
+    <string name="no_dashboard">%1$s is a HAVen backend but does not serve the dashboard (was it started with --dashboard none?).</string>
     <string name="page_http_error">%1$s answered with HTTP %2$d.</string>
     <string name="retry">Try again</string>
     <string name="back_to_connect">Back</string>

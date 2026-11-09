@@ -1,7 +1,7 @@
 # Dashboard test log (Ali)
 
 Checks from `project-plan/Ali/Ali_05_testing_and_acceptance.md`.
-Test link: https://raw.githack.com/msbutt1/VibeGaurd/main/dashboard/index.html
+Test link: https://raw.githack.com/msbutt1/HAVen/main/dashboard/index.html
 
 **Build/version:** the short commit code shown next to the latest commit on GitHub (e.g. `5637c0e`).
 **Owner:** Ali for every row unless noted.

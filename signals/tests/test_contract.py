@@ -11,8 +11,8 @@ from pathlib import Path
 
 import pytest
 
-from vibeguard_signals import contract
-from vibeguard_signals.validate_cli import main as validate_main
+from haven_signals import contract
+from haven_signals.validate_cli import main as validate_main
 
 FIXTURES = Path(__file__).resolve().parents[1] / "contract" / "fixtures"
 VALID = sorted((FIXTURES / "valid").glob("*.json"))

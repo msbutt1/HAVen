@@ -1,4 +1,4 @@
-# VibeGuard dashboard (Ali)
+# HAVen dashboard (Ali)
 
 Live view, overview charts, calibration, perception test, and history screens. No build step, no installs, no internet needed.
 It uses the same design system as the landing page (livops.uz's colour tokens for light and dark, Onest and

@@ -10,13 +10,13 @@ import math
 
 import pytest
 
-from vibeguard_signals.demo import demo_processing_config
-from vibeguard_signals.processing import Processor
-from vibeguard_signals.processing.config import ExposureConfig
-from vibeguard_signals.processing.exposure import (ExposureEngine, a8_from_energy, hours_until,
+from haven_signals.demo import demo_processing_config
+from haven_signals.processing import Processor
+from haven_signals.processing.config import ExposureConfig
+from haven_signals.processing.exposure import (ExposureEngine, a8_from_energy, hours_until,
                                                    limits_reference, points_from_energy, wh_gain,
                                                    years_to_10pct_vwf)
-from vibeguard_signals.simulator import SimConfig, Simulation
+from haven_signals.simulator import SimConfig, Simulation
 
 VIB = lambda v, status="ok": {"physical": {"status": status, "combined_rms": v if status in ("ok", "degraded") else None,  # noqa: E731
                                            "reasons": [] if status == "ok" else [status]},

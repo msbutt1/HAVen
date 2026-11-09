@@ -1,5 +1,5 @@
 """Cross-check firmware-generated telemetry with the authoritative Python
-validator and processor in signals/ (vibeguard_signals).
+validator and processor in signals/ (haven_signals).
 
 Run via ctest (contract_validation) or directly:
     uv run --project ../../../signals python check_fake_streams.py PATH/TO/vg-fake-device
@@ -16,8 +16,8 @@ import sys
 import tempfile
 from pathlib import Path
 
-from vibeguard_signals import contract
-from vibeguard_signals.processing import ProcessingConfig, Processor
+from haven_signals import contract
+from haven_signals.processing import ProcessingConfig, Processor
 
 FAILURES: list[str] = []
 

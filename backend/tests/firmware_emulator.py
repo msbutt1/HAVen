@@ -1,4 +1,4 @@
-"""A faithful emulator of the VibeGuard ESP32 wearable firmware, behind a pseudo-terminal. SIMULATED bytes only.
+"""A faithful emulator of the HAVen ESP32 wearable firmware, behind a pseudo-terminal. SIMULATED bytes only.
 
 Built from the firmware README (Salaar), not from the backend's own simulator. It behaves like the board:
 
@@ -42,7 +42,7 @@ import tty
 from collections import deque
 from pathlib import Path
 
-from vibeguard_signals import contract
+from haven_signals import contract
 
 _SEEDS = itertools.count(7)   # each emulator instance draws different boot ids (a hardware RNG never repeats)
 DEVICE_ID_W = "vg-w-2805a5075554"

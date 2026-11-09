@@ -19,9 +19,9 @@ import pytest
 
 serial = pytest.importorskip("serial")
 
-from vibeguard_signals import contract  # noqa: E402
-from vibeguard_backend import hardware  # noqa: E402
-from vibeguard_backend.hardware import FakeDevice, serial_check  # noqa: E402
+from haven_signals import contract  # noqa: E402
+from haven_backend import hardware  # noqa: E402
+from haven_backend.hardware import FakeDevice, serial_check  # noqa: E402
 
 pytestmark = pytest.mark.skipif(not hasattr(os, "openpty"), reason="needs pseudo-terminals")
 
@@ -88,7 +88,7 @@ def child(code: str, timeout: float):
 
 def cli(args, wait: float):
     """Start `vg-backend fake-device`; returns (process, first line after the banner text so far)."""
-    code = "import sys; from vibeguard_backend.cli import main; sys.exit(main(['fake-device'] + sys.argv[1:]))"
+    code = "import sys; from haven_backend.cli import main; sys.exit(main(['fake-device'] + sys.argv[1:]))"
     p = subprocess.Popen([sys.executable, "-u", "-c", code] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
                          text=True)
     time.sleep(wait)
@@ -237,7 +237,7 @@ def test_cli_ctrl_c_exits_cleanly_and_prints_the_port():
 
 def test_stop_returns_when_the_host_holds_the_port_but_never_reads():
     code = ("import time, serial\n"
-            "from vibeguard_backend.hardware import FakeDevice\n"
+            "from haven_backend.hardware import FakeDevice\n"
             "d = FakeDevice(speed=5).start()\n"
             "s = serial.Serial(d.path, 115200, timeout=0.1)\n"
             "time.sleep(1.0)\n"

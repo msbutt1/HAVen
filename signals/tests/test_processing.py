@@ -12,11 +12,11 @@ from pathlib import Path
 
 import pytest
 
-from vibeguard_signals import contract
-from vibeguard_signals.processing import (
+from haven_signals import contract
+from haven_signals.processing import (
     ProcessingConfig, Processor, StreamConfig, to_ndjson_line,
 )
-from vibeguard_signals.simulator import SimConfig, Simulation
+from haven_signals.simulator import SimConfig, Simulation
 
 SIM = Path(__file__).resolve().parents[1] / "contract" / "fixtures" / "sim"
 HAPPY = SIM / "happy_path_seed1_3s.ndjson"
@@ -350,7 +350,7 @@ def test_rate_mismatch_is_explicit_and_never_ok():
 
 
 def test_sample_window_hard_capacity():
-    from vibeguard_signals.processing.window import SampleWindow, WindowSample
+    from haven_signals.processing.window import SampleWindow, WindowSample
     w = SampleWindow(length_us=1e9, capacity=5)
     flags = [w.append(WindowSample(float(i), (i,), None)) for i in range(12)]
     assert len(w) == 5 and w.overflow_count == 7 and flags.count(True) == 7
@@ -362,10 +362,10 @@ def test_sample_window_hard_capacity():
 # -- CLI smoke ------------------------------------------------------------------
 
 def test_cli_smoke_stdin_pipeline():
-    sim = subprocess.run([sys.executable, "-m", "vibeguard_signals.sim_cli", "--scenario",
+    sim = subprocess.run([sys.executable, "-m", "haven_signals.sim_cli", "--scenario",
                           "fault_mix", "--duration", "3", "--fast"],
                          capture_output=True, check=True)
-    proc = subprocess.run([sys.executable, "-m", "vibeguard_signals.process_cli", "-"],
+    proc = subprocess.run([sys.executable, "-m", "haven_signals.process_cli", "-"],
                           input=sim.stdout, capture_output=True, check=True)
     lines = [json.loads(l) for l in proc.stdout.decode().splitlines()]
     assert lines and lines[-1]["event"] == "end_of_input"

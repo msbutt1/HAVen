@@ -19,10 +19,10 @@ import pytest
 from fastapi.testclient import TestClient
 
 from conftest import ScriptedAdapter, sim_frames, wait_until
-from vibeguard_backend.app import create_app
-from vibeguard_backend.runtime import RuntimeConflict
-from vibeguard_backend.service import Backend, BadRequest, NotFound, processing_config_for
-from vibeguard_backend.store import IdempotencyConflict
+from haven_backend.app import create_app
+from haven_backend.runtime import RuntimeConflict
+from haven_backend.service import Backend, BadRequest, NotFound, processing_config_for
+from haven_backend.store import IdempotencyConflict
 
 STIM = {"motor_setting": 120, "units": "pwm_duty_0_255"}
 

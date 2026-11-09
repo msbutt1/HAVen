@@ -1,0 +1,14 @@
+{
+  "schema": "vibeguard.station_link",
+  "version": 1,
+  "type": "hello",
+  "command_id": "c00000",
+  "firmware": {
+    "name": "vibeguard-station-ref",
+    "version": "0.1"
+  },
+  "setting_range": {
+    "min": 1,
+    "max": 100
+  }
+}
