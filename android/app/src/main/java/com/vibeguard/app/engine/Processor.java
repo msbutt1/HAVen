@@ -28,6 +28,7 @@ public final class Processor {
         public ToolUse.State tool = new ToolUse.State();
         public Set<String> staleStreams = new HashSet<>();
         public long records, seqGaps, missingRecords;
+        public Exposure.Snapshot exposure = new Exposure.Snapshot();
     }
 
     /**
@@ -95,6 +96,7 @@ public final class Processor {
     final Vibration vib;
     final ToolUse tool;
     final Score score = new Score();
+    final Exposure exposure = new Exposure();
 
     private final Map<String, Stream> streams = new LinkedHashMap<>();
     private Map<String, Records.StreamDecl> declared = new HashMap<>();
@@ -130,7 +132,7 @@ public final class Processor {
             for (Stream s : streams.values()) s.fullReset();
             emg.reset("no_data"); vib.reset("no_data"); tool.reset("no_data");
             events.add(Event.bootChange(previous));
-            if (previous != null) { grip.onBootChange(); score.onBootChange(); tool.onBootChange(); }
+            if (previous != null) { grip.onBootChange(); score.onBootChange(); tool.onBootChange(); exposure.onBootChange(); }
         }
         if (recent.contains(r.seq)) return;
         if (seqLast != null && r.seq < seqLast) return;
@@ -142,6 +144,7 @@ public final class Processor {
         if (snapshot.source != null && !snapshot.source.equals(r.source)) {
             grip.invalidate("provenance_changed");
             score.resetAccumulation();                                    // never sum live and simulated data
+            exposure.resetAccumulation();
             for (Stream s : streams.values()) resetStream(s, "provenance_changed");
         }
         snapshot.source = r.source;
@@ -200,6 +203,14 @@ public final class Processor {
     }
 
     public void resetToolSession() { tool.resetSession(); }
+    /** Lower one worker's daily limit, in HSE points (at most 400, the limit value). */
+    public void setPersonalLimit(double points) {
+        if (!(points > 0 && points <= Exposure.ELV_POINTS)) throw new IllegalArgumentException("limit must be in (0, 400]");
+        exposure.personalLimitPoints = points;
+    }
+
+    /** A new day (or shift): the daily exposure starts again from zero. */
+    public void resetExposure() { exposure.resetAccumulation(); snapshot.exposure = exposure.snapshot(null); }
     public void resetScore() { score.resetAccumulation(); snapshot.scoreTotal = 0; snapshot.scoredS = 0; }
     public Emg.GripCalibration gripCalibrationActive() { return grip.active; }
     public void installGrip(Emg.GripCalibration c) { grip.install(c); collect(); }
@@ -284,6 +295,7 @@ public final class Processor {
             grip.observe(env, tEnd, snapshot.bootId);
             Emg.Normalized nrm = grip.normalized(env);
             score.updateActivation(tEnd, nrm);
+            exposure.updateActivation(tEnd, nrm);
             snapshot.envelope = env.value;
             snapshot.envelopeStatus = st.stale ? "unavailable" : env.status;
             snapshot.activation = nrm.value;
@@ -295,11 +307,14 @@ public final class Processor {
             snapshot.vibrationStatus = v.status;
             snapshot.vibrationClipped = v.reasons.contains("clipped");
             snapshot.tool = tool.update(tEnd);
+            exposure.updateVibration(tEnd, v);
+            exposure.updateTool(tEnd, snapshot.tool);
             snapshot.scoreRate = score.rate;
             snapshot.scoreTotal = score.cumulative;
             snapshot.scorePausedReason = score.pausedReason;
             snapshot.scoredS = score.validS;
         }
+        snapshot.exposure = exposure.snapshot(tEnd);
         refreshCalibration();
     }
 

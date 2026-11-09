@@ -64,6 +64,11 @@ public class RecordingTest {
                     t.put("state", s.tool.state); t.put("tool", s.tool.toolBand); t.put("motion", s.tool.motionBand);
                     t.put("dominant_hz", s.tool.dominantHz); t.put("conc", s.tool.concentration); t.put("session_tool_s", s.tool.sessionToolS);
                     r.got.put("tool:" + rec.seq, t);
+                    Map<String, Object> ex = new HashMap<>();
+                    Exposure.Snapshot x = s.exposure;
+                    ex.put("points", x.points); ex.put("a8", x.a8); ex.put("contact_s", x.contactS);
+                    ex.put("tool_on_points", x.toolOnPoints); ex.put("level", x.level); ex.put("counting", x.counting);
+                    r.got.put("exposure:" + rec.seq, ex);
                     Map<String, Object> sc = new HashMap<>();
                     sc.put("cumulative", s.scoreTotal);
                     r.got.put("score:" + rec.seq, sc);
@@ -86,7 +91,8 @@ public class RecordingTest {
         Map<String, double[]> worst = new HashMap<>();
         int stateMismatch = 0;
         JSONArray exp = f.getJSONArray("expected");
-        String[] keys = {"envelope", "activation", "vibration", "tool", "motion", "conc", "dominant_hz", "cumulative", "session_tool_s"};
+        String[] keys = {"envelope", "activation", "vibration", "tool", "motion", "conc", "dominant_hz", "cumulative", "session_tool_s",
+                "points", "a8", "contact_s", "tool_on_points"};
         for (int i = 0; i < exp.length(); i++) {
             JSONObject e = exp.getJSONObject(i);
             Map<String, Object> g = r.got.get(e.getString("stream") + ":" + e.getLong("seq"));
@@ -102,6 +108,11 @@ public class RecordingTest {
             }
             if (e.getString("stream").equals("tool") && !e.getString("state").equals(g.get("state"))) stateMismatch++;
             if (e.getString("stream").equals("emg") && !e.getString("calibration").equals(g.get("calibration"))) stateMismatch++;
+            if (e.getString("stream").equals("exposure")) {
+                if (!e.getString("level").equals(g.get("level"))) stateMismatch++;
+                Object want = e.isNull("counting") ? null : e.getBoolean("counting");
+                if (want == null ? g.get("counting") != null : !want.equals(g.get("counting"))) stateMismatch++;
+            }
         }
         assertEquals("tool or calibration state differs", 0, stateMismatch);
         StringBuilder sb = new StringBuilder();
@@ -133,6 +144,9 @@ public class RecordingTest {
         assertTrue(w.get("motion")[0] < 0.002);
         assertTrue(w.get("conc")[0] < 0.002);
         assertEquals(0.0, w.get("dominant_hz")[0], 0.0);
+        assertTrue("exposure compared", w.get("points")[1] > 100);
+        assertTrue(w.get("points")[0] < 1e-4);
+        assertTrue(w.get("contact_s")[0] < 1e-3);
         JSONObject want = null;
         JSONArray ev = f.getJSONArray("events");
         for (int i = 0; i < ev.length(); i++) if ("calibrated".equals(ev.getJSONObject(i).optString("state"))) want = ev.getJSONObject(i).getJSONObject("thresholds");

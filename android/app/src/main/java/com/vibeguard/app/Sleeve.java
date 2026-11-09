@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 
 import com.vibeguard.app.engine.Emg;
 import com.vibeguard.app.engine.Event;
+import com.vibeguard.app.engine.Exposure;
 import com.vibeguard.app.engine.Processor;
 import com.vibeguard.app.engine.ToolUse;
 
@@ -48,7 +49,7 @@ final class Sleeve {
     private final ScheduledExecutorService ex = Executors.newSingleThreadScheduledExecutor();
     private Processor proc;
     private String source;                       // "sleeve" | "demo"
-    private double countsPerG, reference;
+    private double countsPerG, personalLimit;
     private boolean running;
     private volatile String state = "{}";
 
@@ -69,10 +70,10 @@ final class Sleeve {
     private String toolPhase, toolMessage;
     private final Set<String> toolDone = new HashSet<>();
     private boolean toolFailed;
-    // the day's log: exposure counts only while a tool is in use; everything rolls over at midnight
+    // the day's log (exposure.py: counts only while a tool is in use and you are not known to be relaxed);
+    // kept as the energy sum(a^2 dt) so it survives an app restart; rolls over at midnight
     private String day;
-    private double dayExposure, dayToolBase;
-    private Double lastScoreTotal;
+    private double dayEnergyBase, dayContactBase, dayToolBase;
     private double lastSaved;
     private final ArrayDeque<String> log = new ArrayDeque<>();
     private final Set<String> shownWarnings = new HashSet<>();
@@ -83,7 +84,7 @@ final class Sleeve {
         prefs = c.getSharedPreferences("vibeguard", Context.MODE_PRIVATE);
         source = prefs.getString("source", "sleeve");
         countsPerG = prefs.getFloat("countsPerG", 4096);
-        reference = prefs.getFloat("reference", 75);
+        personalLimit = prefs.getFloat("personalLimit", 400);
         proc = newProcessor();
         loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);
@@ -100,27 +101,31 @@ final class Sleeve {
         try {
             JSONObject t = new JSONObject(prefs.getString("today", "{}"));
             if (day.equals(t.optString("date"))) {
-                dayExposure = t.optDouble("exposure", 0);
+                dayEnergyBase = t.optDouble("energy", 0);
+                dayContactBase = t.optDouble("contact", 0);
                 dayToolBase = t.optDouble("tool", 0);
             } else if (t.has("date")) {
-                archive(t.optString("date"), t.optDouble("exposure", 0), t.optDouble("tool", 0));
+                archive(t.optString("date"), t.optDouble("energy", 0), t.optDouble("tool", 0));
             }
         } catch (Exception ignored) {}
     }
 
     private double toolToday() { return dayToolBase + proc.snapshot.tool.sessionToolS; }
+    private double energyToday() { return dayEnergyBase + proc.snapshot.exposure.energy; }
+    private double contactToday() { return dayContactBase + proc.snapshot.exposure.contactS; }
 
     private void saveDay() {
         try {
-            prefs.edit().putString("today", new JSONObject().put("date", day).put("exposure", dayExposure)
-                    .put("tool", toolToday()).toString()).apply();
+            prefs.edit().putString("today", new JSONObject().put("date", day).put("energy", energyToday())
+                    .put("contact", contactToday()).put("tool", toolToday()).toString()).apply();
         } catch (Exception ignored) {}
     }
 
-    private void archive(String date, double exposure, double tool) {
+    private void archive(String date, double energy, double tool) {
         try {
             JSONObject days = new JSONObject(prefs.getString("days", "{}"));
-            days.put(date, new JSONObject().put("exposure", exposure).put("tool", tool).put("reference", reference));
+            days.put(date, new JSONObject().put("points", Exposure.pointsFromEnergy(energy))
+                    .put("a8", Exposure.a8FromEnergy(energy, 8 * 3600)).put("tool", tool));
             // keep the last 30 days
             java.util.List<String> keys = new java.util.ArrayList<>();
             for (java.util.Iterator<String> it = days.keys(); it.hasNext(); ) keys.add(it.next());
@@ -130,27 +135,24 @@ final class Sleeve {
         } catch (Exception ignored) {}
     }
 
-    /** Called every tick: exposure grows only while a tool is in use; a new date starts a new day. */
+    /** Called every tick: a new date archives today and starts a new day. */
     private void logDay(double t) {
-        Processor.Snapshot s = proc.snapshot;
         String now = today();
         if (!now.equals(day)) {
-            archive(day, dayExposure, toolToday());
+            archive(day, energyToday(), toolToday());
             day = now;
-            dayExposure = 0;
-            dayToolBase = 0;
+            dayEnergyBase = 0; dayContactBase = 0; dayToolBase = 0;
             proc.resetToolSession();
+            proc.resetExposure();
             shownWarnings.clear();
             note("New day started");
         }
-        double total = s.scoreTotal;
-        if (lastScoreTotal != null && total > lastScoreTotal && "tool".equals(s.tool.state)) dayExposure += total - lastScoreTotal;
-        lastScoreTotal = total;
         if (t - lastSaved > 10) { saveDay(); lastSaved = t; }
     }
 
     private Processor newProcessor() {
         Processor p = new Processor(countsPerG);
+        p.setPersonalLimit(personalLimit);
         String saved = prefs.getString("toolCalibration", null);
         if (saved != null) {
             try {
@@ -389,9 +391,11 @@ final class Sleeve {
             setting(() -> { source = c.substring(7); prefs.edit().putString("source", source).apply(); });
         } else if (c.startsWith("cpg:")) {
             setting(() -> { countsPerG = Double.parseDouble(c.substring(4)); prefs.edit().putFloat("countsPerG", (float) countsPerG).apply(); });
-        } else if (c.startsWith("reference:")) {
-            reference = Math.max(10, Math.min(500, Double.parseDouble(c.substring(10))));
-            prefs.edit().putFloat("reference", (float) reference).apply();
+        } else if (c.startsWith("limit:")) {
+            // a supervisor can LOWER one worker's daily limit (HSE points); never above the limit value (400)
+            personalLimit = Math.max(25, Math.min(Exposure.ELV_POINTS, Double.parseDouble(c.substring(6))));
+            proc.setPersonalLimit(personalLimit);
+            prefs.edit().putFloat("personalLimit", (float) personalLimit).apply();
         } else if (c.startsWith("demo:")) {
             if (demo == null) return;
             String[] kv = c.substring(5).split("=");
@@ -407,8 +411,9 @@ final class Sleeve {
         boolean was = running;
         stopOnEngine();
         change.run();
-        dayToolBase = toolToday();          // keep today's tool time across the new processor
-        lastScoreTotal = null;
+        dayToolBase = toolToday();          // keep today's totals across the new processor
+        dayEnergyBase = energyToday();
+        dayContactBase = contactToday();
         proc = newProcessor();
         gripFlow = null; gripDone = false; toolPhase = null;
         if (was) startOnEngine();
@@ -462,13 +467,18 @@ final class Sleeve {
                 .put("result", proc.toolCalResult() == null ? JSONObject.NULL : proc.toolCalResult().toJson());
         o.put("toolCal", tc);
         // exposure
-        o.put("exposure", new JSONObject().put("total", dayExposure).put("reference", reference)
-                .put("fraction", dayExposure / Math.max(reference, 1e-9))
-                .put("rate", fresh && s.scoreRate != null ? s.scoreRate : JSONObject.NULL)
-                .put("counting", fresh && s.scoreRate != null && "tool".equals(s.tool.state))
-                .put("paused", s.scorePausedReason == null ? JSONObject.NULL : s.scorePausedReason)
-                .put("activationForScore", s.activation == null || !fresh ? JSONObject.NULL : Math.min(2, Math.max(0, s.activation))));
-        o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("reference", reference));
+        Exposure.Snapshot x = s.exposure;
+        double energy = energyToday(), points = Exposure.pointsFromEnergy(energy);
+        Double aNow = fresh && Boolean.TRUE.equals(x.counting) ? x.aHvNow : null;
+        o.put("exposure", new JSONObject().put("points", points).put("a8", Exposure.a8FromEnergy(energy, 8 * 3600))
+                .put("contact", contactToday()).put("limit", x.personalLimit).put("action", Exposure.EAV_POINTS)
+                .put("counting", aNow != null)
+                .put("pointsPerHour", aNow == null ? JSONObject.NULL : 2 * aNow * aNow)
+                .put("hoursToAction", nz(Exposure.hoursUntil(points, Exposure.EAV_POINTS, aNow)))
+                .put("hoursToLimit", nz(Exposure.hoursUntil(points, x.personalLimit, aNow)))
+                .put("status", x.status).put("reasons", new JSONArray(x.reasons))
+                .put("gripUnknown", x.gripUnknownS));
+        o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit));
         o.put("events", new JSONArray(log));
         JSONArray hist = new JSONArray();
         try {

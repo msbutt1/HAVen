@@ -90,6 +90,12 @@ def main(raw: str, derived: str) -> None:
                                      "dominant_hz": o["dominant_hz"], "conc": o["spectral_concentration"],
                                      "steadiness": o.get("steadiness"),
                                      "session_tool_s": o["session_tool_s"]})
+                elif t == "exposure" and o.get("trigger") == "imu":
+                    expected.append({"seq": o["source_seq"], "stream": "exposure",
+                                     "points": o["daily"]["points"], "a8": o["daily"]["a8_ms2"],
+                                     "contact_s": o["daily"]["contact_s"],
+                                     "tool_on_points": o["by_gate"]["tool_on"]["points"],
+                                     "level": o["level"], "counting": o["current"]["counting"]})
                 elif t == "experimental_score" and o.get("trigger") == "imu":
                     expected.append({"seq": o["source_seq"], "stream": "score",
                                      "cumulative": o["cumulative"]["value"], "rate": o["rate"]["value"]})

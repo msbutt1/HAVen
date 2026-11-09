@@ -29,72 +29,88 @@ main { padding: 8px 20px 120px; max-width: 560px; margin: 0 auto; }
 .appbar { display: flex; align-items: flex-start; justify-content: space-between; padding: 16px 0 8px; }
 .title { font-size: 30px; font-weight: 600; letter-spacing: -.5px; line-height: 1.15; margin: 0; }
 .date { color: var(--muted); font-size: 15px; margin-top: 2px; }
-.iconbtn { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--surface); color: var(--fg); display: grid; place-items: center; box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+.iconbtn { width: 48px; height: 48px; border-radius: 50%; border: none; background: var(--surface); color: var(--fg); display: grid; place-items: center; box-shadow: 0 1px 2px rgba(0,0,0,.06); padding: 0; min-height: 0; }
 .pill { display: inline-flex; align-items: center; gap: 8px; background: var(--surface); border-radius: 99px; padding: 8px 14px; font-size: 15px; font-weight: 500; margin: 4px 0 8px; box-shadow: 0 1px 2px rgba(0,0,0,.05); }
-.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--faint); flex: none; }
+.dot { width: 10px; height: 10px; border-radius: 50%; background: var(--faint); flex: none; display: inline-block; }
 .card { background: var(--surface); border-radius: var(--r); padding: 24px; margin: 16px 0; box-shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 16px rgba(0,0,0,.04); }
 .label { color: var(--muted); font-size: 15px; font-weight: 500; }
 .gauge { position: relative; width: 240px; height: 240px; margin: 12px auto 4px; }
-.gauge svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-.gauge .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-.word { font-size: 34px; font-weight: 600; letter-spacing: -.5px; line-height: 1.1; }
-.sub { color: var(--muted); font-size: 15px; margin-top: 6px; }
-.note { text-align: center; color: var(--muted); font-size: 15px; margin: 8px 0 0; }
+.gauge svg { width: 100%; height: 100%; }
+.gauge .center { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 0 36px; }
+.word { font-size: 30px; font-weight: 600; letter-spacing: -.5px; line-height: 1.1; }
+.sub { color: var(--muted); font-size: 15px; margin-top: 8px; }
+.note { text-align: center; color: var(--muted); font-size: 15px; margin: 12px 0 0; }
 .toolrow { display: flex; align-items: center; gap: 16px; }
 .toolicon { width: 56px; height: 56px; border-radius: 18px; display: grid; place-items: center; background: var(--bg); color: var(--muted); flex: none; transition: background .3s, color .3s; }
 .tooltitle { font-size: 22px; font-weight: 600; line-height: 1.2; }
-.alert { display: flex; gap: 14px; align-items: flex-start; border-radius: var(--r); padding: 18px 20px; margin: 16px 0; font-weight: 500; }
+.alert { border-radius: var(--r); padding: 18px 20px; margin: 16px 0; font-weight: 500; }
 .alert b { display: block; font-size: 18px; }
 .setup { display: flex; gap: 16px; align-items: center; }
-.setup .grow { flex: 1; }
-.list .item { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--line); }
+.list .item { display: flex; align-items: center; justify-content: space-between; padding: 14px 0; border-top: 1px solid var(--line); gap: 12px; }
 .list .item:first-of-type { border-top: none; }
 .list .item .left { display: flex; align-items: center; gap: 12px; }
-.chev { color: var(--faint); }
 button { font: inherit; font-weight: 600; border-radius: 16px; min-height: 52px; padding: 0 22px; border: none; background: var(--bg); color: var(--fg); }
 button.primary { background: var(--primary); color: var(--on-primary); }
 button.wide { width: 100%; }
-button.text { background: none; color: var(--primary); min-height: 48px; padding: 0; font-weight: 500; }
+button.text { background: none; color: var(--primary); min-height: 48px; padding: 0 4px; font-weight: 500; }
 button:disabled { opacity: .4; }
-.rowbtn { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; padding: 0; min-height: 52px; font-weight: 500; border-radius: 0; }
-nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--surface); box-shadow: 0 -1px 0 var(--line); padding: 8px 12px 10px; }
-nav button { flex: 1; background: none; min-height: 60px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; font-weight: 500; color: var(--muted); }
+.rowbtn { width: 100%; display: flex; justify-content: space-between; align-items: center; background: none; padding: 0; min-height: 56px; font-weight: 500; border-radius: 0; }
+nav { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--surface); box-shadow: 0 -1px 0 var(--line); padding: 8px 12px 10px; z-index: 5; }
+nav button { flex: 1; background: none; min-height: 60px; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; font-size: 13px; font-weight: 500; color: var(--muted); padding: 0; }
 nav button .ind { width: 64px; height: 32px; border-radius: 16px; display: grid; place-items: center; transition: background .2s; }
 nav button.on { color: var(--fg); font-weight: 600; }
 nav button.on .ind { background: var(--primary-soft); color: var(--primary); }
-.sheet { position: fixed; inset: 0; background: var(--bg); overflow-y: auto; z-index: 10; transform: translateY(100%); transition: transform .28s cubic-bezier(.2,.8,.2,1); visibility: hidden; }
-.sheet.open { transform: none; visibility: visible; }
-.sheet .bar { position: sticky; top: 0; background: var(--bg); display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; z-index: 1; }
-.sheet .bar h2 { font-size: 20px; margin: 0; font-weight: 600; }
 h1 { font-size: 30px; font-weight: 600; letter-spacing: -.5px; line-height: 1.15; margin: 16px 0 8px; }
 h2 { font-size: 19px; font-weight: 600; margin: 0 0 8px; line-height: 1.3; }
 p { margin: 8px 0; }
 .muted { color: var(--muted); }
-.step { display: flex; gap: 16px; padding: 16px 0; border-top: 1px solid var(--line); }
-.step:first-of-type { border-top: none; }
-.num { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; background: var(--bg); font-weight: 600; flex: none; }
-.num.on { background: var(--primary); color: var(--on-primary); }
-.num.done { background: var(--low); color: #fff; }
-.step .grow { flex: 1; min-width: 0; }
-.say { font-size: 22px; font-weight: 600; line-height: 1.25; margin: 4px 0; }
-.count { font-size: 64px; font-weight: 600; line-height: 1; margin: 12px 0; font-variant-numeric: tabular-nums; color: var(--primary); }
-.progress { height: 10px; border-radius: 99px; background: var(--bg); overflow: hidden; margin: 8px 0 4px; }
-.progress i { display: block; height: 100%; background: var(--primary); border-radius: 99px; transition: width .25s linear; }
-.ok { color: var(--low); font-weight: 600; }
-.err { color: var(--high); font-weight: 500; }
 .sim { color: #fff; background: repeating-linear-gradient(135deg, var(--sim) 0 12px, var(--sim2) 12px 24px); border-radius: 14px; padding: 10px 14px; font-weight: 500; text-align: center; font-size: 15px; }
 .ov { display: flex; gap: 16px; align-items: flex-start; }
 .ov .ic { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; flex: none; }
 ul { padding-left: 20px; margin: 8px 0; } li { margin: 6px 0; }
-.swatch { width: 14px; height: 14px; border-radius: 50%; flex: none; margin-top: 6px; }
-.legend { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0; }
-#toast { position: fixed; left: 20px; right: 20px; bottom: 100px; background: var(--fg); color: var(--bg); border-radius: 16px; padding: 14px 18px; font-weight: 500; display: none; z-index: 20; text-align: center; }
+.legend { display: flex; gap: 12px; align-items: flex-start; margin: 14px 0; }
+.legend .swatch { width: 14px; height: 14px; border-radius: 50%; flex: none; margin-top: 6px; }
+#toast { position: fixed; left: 20px; right: 20px; bottom: 100px; background: var(--fg); color: var(--bg); border-radius: 16px; padding: 14px 18px; font-weight: 500; display: none; z-index: 40; text-align: center; }
 select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--bg); color: var(--fg); padding: 0 10px; width: 100%; }
 .kv { display: flex; justify-content: space-between; gap: 12px; padding: 8px 0; border-top: 1px solid var(--line); font-size: 14px; }
 .kv span:last-child { text-align: right; color: var(--muted); overflow-wrap: anywhere; }
 .mono { font-family: var(--mono); font-size: 12px; }
 .stepper { display: flex; align-items: center; gap: 16px; }
 .toggle.on { background: var(--primary-soft); color: var(--primary); }
+
+/* settings sheet */
+.sheet { position: fixed; inset: 0; background: var(--bg); overflow-y: auto; z-index: 10; transform: translateY(100%); transition: transform .3s cubic-bezier(.2,.8,.2,1); visibility: hidden; }
+.sheet.open { transform: none; visibility: visible; }
+.sheet .bar { position: sticky; top: 0; background: var(--bg); display: flex; justify-content: space-between; align-items: center; padding: 12px 20px; z-index: 1; }
+.sheet .bar h2 { font-size: 20px; margin: 0; }
+
+/* full-screen setup */
+#wizard { position: fixed; inset: 0; background: var(--bg); z-index: 20; display: none; flex-direction: column; overflow: hidden; }
+#wizard.open { display: flex; animation: rise .35s cubic-bezier(.2,.8,.2,1); }
+@keyframes rise { from { transform: translateY(40px); opacity: 0; } to { transform: none; opacity: 1; } }
+.wtop { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px 0; }
+.dots { display: flex; gap: 8px; }
+.dots i { width: 8px; height: 8px; border-radius: 99px; background: var(--line); transition: width .3s, background .3s; }
+.dots i.on { width: 24px; background: var(--primary); }
+.dots i.done { background: var(--low); }
+.wstage { flex: 1; position: relative; }
+.wscreen { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 24px 28px 32px; max-width: 520px; margin: 0 auto; transition: transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s; }
+.wscreen.right { transform: translateX(60%); opacity: 0; pointer-events: none; }
+.wscreen.left { transform: translateX(-60%); opacity: 0; pointer-events: none; }
+.wbody { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
+.wbody h1 { font-size: 30px; margin: 24px 0 8px; }
+.wbody p { color: var(--muted); font-size: 18px; max-width: 340px; margin: 4px auto; }
+.hero { width: 120px; height: 120px; border-radius: 36px; display: grid; place-items: center; background: var(--primary-soft); color: var(--primary); }
+.ring { position: relative; width: 220px; height: 220px; }
+.ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.ring .n { position: absolute; inset: 0; display: grid; place-items: center; font-size: 76px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.pulse { animation: pulse 1s ease-in-out infinite; }
+@keyframes pulse { 50% { transform: scale(1.06); } }
+.ok-badge { width: 120px; height: 120px; border-radius: 50%; background: var(--low); color: #fff; display: grid; place-items: center; animation: pop .45s cubic-bezier(.2,1.6,.4,1); }
+.bad-badge { width: 120px; height: 120px; border-radius: 50%; background: var(--high-soft); color: var(--high); display: grid; place-items: center; animation: pop .45s cubic-bezier(.2,1.6,.4,1); }
+@keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
+.wfoot { display: flex; flex-direction: column; gap: 10px; }
+.wfoot button:not(.primary) { background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
 </style>
 </head>
 <body>
@@ -103,8 +119,8 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 <main id="tab-today">
   <div class="appbar">
     <div><p class="title">Today</p><div class="date" id="date"></div></div>
-    <button class="iconbtn" onclick="openSheet('settings')" aria-label="Settings">
-      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
+    <button class="iconbtn" onclick="openSheet()" aria-label="Settings">
+      <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
     </button>
   </div>
   <div class="pill"><i class="dot" id="dot"></i><span id="conn">Starting…</span></div>
@@ -117,17 +133,22 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
       <div class="toolicon" style="background:var(--primary-soft);color:var(--primary)">
         <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3.4 16.9a2 2 0 0 1 2.9-2.8L8 16"/></svg>
       </div>
-      <div class="grow"><b style="font-size:19px">Set up the sleeve</b><div class="muted" style="font-size:15px">About a minute. Needed to start counting.</div></div>
+      <div><b style="font-size:19px">Set up the sleeve</b><div class="muted" style="font-size:15px">About a minute, each time you put it on.</div></div>
     </div>
-    <button class="primary wide" style="margin-top:20px" onclick="openSheet('calibrate')">Set up now</button>
+    <button class="primary wide" style="margin-top:20px" onclick="openWizard()">Start setup</button>
   </div>
 
   <div class="card">
     <div class="label">Vibration today</div>
     <div class="gauge">
-      <svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="12"/>
-        <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="var(--low)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 327" style="transition: stroke-dasharray .6s ease-out, stroke .4s"/></svg>
-      <div class="center"><div class="word" id="word">—</div><div class="sub" id="pct"></div></div>
+      <svg viewBox="0 0 120 120">
+        <g transform="rotate(-90 60 60)">
+          <circle cx="60" cy="60" r="52" fill="none" stroke="var(--bg)" stroke-width="12"/>
+          <circle id="arc" cx="60" cy="60" r="52" fill="none" stroke="var(--low)" stroke-width="12" stroke-linecap="round" stroke-dasharray="0 327" style="transition: stroke-dasharray .6s ease-out, stroke .4s"/>
+        </g>
+        <line id="tick" x1="60" y1="2" x2="60" y2="16" stroke="var(--fg)" stroke-width="2" stroke-linecap="round" opacity=".55"/>
+      </svg>
+      <div class="center"><div class="word" id="word">—</div><div class="sub" id="pts"></div></div>
     </div>
     <p class="note" id="note"></p>
   </div>
@@ -147,7 +168,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   </div>
 
   <div class="card list" id="again" style="display:none;padding:4px 24px">
-    <button class="rowbtn" onclick="openSheet('calibrate')"><span>Set up the sleeve again</span><span class="chev">›</span></button>
+    <button class="rowbtn" onclick="openWizard()"><span>Set up the sleeve again</span><span class="muted">›</span></button>
   </div>
 
   <div class="card" id="demoPanel" style="display:none">
@@ -163,32 +184,31 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 <!-- HOW IT WORKS -->
 <main id="tab-how" style="display:none">
   <h1>How it works</h1>
-  <p class="muted">What the vibration bar means, in plain words.</p>
+  <p class="muted">What the ring on the Today screen means, in plain words.</p>
 
   <div class="card"><div class="ov">
     <div class="ic" style="background:var(--high-soft);color:var(--high)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
-    <div><h2>Why it matters</h2><p>Using shaking tools like drills, grinders and breakers for a long time, day after day, can hurt your hands and arms. It can cause tingling, numb fingers, white fingers in the cold, and a weaker grip. It builds up slowly, so it is easy to miss.</p></div>
+    <div><h2>Why it matters</h2><p>Using shaking tools like drills, grinders and breakers for a long time, day after day, can damage your hands and arms. It can cause tingling, numb fingers, fingers that go white in the cold, and a weaker grip. It builds up slowly and can be permanent.</p></div>
   </div></div>
 
   <div class="card"><div class="ov">
     <div class="ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12h3l3-8 4 16 3-8h7"/></svg></div>
-    <div><h2>What the sleeve feels</h2>
-      <p>Two things on your forearm, while you use a tool:</p>
-      <ul><li><b>How much your arm shakes.</b></li><li><b>How hard you grip.</b> A tight grip lets more shaking into your hand.</li></ul>
-      <p>The bar only fills while you are using a tool. It fills faster when the shaking is stronger, when you grip harder, and the longer you keep going.</p></div>
+    <div><h2>Points</h2>
+      <p>The sleeve feels how hard the tool shakes your arm. Every minute you use a tool adds points. A tool that shakes harder adds points much faster.</p>
+      <p>Only real tool time counts. Walking, waving or shaking hands adds nothing, and neither does holding a tool without gripping it.</p></div>
   </div></div>
 
   <div class="card">
-    <h2>The colours</h2>
-    <div class="legend"><i class="swatch" style="background:var(--low)"></i><div><b>Low.</b> Under half of today's guide.</div></div>
-    <div class="legend"><i class="swatch" style="background:var(--mid)"></i><div><b>Getting high.</b> Over half. Plan breaks and other tasks.</div></div>
-    <div class="legend"><i class="swatch" style="background:var(--high)"></i><div><b>Over today's guide.</b> Talk to your supervisor about the rest of the day.</div></div>
-    <p class="muted" style="font-size:15px">Today's guide is a level your team chose for this project. It is not a legal limit, and a full bar does not mean you are hurt.</p>
+    <h2>The two levels</h2>
+    <div class="legend"><i class="swatch" style="background:var(--low)"></i><div><b>Under 100 points: low.</b></div></div>
+    <div class="legend"><i class="swatch" style="background:var(--mid)"></i><div><b>100 points: action level.</b> From here your employer has to act to cut your vibration, for example other tasks, other tools or more breaks.</div></div>
+    <div class="legend"><i class="swatch" style="background:var(--high)"></i><div><b>400 points: daily limit.</b> Stop using vibrating tools for the rest of the day.</div></div>
+    <p class="muted" style="font-size:15px">These are the levels in the UK and EU rules for hand-arm vibration. Your supervisor may set a lower limit for you.</p>
   </div>
 
   <div class="card"><div class="ov">
     <div class="ic" style="background:var(--mid-soft);color:var(--mid)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div>
-    <div><h2>Tool time</h2><p>The phone knows when you are using a power tool and counts your tool time. Normal moving, like shaking hands or waving, does not count. After 20 minutes of tool use without a break, it reminds you to take one.</p></div>
+    <div><h2>Tool time</h2><p>The phone knows when you are using a power tool and counts your tool time. While a tool runs, it tells you how long until you reach each level. After 20 minutes without a break, it reminds you to take one.</p></div>
   </div></div>
 
   <div class="card"><div class="ov">
@@ -202,8 +222,8 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 
   <div class="card">
     <h2>Good to know</h2>
-    <p>Each day is saved by itself and starts again at midnight. Set up the sleeve each time you put it on, so it knows your own grip.</p>
-    <p class="muted" style="font-size:15px">This is a test version, not a medical device. It cannot tell you if you are injured.</p>
+    <p>Each day is saved by itself and starts again at midnight. Set up the sleeve each time you put it on.</p>
+    <p class="muted" style="font-size:15px">This is an estimate from a sensor on your wrist, not an official measurement, and staying under the action level does not make vibration safe. VibeGuard is a test version, not a medical device.</p>
   </div>
 </main>
 
@@ -212,51 +232,32 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   <button id="nav-how" onclick="tab('how')"><span class="ind"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 16v-4M12 8h.01"/></svg></span>How it works</button>
 </nav>
 
-<!-- SET UP -->
-<div class="sheet" id="sheet-calibrate">
-  <div class="bar"><h2>Set up the sleeve</h2><button class="text" onclick="closeSheet()">Done</button></div>
-  <main style="padding-bottom:40px">
-    <div class="card">
-      <div class="label">Part 1 of 2</div>
-      <h2 style="font-size:22px;margin-top:4px">Your grip</h2>
-      <p class="muted">Sit down and rest your arm on a table.</p>
-      <div class="say" id="gSay" style="margin-top:16px"></div>
-      <div class="count" id="gCount"></div>
-      <div class="progress" id="gProg" style="visibility:hidden"><i id="gBar"></i></div>
-      <button class="primary wide" style="margin-top:16px" id="gBtn" onclick="cmd(S.grip && S.grip.flow ? 'grip:cancel' : 'grip:start')">Start</button>
-      <p class="err" id="gMsg"></p>
-    </div>
-    <div class="card">
-      <div class="label">Part 2 of 2</div>
-      <h2 style="font-size:22px;margin-top:4px">Your tool</h2>
-      <p class="muted">So the phone can tell your tool apart from normal moving.</p>
-      <div id="tSteps"></div>
-      <p class="err" id="tMsg"></p>
-      <p class="ok" id="tDone"></p>
-    </div>
-  </main>
+<!-- FULL-SCREEN SETUP -->
+<div id="wizard" role="dialog" aria-label="Set up the sleeve">
+  <div class="wtop"><div class="dots" id="wdots"></div><button class="text" onclick="closeWizard()">Close</button></div>
+  <div class="wstage" id="wstage"></div>
 </div>
 
 <!-- SETTINGS -->
-<div class="sheet" id="sheet-settings">
+<div class="sheet" id="sheet">
   <div class="bar"><h2>Settings</h2><button class="text" onclick="closeSheet()">Done</button></div>
   <main style="padding-bottom:40px">
     <div class="card">
       <h2>Connecting the sleeve</h2>
       <ol style="padding-left:20px;margin:8px 0 16px"><li>Turn on this phone's hotspot.</li><li>Keep this app open.</li><li>Switch on the sleeve. It connects by itself.</li></ol>
       <button class="wide" id="runBtn" onclick="cmd(S.running ? 'stop' : 'start')">Stop</button>
-      <p class="err" id="linkError"></p>
+      <p style="color:var(--high)" id="linkError"></p>
     </div>
     <div class="card"><h2>Practice mode</h2>
       <select id="sSource" onchange="cmd('source:'+this.value)"><option value="sleeve">Off: use the real sleeve</option><option value="demo">On: made-up data</option></select></div>
-    <div class="card"><h2>Today's guide</h2>
-      <div class="stepper"><button onclick="cmd('reference:'+(S.settings.reference-5))" aria-label="Lower">−</button><b id="sRef" style="min-width:80px;text-align:center;font-size:20px"></b><button onclick="cmd('reference:'+(S.settings.reference+5))" aria-label="Higher">+</button></div>
-      <p class="muted" style="font-size:15px">Set by your team. A higher guide fills the bar more slowly.</p></div>
+    <div class="card"><h2>Daily limit</h2>
+      <div class="stepper"><button onclick="cmd('limit:'+(S.settings.limit-25))" aria-label="Lower">−</button><b id="sLimit" style="min-width:110px;text-align:center;font-size:20px"></b><button onclick="cmd('limit:'+(S.settings.limit+25))" aria-label="Higher">+</button></div>
+      <p class="muted" style="font-size:15px">400 points is the legal daily limit. A supervisor or health adviser can set a lower limit for one person. It cannot go above 400.</p></div>
     <div class="card"><h2>Details for the team</h2>
       <p class="muted" style="font-size:15px">Technical readings for the people setting up and checking the system.</p>
       <div id="tech"></div>
       <p style="margin-top:16px"><label class="label">Accelerometer range</label><select id="sCpg" onchange="cmd('cpg:'+this.value)"><option value="4096">±8 g (4096 counts per g)</option><option value="2048">±16 g (2048 counts per g)</option></select></p>
-      <p class="muted" style="font-size:13px">Score rate (au per hour) = V² × (1 + a), V = vibration RMS above 5 Hz in m/s², a = grip effort (0 relaxed, 1 calibrated squeeze, capped at 2). Today's total adds the score only while a tool is detected. Experimental, arbitrary units: not A(8), not a dose. Default guide 75 au = 8 h at 2.5 m/s² with 50 % grip.</p>
+      <p class="muted" style="font-size:13px">Daily exposure estimate (signals exposure.py): A(8) = √(Σ a_hv² Δt / 8 h), points = 2 · a_hv² · hours = 100 · (A(8)/2.5)². Counted only while the tool detector says tool and the wearer is not known to be relaxed (grip &lt; 0.10). EU 2002/44/EC and UK CVWR 2005: action value 2.5 m/s² (100 points), limit value 5.0 m/s² (400 points). Wrist-worn, unweighted IMU estimate (monitoring, not ISO 5349-2).</p>
       <div class="mono muted" id="sEvents"></div>
       <button class="wide" onclick="cmd('laptop')" style="margin-top:16px">Use a laptop instead</button>
     </div>
@@ -269,19 +270,27 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 "use strict";
 const $ = id => document.getElementById(id);
 const VGB = window.VG || { state: () => JSON.stringify({ running: false, linkDetail: "Open this page inside the VibeGuard app." }), command: () => {} };
-let S = {}, sheet = null, lastToast = 0;
+let S = {}, lastToast = 0;
 const ARC = 2 * Math.PI * 52;
 function cmd(c) { VGB.command(c); setTimeout(tick, 60); }
 function demo(k, on) { cmd('demo:' + k + '=' + on); }
 function demoToggle(k, el) { const on = !el.classList.contains('on'); el.classList.toggle('on', on); demo(k, on ? 1 : 0); }
 function tab(t) { for (const n of ['today', 'how']) { $('tab-' + n).style.display = n === t ? '' : 'none'; $('nav-' + n).classList.toggle('on', n === t); } scrollTo(0, 0); }
-function openSheet(n) { closeSheet(); sheet = n; $('sheet-' + n).classList.add('open'); }
-function closeSheet() { if (sheet) $('sheet-' + sheet).classList.remove('open'); sheet = null; }
-window.vgBack = () => { if (sheet) { closeSheet(); return true; } return false; };
+function openSheet() { $('sheet').classList.add('open'); }
+function closeSheet() { $('sheet').classList.remove('open'); }
+window.vgBack = () => {
+  if ($('wizard').classList.contains('open')) { closeWizard(); return true; }
+  if ($('sheet').classList.contains('open')) { closeSheet(); return true; }
+  return false;
+};
 const f = (v, d) => v == null || !isFinite(v) ? '—' : Number(v).toFixed(d);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 function minutes(s) { if (s == null) return '—'; const m = Math.floor(s / 60); if (m < 1) return 'under a minute'; const h = Math.floor(m / 60); return h ? `${h} h ${m % 60} min` : `${m} min`; }
-function level(frac) { return frac >= 1 ? ['Over today\'s guide', 'var(--high)', 'var(--high-soft)'] : frac >= 0.5 ? ['Getting high', 'var(--mid)', 'var(--mid-soft)'] : ['Low', 'var(--low)', 'var(--low-soft)']; }
+function level(pts, limit) {
+  if (pts >= limit) return ['Limit reached', 'var(--high)'];
+  if (pts >= 100) return ['Action level', 'var(--mid)'];
+  return ['Low', 'var(--low)'];
+}
 $('date').textContent = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
 
 function render() {
@@ -292,88 +301,182 @@ function render() {
   $('dot').style.background = s.connected && s.fresh ? 'var(--low)' : s.connected ? 'var(--mid)' : 'var(--faint)';
   $('runBtn').textContent = s.running ? 'Stop reading the sleeve' : 'Start reading the sleeve';
   $('linkError').textContent = s.linkError || '';
-  if (!s.exposure) return;
+  if (!s.exposure) { renderWizard(); return; }
 
-  const e = s.exposure, frac = Math.max(0, e.fraction || 0), lv = level(frac);
+  const e = s.exposure, pts = e.points || 0, limit = e.limit || 400, lv = level(pts, limit);
   $('word').textContent = lv[0]; $('word').style.color = lv[1];
-  $('arc').setAttribute('stroke-dasharray', `${Math.max(0.001, Math.min(1, frac)) * ARC} ${ARC}`);
+  $('arc').setAttribute('stroke-dasharray', `${Math.max(0.001, Math.min(1, pts / limit)) * ARC} ${ARC}`);
   $('arc').setAttribute('stroke', lv[1]);
-  $('pct').textContent = `${Math.round(frac * 100)}% of today's guide`;
+  $('arc').style.opacity = pts > 0.5 ? 1 : 0;
+  const a = 2 * Math.PI * Math.min(1, 100 / limit);
+  $('tick').setAttribute('transform', `rotate(${a * 180 / Math.PI} 60 60)`);
+  $('tick').style.display = limit > 100 ? '' : 'none';
+  $('pts').textContent = `${Math.round(pts)} of ${Math.round(limit)} points`;
   const t = s.tool, using = s.fresh && t.state === 'tool';
-  $('note').textContent = !s.gripCalibrated ? 'Not counting yet. Set up the sleeve first.'
-    : !s.connected || !s.fresh ? 'Not counting. No signal from the sleeve.'
-    : e.counting ? 'Counting while you use the tool.' : 'Counts only while you use a tool.';
+  let note;
+  if (!s.connected || !s.fresh) note = 'Not counting: no signal from the sleeve.';
+  else if (e.counting && pts < 100 && e.hoursToAction != null) note = `At this tool, you reach the action level in about ${minutes(e.hoursToAction * 3600)}.`;
+  else if (e.counting && pts < limit && e.hoursToLimit != null) note = `At this tool, you reach your daily limit in about ${minutes(e.hoursToLimit * 3600)}.`;
+  else if (pts >= limit) note = 'Stop using vibrating tools for the rest of the day.';
+  else if (pts >= 100) note = 'Your employer should cut your vibration today.';
+  else note = 'Points add up only while you use a tool.';
+  $('note').textContent = note;
 
   $('toolTitle').textContent = !s.fresh ? 'Tool: no signal' : using ? 'Using a tool' : 'Not using a tool';
   $('toolTime').textContent = 'Tool time today: ' + minutes(t.toolTime);
   $('toolIcon').style.background = using ? 'var(--mid-soft)' : '';
   $('toolIcon').style.color = using ? 'var(--mid)' : '';
 
-  const a = $('alert'), w = (t.warnings || [])[0];
-  if (w) { a.style.display = 'flex'; a.style.background = 'var(--high-soft)'; a.style.color = 'var(--high)';
-    a.innerHTML = w.startsWith('Tool in use for over 20') ? '<div><b>Time for a break</b>You have used the tool for over 20 minutes without one.</div>' : `<div><b>Heads up</b>${esc(w)}</div>`; }
-  else if (s.running && s.connected && !s.fresh) { a.style.display = 'flex'; a.style.background = 'var(--mid-soft)'; a.style.color = 'var(--mid)';
-    a.innerHTML = '<div><b>Lost the sleeve\'s signal</b>Stay close to your phone.</div>'; }
-  else a.style.display = 'none';
+  const al = $('alert'), w = (t.warnings || [])[0];
+  if (pts >= limit) { al.style.display = ''; al.style.background = 'var(--high-soft)'; al.style.color = 'var(--high)'; al.innerHTML = '<b>Daily limit reached</b>No more vibrating tools today.'; }
+  else if (w) { al.style.display = ''; al.style.background = 'var(--high-soft)'; al.style.color = 'var(--high)';
+    al.innerHTML = w.startsWith('Tool in use for over 20') ? '<b>Time for a break</b>You have used the tool for over 20 minutes without one.' : `<b>Heads up</b>${esc(w)}`; }
+  else if (s.running && s.connected && !s.fresh) { al.style.display = ''; al.style.background = 'var(--mid-soft)'; al.style.color = 'var(--mid)'; al.innerHTML = '<b>Lost the sleeve\'s signal</b>Stay close to your phone.'; }
+  else al.style.display = 'none';
 
-  $('setup').style.display = s.connected && !s.gripCalibrated ? '' : 'none';
-  $('again').style.display = s.connected && s.gripCalibrated ? '' : 'none';
+  const ready = s.gripCalibrated && t.calibrated;
+  $('setup').style.display = s.connected && !ready ? '' : 'none';
+  $('again').style.display = s.connected && ready ? '' : 'none';
   $('demoPanel').style.display = s.source === 'demo' ? '' : 'none';
   const h = (s.history || []).slice(0, 7);
   $('days').style.display = h.length ? '' : 'none';
   $('dayList').innerHTML = h.map(d => {
-    const fr = d.exposure / Math.max(d.reference || e.reference, 1e-9), l = level(fr);
+    const l = level(d.points, limit);
     const label = new Date(d.date + 'T12:00:00').toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-    return `<div class="item"><div class="left"><i class="dot" style="background:${l[1]}"></i><span>${label}</span></div><span class="muted">${l[0]} · tool ${minutes(d.tool)}</span></div>`;
+    return `<div class="item"><div class="left"><i class="dot" style="background:${l[1]}"></i><span>${label}</span></div><span class="muted">${Math.round(d.points)} points · tool ${minutes(d.tool)}</span></div>`;
   }).join('');
-  renderSetup(s); renderSettings(s);
+  renderSettings(s); renderWizard();
   if (s.toast && s.toastId !== lastToast) { lastToast = s.toastId; const el = $('toast'); el.textContent = s.toast; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 2600); }
 }
 
-function renderSetup(s) {
-  const g = s.grip;
-  $('gSay').textContent = g.flow === 'relaxed' ? 'Relax your arm and keep it still' : g.flow === 'squeeze' ? 'Now squeeze your fist hard!'
-    : s.gripCalibrated ? '✓ Grip is set up' : 'First relax for 3 seconds, then squeeze hard for 3 seconds.';
-  $('gSay').style.color = s.gripCalibrated && !g.flow ? 'var(--low)' : '';
-  $('gCount').textContent = g.flow && g.left != null ? Math.ceil(g.left) : '';
-  $('gCount').style.display = g.flow ? '' : 'none';
-  $('gProg').style.visibility = g.flow ? 'visible' : 'hidden';
-  $('gProg').style.display = g.flow ? '' : 'none';
-  $('gBar').style.width = g.flow && g.left != null ? (100 * (1 - g.left / Math.max(g.total, .1))) + '%' : '0%';
-  $('gBtn').textContent = g.flow ? 'Stop' : s.gripCalibrated ? 'Do it again' : 'Start';
-  $('gBtn').className = g.flow ? 'wide' : 'primary wide';
-  $('gBtn').disabled = !s.connected;
-  $('gMsg').textContent = g.message ? 'That did not work. ' + g.message : (s.connected ? '' : 'Switch on the sleeve first.');
+/* ---------- full-screen setup: one screen per step, sliding ---------- */
+const ICON_HAND = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3.4 16.9a2 2 0 0 1 2.9-2.8L8 16"/></svg>';
+const ICON_TOOL = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></svg>';
+const ICON_STILL = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="4" rx="2"/><path d="M7 11V8M12 11V6M17 11V8"/></svg>';
+const ICON_WAVE = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/><path d="M4 18c2-2 4-2 6 0M14 6c2-2 4-2 6 0"/></svg>';
+const ICON_OK = '<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
+const ICON_BAD = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5h.01"/><circle cx="12" cy="12" r="9"/></svg>';
 
-  const tc = s.toolCal, done = new Set(tc.done);
-  const steps = [['still', 'Keep still', 'Rest your arm, tool off.', 5],
-    ['movement', 'Move like normal', 'Tool off. Shake hands, wave, swing your arm.', 12],
-    ['tool', 'Use your tool', 'Hold the running tool like you do at work.', 10]];
-  $('tSteps').innerHTML = steps.map(([id, title, how, secs], i) => {
-    const active = tc.phase === id, d = done.has(id);
-    const dis = !s.connected || (tc.phase && !active) || (i > 0 && !done.has(steps[i - 1][0]));
-    const live = active && tc.left != null ? `<div class="count">${Math.ceil(tc.left)}</div><div class="progress"><i style="width:${100 * (1 - tc.left / Math.max(tc.total, .1))}%"></i></div>` : '';
-    return `<div class="step"><div class="num ${active ? 'on' : d ? 'done' : ''}">${d && !active ? '✓' : i + 1}</div>
-      <div class="grow"><div style="font-weight:600;font-size:18px">${title}</div><div class="muted" style="font-size:15px">${how} ${secs} seconds.</div>${live}
-      <button class="${active || d ? '' : 'primary'}" style="margin-top:12px;min-height:44px" ${dis ? 'disabled' : ''} onclick="cmd('tool:${active ? 'cancel' : id}')">${active ? 'Stop' : d ? 'Again' : 'Start'}</button></div></div>`;
-  }).join('');
-  $('tMsg').textContent = tc.message ? 'That did not work. ' + tc.message : '';
-  $('tDone').textContent = s.tool.calibrated && !tc.failed ? '✓ Your tool is set up.' : '';
+const STEPS = ['intro', 'relax', 'squeeze', 'gripDone', 'stillIntro', 'still', 'moveIntro', 'movement', 'toolIntro', 'tool', 'allDone'];
+const DOT_OF = { intro: 0, relax: 1, squeeze: 1, gripDone: 1, gripFail: 1, stillIntro: 2, still: 2, moveIntro: 3, movement: 3, toolIntro: 4, tool: 4, toolFail: 4, allDone: 5 };
+let W = { open: false, step: 'intro', shown: null, message: '', started: null, until: 0 };
+
+function openWizard() { W = { open: true, step: 'intro', shown: null, message: '', started: null, until: 0 }; $('wizard').classList.add('open'); $('wstage').innerHTML = ''; renderWizard(); }
+function closeWizard() {
+  if (S.grip && S.grip.flow) cmd('grip:cancel');
+  if (S.toolCal && S.toolCal.phase) cmd('tool:cancel');
+  W.open = false; $('wizard').classList.remove('open');
+}
+function go(step) { W.step = step; W.started = null; renderWizard(); }
+function startGrip() { W.message = ''; W.started = 'grip'; cmd('grip:start'); go('relax'); W.started = 'grip'; }
+function startTool(ph) { W.message = ''; cmd('tool:' + ph); go(ph); W.started = ph; }
+
+function countdown(left, total, color) {
+  const fr = left == null ? 0 : Math.max(0, Math.min(1, 1 - left / Math.max(total, .1)));
+  return `<div class="ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="10"/>
+    <circle cx="60" cy="60" r="52" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${fr * ARC} ${ARC}" style="transition:stroke-dasharray .25s linear"/></svg>
+    <div class="n">${left == null ? '' : Math.ceil(left)}</div></div>`;
+}
+
+function screen(step) {
+  const s = S, g = s.grip || {}, tc = s.toolCal || {};
+  const intro = (icon, title, text, btn, action, extra = '') => `<div class="wbody"><div class="hero">${icon}</div><h1>${title}</h1><p>${text}</p></div>
+    <div class="wfoot">${extra}<button class="primary wide" ${s.connected ? '' : 'disabled'} onclick="${action}">${btn}</button>${s.connected ? '' : '<p class="muted" style="text-align:center">Switch on the sleeve first.</p>'}</div>`;
+  const live = (title, text, left, total, color, pulse) => `<div class="wbody"><div class="${pulse ? 'pulse' : ''}">${countdown(left, total, color)}</div><h1>${title}</h1><p>${text}</p></div>
+    <div class="wfoot"><button class="wide" onclick="closeWizard()">Stop</button></div>`;
+  const done = (title, text, btn, action) => `<div class="wbody"><div class="ok-badge">${ICON_OK}</div><h1>${title}</h1><p>${text}</p></div>
+    <div class="wfoot">${btn ? `<button class="primary wide" onclick="${action}">${btn}</button>` : ''}</div>`;
+  const fail = (title, text, retry) => `<div class="wbody"><div class="bad-badge">${ICON_BAD}</div><h1>${title}</h1><p>${esc(text)}</p></div>
+    <div class="wfoot"><button class="primary wide" onclick="${retry}">Try again</button></div>`;
+  switch (step) {
+    case 'intro': return intro(ICON_HAND, 'Let\'s set up your sleeve', 'Two short parts: your grip, then your tool. Sit down and rest your arm on a table.', 'Start', 'startGrip()');
+    case 'relax': return live('Relax your arm', 'Let your hand go loose. Keep it still.', g.flow === 'relaxed' ? g.left : 3, g.total || 3, 'var(--primary)', false);
+    case 'squeeze': return live('Squeeze hard!', 'Make a fist as hard as you can and hold it.', g.flow === 'squeeze' ? g.left : 3, g.total || 3, 'var(--high)', true);
+    case 'gripDone': return done('Grip done', 'Now your tool.', '', '');
+    case 'gripFail': return fail('That did not work', W.message || 'Try again, and keep your arm on the table.', 'startGrip()');
+    case 'stillIntro': return intro(ICON_STILL, 'Keep still', 'Rest your arm and do not move for 5 seconds. Tool off.', 'Start', "startTool('still')",
+      s.tool && s.tool.calibrated ? '<button class="wide" onclick="go(\'allDone\')">Skip, my tool is already set up</button>' : '');
+    case 'still': return live('Keep still', 'Arm resting, tool off.', tc.phase === 'still' ? tc.left : 5, tc.total || 5, 'var(--primary)', false);
+    case 'moveIntro': return intro(ICON_WAVE, 'Move like normal', 'Tool off. For 12 seconds: shake hands, wave, swing your arm. This teaches the phone what is NOT a tool.', 'Start', "startTool('movement')");
+    case 'movement': return live('Keep moving', 'Shake hands, wave, swing your arm.', tc.phase === 'movement' ? tc.left : 12, tc.total || 12, 'var(--primary)', true);
+    case 'toolIntro': return intro(ICON_TOOL, 'Use your tool', 'Turn your tool on and hold it like you do at work. Press Start when it is running.', 'Start', "startTool('tool')");
+    case 'tool': return live('Keep using the tool', 'Hold it firmly, like at work.', tc.phase === 'tool' ? tc.left : 10, tc.total || 10, 'var(--mid)', true);
+    case 'toolFail': return fail('That did not work', W.message || 'Try that step again.', W.retry || "go('stillIntro')");
+    case 'allDone': return done('You\'re all set', 'The sleeve knows your grip and your tool. Points add up while you work.', 'Done', 'closeWizard()');
+  }
+  return '';
+}
+
+function advance() {
+  const s = S, g = s.grip || {}, tc = s.toolCal || {}, done = new Set(tc.done || []);
+  const st = W.step;
+  if ((st === 'relax' || st === 'squeeze') && W.started === 'grip') {
+    if (g.flow === 'squeeze' && st === 'relax') return go2('squeeze');
+    if (!g.flow && W.seenFlow) {
+      W.seenFlow = false;
+      if (s.gripCalibrated) { go2('gripDone'); W.until = Date.now() + 1400; return; }
+      W.message = g.message || ''; return go2('gripFail');
+    }
+    if (g.flow) W.seenFlow = true;
+  }
+  if (st === 'gripDone' && Date.now() > W.until) return go2('stillIntro');
+  if (['still', 'movement', 'tool'].includes(st) && W.started === st) {
+    if (tc.phase === st) { W.seenPhase = true; return; }
+    if (W.seenPhase) {
+      W.seenPhase = false;
+      if (done.has(st) && !tc.failed) return go2(st === 'still' ? 'moveIntro' : st === 'movement' ? 'toolIntro' : 'allDone');
+      W.message = tc.message || ''; W.retry = st === 'tool' ? "go('moveIntro')" : `go('${st === 'still' ? 'stillIntro' : 'moveIntro'}')`;
+      return go2('toolFail');
+    }
+  }
+}
+function go2(step) { const keep = W.started; W.step = step; W.started = ['relax', 'squeeze'].includes(step) ? keep : null; }
+
+function renderWizard() {
+  if (!W.open) return;
+  advance();
+  const n = DOT_OF[W.step];
+  $('wdots').innerHTML = [0, 1, 2, 3, 4, 5].map(i => `<i class="${i === n ? 'on' : i < n ? 'done' : ''}"></i>`).join('');
+  const stage = $('wstage');
+  let cur = stage.querySelector('.wscreen.cur');
+  if (W.shown !== W.step) {
+    const el = document.createElement('div');
+    el.className = 'wscreen right';
+    el.innerHTML = screen(W.step);
+    for (const old of [...stage.children]) {   // every older screen slides out, even one still sliding in
+      old.classList.remove('cur', 'right'); old.classList.add('left');
+      setTimeout(() => old.remove(), 500);
+    }
+    stage.appendChild(el);
+    void el.offsetWidth;                      // commit the start position, then slide in
+    setTimeout(() => { if (el.isConnected && !el.classList.contains('left')) { el.classList.remove('right'); el.classList.add('cur'); } }, 30);
+    W.shown = W.step;
+  } else if (cur && ['relax', 'squeeze', 'still', 'movement', 'tool'].includes(W.step)) {
+    const ring = cur.querySelector('.ring');
+    const tmp = document.createElement('div'); tmp.innerHTML = screen(W.step);
+    const fresh = tmp.querySelector('.ring');
+    if (ring && fresh) ring.replaceWith(fresh);
+  } else if (cur && ['intro', 'stillIntro', 'moveIntro', 'toolIntro'].includes(W.step)) {
+    const btn = cur.querySelector('.wfoot .primary');
+    if (btn) btn.disabled = !S.connected;
+  }
 }
 
 function renderSettings(s) {
   if (document.activeElement !== $('sSource')) $('sSource').value = s.settings.source;
   if (document.activeElement !== $('sCpg')) $('sCpg').value = String(Math.round(s.settings.countsPerG));
-  $('sRef').textContent = Math.round(s.settings.reference) + ' au';
+  $('sLimit').textContent = Math.round(s.settings.limit) + ' points';
   const kv = (k, v) => `<div class="kv"><span>${k}</span><span>${esc(v)}</span></div>`;
   const t = s.tool, e = s.exposure, r = s.toolCal.result, th = r && r.thresholds || {};
   $('tech').innerHTML =
     kv('Link', s.linkDetail || 'stopped') + kv('Device', s.device || '—') + kv('Firmware', s.firmware || '—') +
     kv('Records per second', f(s.linesPerS, 0)) + kv('Lost records', s.lost) +
-    kv('Today (tool time only)', `${f(e.total, 3)} of ${f(e.reference, 0)} au`) + kv('Score rate now', e.rate == null ? 'paused (' + (e.paused || '—') + ')' : f(e.rate, 2) + ' au/h') +
+    kv('Exposure today', `${f(e.points, 2)} points, A(8) ${f(e.a8, 3)} m/s², contact ${minutes(e.contact)}`) +
+    kv('Exposure now', e.counting ? `${f(e.pointsPerHour, 1)} points/h` : `not counting (${(e.reasons || []).join(', ') || 'no tool'})`) +
+    kv('Grip unknown during contact', minutes(e.gripUnknown)) +
     kv('Grip effort', s.activation == null ? '—' : f(Math.max(0, s.activation) * 100, 0) + ' % of calibrated squeeze') +
     kv('EMG envelope', f(s.envelope, 1) + ' counts') + kv('Grip calibration', s.grip.relaxed == null ? '—' : `rest ${f(s.grip.relaxed, 1)}, squeeze ${f(s.grip.squeeze, 1)} counts`) +
-    kv('Vibration', f(s.vibration, 2) + ' m/s²' + (s.vibrationClipped ? ' (sensor clipped)' : '')) +
+    kv('Vibration a_hv', f(s.vibration, 2) + ' m/s²' + (s.vibrationClipped ? ' (sensor clipped)' : '')) +
     kv('Tool band', `${f(t.band, 2)} m/s² @ ${f(t.hz, 0)} Hz, arm ${f(t.arm, 2)} m/s², periodicity ${f(t.periodicity, 2)}`) +
     kv('Tool state', `${t.state}, ${t.bouts} bouts, longest ${minutes(t.longest)}`) +
     kv('Tool thresholds', t.calibrated ? `≥ ${f(th.on_threshold_ms2, 2)} m/s², tool/arm ≥ ${f(th.tool_to_motion_min, 2)}, periodicity ≥ ${f(th.concentration_min, 2)}` : 'defaults (provisional)') +
