@@ -66,6 +66,10 @@ public class StandaloneActivity extends Activity {
         @JavascriptInterface
         public String state() { return sleeve.stateJson(); }
 
+        /** The day log (up to 400 days); the page asks only when the state's historyVersion changes. */
+        @JavascriptInterface
+        public String history() { return sleeve.historyJsonForPage(); }
+
         @JavascriptInterface
         public void command(String c) {
             if ("laptop".equals(c)) {

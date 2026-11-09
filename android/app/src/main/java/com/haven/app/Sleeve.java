@@ -79,6 +79,10 @@ final class Sleeve {
     // kept as the energy sum(a^2 dt) so it survives an app restart; rolls over at midnight
     private String day;
     private double dayEnergy, dayContact, dayTool;        // today's totals (demo-scaled when demo speed > 1)
+    // today's points over the last 10 s of the phone's clock: the "you reach ... in about" estimate uses the rate the
+    // ring is actually moving at, not the vibration of one instant (which jumps with every change of grip)
+    private final java.util.ArrayDeque<double[]> rateWin = new java.util.ArrayDeque<>();
+    private JSONArray monthsCache; private int monthsVersion = -1; private double monthsAt = -1;
     private Double lastE, lastC, lastTool;                 // the engine's totals at the previous tick
     private double lastSaved;
     // calibration never counts as exposure: nothing is added while setup is open or a capture runs, nor for a
@@ -191,6 +195,8 @@ final class Sleeve {
     }
 
     /** The newest 400 days as the screen gets them, newest first, with each day's date; rebuilt only after a change. */
+    String historyJsonForPage() { return historyJson(); }
+
     private String historyJson() {
         if (historyBuilt == historyVersion) return historyJson;
         historyBuilt = historyVersion;
@@ -236,6 +242,8 @@ final class Sleeve {
             dayTool += Math.max(0, tt - lastTool) * demoSpeed;
         }
         lastE = e; lastC = c; lastTool = tt;
+        rateWin.addLast(new double[]{t, Exposure.pointsFromEnergy(dayEnergy)});
+        while (rateWin.size() > 2 && t - rateWin.peekFirst()[0] > 10) rateWin.removeFirst();
         checkAlarms();
         led(t);
         if (t - lastSaved > 10) { saveDay(); lastSaved = t; }
@@ -415,8 +423,9 @@ final class Sleeve {
             // the only alarms are the action level and the daily limit (checkAlarms); no other reminder sounds or pops up
             String b = build(s, t).toString();
             tvState = buildTv(s, t).toString();
-            // the day log (up to 400 days) is serialized once per change, not 20 times a second
-            state = b.substring(0, b.length() - 1) + ",\"history\":" + historyJson() + "}";
+            // the day log (up to 400 days) is NOT in the 10 Hz state: the page asks for it (historyJsonForPage)
+            // only when historyVersion changes
+            state = b;
         } catch (Exception e) {
             state = "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
         }
@@ -741,13 +750,18 @@ final class Sleeve {
         Exposure.Snapshot x = s.exposure;
         double energy = energyToday(), points = Exposure.pointsFromEnergy(energy);
         Double aNow = fresh && Boolean.TRUE.equals(x.counting) ? x.aHvNow : null;
+        Double perSec = null;                                  // points per second on the phone's clock, last 10 s
+        if (aNow != null && rateWin.size() >= 2) {
+            double[] a = rateWin.peekFirst(), z = rateWin.peekLast();
+            if (z[0] - a[0] >= 2 && z[1] > a[1]) perSec = (z[1] - a[1]) / (z[0] - a[0]);
+        }
         o.put("exposure", new JSONObject().put("points", points).put("a8", Exposure.a8FromEnergy(energy, 8 * 3600))
                 .put("contact", contactToday()).put("limit", personalLimit).put("action", Exposure.EAV_POINTS)
                 .put("counting", aNow != null)
                 .put("pointsPerHour", aNow == null ? JSONObject.NULL : 2 * aNow * aNow)
                 // real time left on the phone's clock (demo: divided by the speed)
-                .put("hoursToAction", nz(scaled(Exposure.hoursUntil(points, Exposure.EAV_POINTS, aNow), demoSpeed)))
-                .put("hoursToLimit", nz(scaled(Exposure.hoursUntil(points, x.personalLimit, aNow), demoSpeed)))
+                .put("hoursToAction", perSec == null ? JSONObject.NULL : Math.max(0, Exposure.EAV_POINTS - points) / perSec / 3600)
+                .put("hoursToLimit", perSec == null ? JSONObject.NULL : Math.max(0, x.personalLimit - points) / perSec / 3600)
                 .put("status", x.status).put("reasons", new JSONArray(x.reasons))
                 .put("gripUnknown", x.gripUnknownS)
                 .put("paused_for_setup", now() < quietUntil)
@@ -768,7 +782,10 @@ final class Sleeve {
         historyJson();
         JSONObject todayEntry = new JSONObject().put("points", points).put("a8", Exposure.a8FromEnergy(energy, 8 * 3600))
                 .put("tool", toolToday()).put("limit", personalLimit).put("demoSpeed", dayDemo);
-        o.put("months", History.months(historyDays, day, todayEntry, 12));
+        if (monthsCache == null || monthsVersion != historyVersion || t - monthsAt >= 1) {
+            monthsCache = History.months(historyDays, day, todayEntry, 12); monthsVersion = historyVersion; monthsAt = t;
+        }
+        o.put("months", monthsCache);
         o.put("toast", toast == null ? JSONObject.NULL : toast).put("toastId", toastId);
         o.put("tvUrls", new JSONArray(TvServer.urls()));
         return o;

@@ -27,6 +27,7 @@
         <!-- standalone: the sleeve connects to this phone (its hotspot) and the phone does all the processing -->
         <activity
             android:name=".StandaloneActivity"
+            android:screenOrientation="portrait"
             android:exported="true"
             android:launchMode="singleTop"
             android:showWhenLocked="true"
@@ -46,12 +47,14 @@
         <!-- optional: use a laptop running vg-backend instead (Settings, "Use a laptop instead") -->
         <activity
             android:name=".MainActivity"
+            android:screenOrientation="portrait"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
 
         <!-- rotating or resizing must not reload the dashboard (it would drop the live chart history) -->
         <activity
             android:name=".DashboardActivity"
+            android:screenOrientation="portrait"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboard|keyboardHidden"
             android:exported="false" />
     </application>
