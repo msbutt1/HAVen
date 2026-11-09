@@ -171,7 +171,7 @@ On the current branch, the backend suite has a small number of serial and timing
 | Fahad | Exposure engine, frontend, presentation coordination |
 | Salaar | Firmware, signal processing |
 | Abduljabbar | Backend, app integration, Android and iOS apps |
-| Ali | Frontend CAD and parts |
+| Ali | Frontend, CAD and parts |
 | Collins | Hardware and sleeve |
 
 Built for natHacks 2026, University of Alberta.
