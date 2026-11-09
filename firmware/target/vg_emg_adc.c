@@ -32,7 +32,7 @@ static void emg_task(void *arg)
     (void)arg;
     static uint8_t buf[FRAME_BYTES];
     uint32_t acc = 0, n_in_block = 0;
-    bool clip = false;
+    uint32_t rails = 0;                                   /* raw readings at 0 or 4095 in this block */
     uint64_t k = 0;                                       /* output sample count */
     int64_t anchor = esp_timer_get_time();
     int64_t window_start = anchor;
@@ -51,21 +51,26 @@ static void emg_task(void *arg)
             }
             uint32_t v = d->type1.data;
             acc += v;
-            clip |= (v == 0 || v >= 4095);
+            if (v == 0 || v >= 4095) { rails++; s_stats.raw_rail_hits++; }
             if (++n_in_block == DECIM) {
                 vg_sample_t s = {0};
                 s.t_us = anchor + (int64_t)(k * (1000000u / VG_EMG_OUT_HZ));
                 s.v[0] = (int32_t)((acc + DECIM / 2) / DECIM);
-                if (clip) {
+                /* Clipped = the input really saturated: at least a quarter of the block's raw readings at a
+                 * limit. A single stray 0/4095 reading (the ESP32's continuous ADC produces the odd one)
+                 * must not flag the sample: the batch flag would then mark all 50 samples of the batch. */
+                if (rails * 4 >= DECIM) {
                     s.flags = VG_SF_CLIPPED;
                     s_stats.clipped++;
                 }
+                if (s.v[0] < s_stats.win_min) s_stats.win_min = s.v[0];
+                if (s.v[0] > s_stats.win_max) s_stats.win_max = s.v[0];
                 vg_ring_push(s_ring, &s);
                 s_stats.samples++;
                 k++;
                 acc = 0;
                 n_in_block = 0;
-                clip = false;
+                rails = 0;
             }
         }
         /* Clock check. The newest reconstructed time trails the read time by
@@ -89,6 +94,8 @@ static void emg_task(void *arg)
 
 bool vg_emg_adc_start(int gpio, vg_sample_ring_t *ring, char *detail, size_t n)
 {
+    s_stats.win_min = INT32_MAX;
+    s_stats.win_max = INT32_MIN;
     adc_unit_t unit;
     if (adc_continuous_io_to_channel(gpio, &unit, &s_ch) != ESP_OK || unit != ADC_UNIT_1) {
         snprintf(detail, n, "GPIO%d is not an ADC1 pin", gpio);
@@ -117,6 +124,14 @@ bool vg_emg_adc_start(int gpio, vg_sample_ring_t *ring, char *detail, size_t n)
              (unsigned)VG_EMG_CONV_HZ, (unsigned)DECIM, (unsigned)VG_EMG_OUT_HZ);
     return xTaskCreatePinnedToCore(emg_task, "vg_emg", 4096, NULL, configMAX_PRIORITIES - 2, NULL,
                                    1) == pdPASS;
+}
+
+void vg_emg_adc_take_range(int32_t *lo, int32_t *hi)
+{
+    *lo = s_stats.win_min;
+    *hi = s_stats.win_max;
+    s_stats.win_min = INT32_MAX;
+    s_stats.win_max = INT32_MIN;
 }
 
 const vg_emg_stats_t *vg_emg_adc_stats(void)

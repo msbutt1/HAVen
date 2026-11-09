@@ -31,12 +31,18 @@ extern "C" {
 typedef struct {
     volatile uint32_t samples, clipped, reanchors, pool_overflows, bad_channel;
     volatile int32_t last_drift_us;
+    /* diagnostics: raw 20 kHz readings at 0 or 4095 (total), and the lowest/highest 1 kHz value in the last
+     * window (reset by vg_emg_adc_take_range) */
+    volatile uint32_t raw_rail_hits;
+    volatile int32_t win_min, win_max;
 } vg_emg_stats_t;
 
 /* Starts continuous conversion on gpio (must be ADC1) and a reader task on
  * core 1 that pushes 1 kHz samples into ring. */
 bool vg_emg_adc_start(int gpio, vg_sample_ring_t *ring, char *detail, size_t n);
 const vg_emg_stats_t *vg_emg_adc_stats(void);
+/* Lowest and highest 1 kHz value since the last call (for the periodic log); resets the window. */
+void vg_emg_adc_take_range(int32_t *lo, int32_t *hi);
 
 #ifdef __cplusplus
 }
