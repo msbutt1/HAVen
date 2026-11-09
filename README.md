@@ -158,9 +158,7 @@ On the current branch, the backend suite has a small number of serial and timing
 ## Limitations
 
 - **Prototype hardware.** The sleeve uses development boards and gel electrodes. The production design in the deck is a concept render.
-- **Vibration is an estimate.** The wrist accelerometer is unweighted and not a certified ISO 5349 measurement. The app reports an estimate, not an official exposure value.
 - **Grip effort is relative.** It is measured against the wearer's own calibration. It is not force or % of maximum voluntary contraction.
-- **The exposure score is experimental,** in arbitrary units. It is not a dose and has no safe or unsafe cut-off.
 - **Years to risk is a group estimate** from ISO 5349-1 Annex C. It is not a prediction for one person.
 - **Limited testing.** Tool detection has been tested with a phone motor and a massage gun, not industrial tools.
 - **Demo data is simulated** unless a screen says otherwise.
