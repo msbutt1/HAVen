@@ -103,7 +103,7 @@ final class Sleeve {
     // alarms: each level fires once a day; the screen shows it until the wearer taps OK
     interface Listener { void alert(String kind, String title, String text, boolean sound); void silence(); }
     /** The app's look (index.html data-theme); also the alarm notification's accent colour. */
-    volatile String theme = "standard";
+    volatile String theme = "enamel";
     volatile Listener listener;
     private boolean firedAction, firedLimit;
     private String alarm;                         // null | action | limit (shown on the screen until acknowledged)
@@ -126,7 +126,7 @@ final class Sleeve {
         // a light hold on a massage gun is often under 10 % of a hard squeeze, so for the demo points count
         // whenever the tool is detected (exposure.py's tool_on total); the grip rule is a Developer option
         gripGate = prefs.getBoolean("gripGate", false);
-        theme = prefs.getString("theme", "standard");
+        theme = "enamel";               // the one look (enamel lunch pail); the old picker is gone
         proc = newProcessor();
         loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);   // the page reads the state 10x a second
@@ -546,9 +546,6 @@ final class Sleeve {
             toolMessage = null; toolFailed = false;
             proc.toolCalibration(ph);
             if (proc.toolCalState().equals("capturing_" + ph)) toolPhase = ph;
-        } else if (c.startsWith("theme:")) {
-            theme = c.substring(6);
-            prefs.edit().putString("theme", theme).apply();
         } else if (c.equals("alarm:preview:action") || c.equals("alarm:preview:limit")) {
             // developer: show the real alarm (screen + notification) without the siren, to check how it looks
             boolean limit = c.endsWith("limit");

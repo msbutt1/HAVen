@@ -101,7 +101,7 @@ public class SleeveService extends Service {
 
     private void alert(String kind, String title, String text, boolean sound) {
         Notification n = new Notification.Builder(this, CH_ALARM)
-                .setColor(accent(sleeve.theme))
+                .setColor(ACCENT)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(title)
                 .setContentText(text)
@@ -115,14 +115,8 @@ public class SleeveService extends Service {
         if (sound) siren(60_000);
     }
 
-    /** The look's accent, for the notification's icon and title tint (index.html themes). */
-    static int accent(String theme) {
-        switch (theme == null ? "" : theme) {
-            case "calendar": return 0xFF2B4A8B;
-            case "enamel": return 0xFF1D5A45;
-            default: return 0xFF2563EB;
-        }
-    }
+    /** Enamel green: the notification's icon and title tint, as in the app. */
+    static final int ACCENT = 0xFF1D5A45;
 
     // ---- the audible alarm: loud enough to hear next to a running tool ----
 

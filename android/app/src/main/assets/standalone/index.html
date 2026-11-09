@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="enamel">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
@@ -187,61 +187,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 #dayList .item .left { flex-wrap: wrap; row-gap: 2px; }
 </style>
 <style id="themes">
-/* ===== design candidates (Developer options > Look). Only appearance changes; markup and behaviour are shared. ===== */
-.weekstrip { display: none; }
-
-/* ---------- C. standard: the category standard, done carefully (hairlines instead of shadows, one accent) ---------- */
-html[data-theme="standard"] { --bg: #f5f6f8; --surface: #ffffff; --fg: #111827; --muted: #5f6673; --faint: #9aa1ad; --line: #e4e7ec;
-  --primary: #2459d6; --primary-soft: #e8eefc; --low: #15803d; --low-soft: #e7f5ec; --mid: #b45309; --mid-soft: #fdf0e1; --high: #c81e1e; --high-soft: #fcebeb; --r: 18px; }
-@media (prefers-color-scheme: dark) { html[data-theme="standard"] { --bg: #0d0f13; --surface: #161a20; --fg: #f1f3f6; --muted: #a2a9b4; --faint: #6f7682; --line: #262b33;
-  --primary: #6c9cff; --on-primary: #0a1430; --primary-soft: #18233d; --low: #4cc27e; --low-soft: #11261a; --mid: #f2a74b; --mid-soft: #2c2010; --high: #ff7272; --high-soft: #331616; } }
-html[data-theme="standard"] .card, html[data-theme="standard"] .stat { box-shadow: none; border: 1px solid var(--line); }
-html[data-theme="standard"] .iconbtn, html[data-theme="standard"] .pill { box-shadow: none; border: 1px solid var(--line); }
-html[data-theme="standard"] .title, html[data-theme="standard"] h1 { letter-spacing: -.8px; }
-html[data-theme="standard"] nav { box-shadow: none; border-top: 1px solid var(--line); }
-
-/* ---------- A. fridge calendar: printed calendar paper, a blue printed header band, ruled boxes, round magnets ---------- */
-html[data-theme="calendar"] { --bg: #f6f6f3; --surface: #ffffff; --fg: #1f232b; --muted: #5d636e; --faint: #9a9fa8; --line: #d6d8dd;
-  --primary: #284a8f; --on-primary: #ffffff; --primary-soft: #e3e9f5; --ink: #1f232b; --band: #284a8f; --band-ink: #ffffff;
-  --low: #1d7f45; --low-soft: #e2f2e8; --mid: #b86a00; --mid-soft: #fbeedb; --high: #c12a2e; --high-soft: #fae6e6; --r: 12px; }
-@media (prefers-color-scheme: dark) { html[data-theme="calendar"] { --bg: #121419; --surface: #1b1e25; --fg: #eef0f3; --muted: #a6acb7; --faint: #6c727e; --line: #2d313b;
-  --primary: #8fb0f2; --on-primary: #0d1830; --primary-soft: #1d2840; --ink: #c9ced8; --band: #1f3768; --band-ink: #f1f4fa;
-  --low: #53c486; --low-soft: #13281c; --mid: #f0a649; --mid-soft: #2d2111; --high: #ff7a76; --high-soft: #331818; } }
-html[data-theme="calendar"] #tab-today .appbar, html[data-theme="calendar"] #tab-overview .appbar {
-  background: var(--band); color: var(--band-ink); margin: 0 -20px; padding: 22px 20px 16px; align-items: flex-end; }
-html[data-theme="calendar"] .appbar .title { font-size: 40px; letter-spacing: -1.2px; }
-html[data-theme="calendar"] .appbar .date { color: var(--band-ink); opacity: .85; text-transform: uppercase; letter-spacing: 1.4px; font-size: 13px; font-weight: 600; margin-top: 6px; }
-html[data-theme="calendar"] .appbar .iconbtn { background: transparent; color: var(--band-ink); border: 2px solid rgba(255,255,255,.55); box-shadow: none; }
-html[data-theme="calendar"] .weekstrip { display: grid; grid-template-columns: repeat(7, 1fr); margin: 0 -20px 4px; border-bottom: 2px solid var(--ink); background: var(--surface); }
-html[data-theme="calendar"] .weekstrip div { border-right: 1px solid var(--line); padding: 8px 0 12px; text-align: center; font-size: 13px; font-weight: 600; color: var(--muted); }
-html[data-theme="calendar"] .weekstrip div:last-child { border-right: none; color: var(--fg); background: var(--primary-soft); }
-html[data-theme="calendar"] .weekstrip b { display: block; font-size: 20px; color: var(--fg); line-height: 1.3; }
-html[data-theme="calendar"] .weekstrip i { display: block; width: 18px; height: 18px; border-radius: 50%; margin: 6px auto 0; background: var(--line); box-shadow: inset 0 -3px 0 rgba(0,0,0,.2), 0 1px 2px rgba(0,0,0,.25); }
-html[data-theme="calendar"] .card, html[data-theme="calendar"] .stat { box-shadow: none; border: 2px solid var(--ink); border-radius: var(--r); }
-html[data-theme="calendar"] .pill { box-shadow: none; background: transparent; padding-left: 0; }
-html[data-theme="calendar"] .label { text-transform: uppercase; letter-spacing: 1.2px; font-size: 13px; font-weight: 600; }
-html[data-theme="calendar"] .gauge { width: 252px; height: 252px; }
-html[data-theme="calendar"] .gauge::before { content: ""; position: absolute; inset: 16px; border-radius: 50%; background: var(--surface); box-shadow: 0 8px 0 -3px var(--line), 0 12px 22px rgba(20,24,32,.16); }
-html[data-theme="calendar"] .gauge svg, html[data-theme="calendar"] .gauge .center { position: absolute; inset: 0; }
-html[data-theme="calendar"] .word { font-size: 34px; }
-html[data-theme="calendar"] button { border-radius: 10px; }
-html[data-theme="calendar"] button.primary { background: var(--band); color: var(--band-ink); }
-html[data-theme="calendar"] .toolicon { border-radius: 50%; }
-html[data-theme="calendar"] nav { background: var(--bg); box-shadow: none; border-top: 2px solid var(--ink); }
-html[data-theme="calendar"] nav button .ind { width: 40px; height: 4px; border-radius: 2px; margin-bottom: 8px; }
-html[data-theme="calendar"] nav button .ind svg { display: none; }
-html[data-theme="calendar"] nav button.on .ind { background: var(--primary); }
-html[data-theme="calendar"] nav button { font-size: 15px; font-weight: 600; }
-html[data-theme="calendar"] nav button.on { color: var(--primary); }
-html[data-theme="calendar"] .seg { border: 2px solid var(--ink); background: var(--surface); border-radius: 10px; }
-html[data-theme="calendar"] .seg button.on { background: var(--band); color: var(--band-ink); box-shadow: none; border-radius: 6px; }
-html[data-theme="calendar"] .sheet .bar { background: var(--band); color: var(--band-ink); }
-html[data-theme="calendar"] .sheet .bar button.text { color: var(--band-ink); }
-html[data-theme="calendar"] .hero { border-radius: 50%; box-shadow: inset 0 -6px 0 rgba(0,0,0,.12); }
-html[data-theme="calendar"] .dots i.on { background: var(--band); }
-html[data-theme="calendar"] .wfoot button:not(.primary) { box-shadow: none; border: 2px solid var(--ink); }
-html[data-theme="calendar"] #alarm button { border-radius: 10px; }
-html[data-theme="calendar"] .eyeicon, html[data-theme="calendar"] .tips li::before { border: 2px solid var(--ink); }
+/* ===== HAVen look: enamel lunch pail (chosen 2026-11-09 from three candidates) ===== */
 
 /* ---------- B. enamel lunch pail: deep enamel green body, white enamel inside, dark rolled rims on every edge ---------- */
 html[data-theme="enamel"] { --bg: #f1f6f2; --page: #cfe6d7; --track: #d6e3da; --inside: #eef2ef; --surface: #ffffff; --fg: #18211d; --muted: #56625c; --faint: #8d9893; --line: #d5ddd8; --rim: #18211d;
@@ -300,7 +246,6 @@ html[data-theme="enamel"] #toast { border: 3px solid var(--rim); }
       <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
     </button>
   </div>
-  <div class="weekstrip" id="weekStrip" aria-label="This week"></div>
   <div class="pill"><i class="dot" id="dot"></i><span id="conn">Starting…</span></div>
   <div class="sim" id="simBanner" style="display:none">Practice mode: made-up data, not a real sleeve</div>
   <div class="demo" id="demoBanner" style="display:none"></div>
@@ -524,10 +469,7 @@ html[data-theme="enamel"] #toast { border: 3px solid var(--rim); }
 <div class="sheet" id="dev">
   <div class="bar"><h2>Developer options</h2><button class="text" onclick="closeDev()">Back</button></div>
   <main style="padding-bottom:40px">
-    <div class="card"><h2>Look</h2>
-      <select id="dTheme" onchange="cmd('theme:'+this.value)">
-        <option value="standard">Standard</option><option value="calendar">Fridge calendar</option><option value="enamel">Enamel lunch pail</option></select>
-      <p class="muted" style="font-size:15px">Design candidates for the demo. Only the look changes: every screen, number and alarm stays the same.</p>
+    <div class="card"><h2>Alarm preview</h2>
       <button class="wide" onclick="cmd('alarm:preview:action')">Preview the action-level alarm</button>
       <button class="wide" style="margin-top:10px" onclick="cmd('alarm:preview:limit')">Preview the daily-limit alarm</button>
       <p class="muted" style="font-size:13px">Shows the alarm screen and the notification without the siren.</p></div>
@@ -616,25 +558,8 @@ function level(pts, limit) {
 }
 $('date').textContent = new Date().toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' });
 
-let WEEK_SIG = '';
-function renderWeekStrip(s) {
-  const lim = s.settings ? s.settings.limit : 400, today = s.exposure.points || 0;
-  const byDate = {}; for (const d of (s.history || [])) byDate[d.date] = d;
-  const cells = [];
-  for (let k = 6; k >= 0; k--) {
-    const d = new Date(); d.setDate(d.getDate() - k);
-    const key = ymd(d), e = k === 0 ? { points: today } : byDate[key];
-    const col = !e || !(e.points > 0) ? 'var(--line)' : e.points >= lim ? 'var(--high)' : e.points >= 100 ? 'var(--mid)' : 'var(--low)';
-    cells.push(`<div>${k === 0 ? 'Today' : d.toLocaleDateString([], { weekday: 'narrow' })}<b>${d.getDate()}</b><i style="background:${col}"></i></div>`);
-  }
-  const html = cells.join('');
-  if (html !== WEEK_SIG) { WEEK_SIG = html; $('weekStrip').innerHTML = html; }
-}
 function render() {
   const s = S;
-  const th = (s.settings && s.settings.theme) || 'standard';
-  if (document.documentElement.dataset.theme !== th) document.documentElement.dataset.theme = th;
-  if ($('dTheme') && document.activeElement !== $('dTheme')) $('dTheme').value = th;
   $('simBanner').style.display = s.source === 'demo' ? '' : 'none';
   const sp = s.settings ? s.settings.demoSpeed : 1;
   $('demoBanner').style.display = sp > 1 ? '' : 'none';
@@ -645,7 +570,6 @@ function render() {
   $('runBtn').textContent = s.running ? 'Stop reading the sleeve' : 'Start reading the sleeve';
   $('linkError').textContent = s.linkError || '';
   if (!s.exposure) { renderWizard(); return; }
-  renderWeekStrip(s);
 
   const e = s.exposure, pts = e.points || 0, limit = e.limit || 400, lv = level(pts, limit);
   $('word').textContent = lv[0]; $('word').style.color = lv[1];
