@@ -67,6 +67,7 @@ final class Sleeve {
     // flows
     private String gripFlow, gripMessage;        // null | relaxed | squeeze; message after the last attempt
     private boolean gripDone;
+    private String gripResult;                   // relaxed_done | calibrated | failed (the last finished step)
     private String toolPhase, toolMessage;
     private final Set<String> toolDone = new HashSet<>();
     private boolean toolFailed;
@@ -87,7 +88,7 @@ final class Sleeve {
         personalLimit = prefs.getFloat("personalLimit", 400);
         proc = newProcessor();
         loadDay();
-        ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);
+        ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);   // the page reads the state 10x a second
     }
 
     // ---- daily log ----
@@ -267,17 +268,19 @@ final class Sleeve {
 
     private void flows() {
         Processor.Snapshot s = proc.snapshot;
+        // relax and squeeze are separate steps: each one waits for its own command
         if (gripFlow != null && !s.calibrationState.startsWith("capturing")) {
             if (gripFlow.equals("relaxed") && s.calibrationState.equals("relaxed_captured")) {
-                gripFlow = "squeeze";
-                proc.gripCalibration("squeeze");
+                gripResult = "relaxed_done"; gripMessage = null;
             } else if (gripFlow.equals("squeeze") && s.calibrationState.equals("calibrated")) {
-                gripFlow = null; gripDone = true; gripMessage = null;
-                showToast("Grip calibration saved");
+                gripResult = "calibrated"; gripDone = true; gripMessage = null;
             } else {
-                gripFlow = null; gripDone = false;
-                gripMessage = reasonText(s.calibrationReason, "Calibration did not complete. Try again.");
+                gripResult = "failed"; gripDone = false;
+                gripMessage = gripFlow.equals("relaxed") && "clipped".equals(s.calibrationReason)
+                        ? "The muscle signal is maxing out even at rest. Check that all three pads are stuck to your skin and the cables are clipped on."
+                        : reasonText(s.calibrationReason, "Calibration did not complete. Try again.");
             }
+            gripFlow = null;
         }
         if (toolPhase != null && !proc.toolCalState().startsWith("capturing")) {
             String st = proc.toolCalState();
@@ -367,11 +370,14 @@ final class Sleeve {
     private void onCommand(String c) {
         if (c.equals("start")) startOnEngine();
         else if (c.equals("stop")) stopOnEngine();
-        else if (c.equals("grip:start")) {
+        else if (c.equals("grip:relaxed") || c.equals("grip:squeeze")) {
             if (!connected) { showToast("Connect the sleeve first."); return; }
-            gripMessage = null; gripDone = false;
-            proc.gripCalibration("relaxed");
-            if (proc.snapshot.calibrationState.equals("capturing_relaxed")) gripFlow = "relaxed";
+            String phase = c.substring(5);
+            gripMessage = null; gripResult = null;
+            if (phase.equals("relaxed")) gripDone = false;
+            proc.gripCalibration(phase);
+            if (proc.snapshot.calibrationState.equals("capturing_" + phase)) gripFlow = phase;
+            else { gripResult = "failed"; gripMessage = reasonText(proc.snapshot.calibrationReason, "Do the relax step first."); }
         } else if (c.equals("grip:cancel")) { proc.gripCalibration("cancel"); }
         else if (c.startsWith("tool:")) {
             String ph = c.substring(5);
@@ -443,6 +449,7 @@ final class Sleeve {
                 .put("left", s.calibrationLeftS == null ? JSONObject.NULL : s.calibrationLeftS)
                 .put("total", s.calibrationDurationS)
                 .put("done", gripDone).put("message", gripMessage == null ? JSONObject.NULL : gripMessage)
+                .put("result", gripResult == null ? JSONObject.NULL : gripResult)
                 .put("relaxed", g == null ? JSONObject.NULL : g.relaxed).put("squeeze", g == null ? JSONObject.NULL : g.squeeze));
         // vibration
         boolean vibOk = fresh && (s.vibrationStatus.equals("ok") || s.vibrationStatus.equals("degraded"));

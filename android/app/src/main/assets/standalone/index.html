@@ -94,7 +94,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 .dots i.on { width: 24px; background: var(--primary); }
 .dots i.done { background: var(--low); }
 .wstage { flex: 1; position: relative; }
-.wscreen { position: absolute; inset: 0; display: flex; flex-direction: column; padding: 24px 28px 32px; max-width: 520px; margin: 0 auto; transition: transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s; }
+.wscreen { will-change: transform, opacity; position: absolute; inset: 0; display: flex; flex-direction: column; padding: 24px 28px 32px; max-width: 520px; margin: 0 auto; transition: transform .45s cubic-bezier(.2,.8,.2,1), opacity .35s; }
 .wscreen.right { transform: translateX(60%); opacity: 0; pointer-events: none; }
 .wscreen.left { transform: translateX(-60%); opacity: 0; pointer-events: none; }
 .wbody { flex: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; }
@@ -111,6 +111,39 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 @keyframes pop { from { transform: scale(.4); opacity: 0; } to { transform: none; opacity: 1; } }
 .wfoot { display: flex; flex-direction: column; gap: 10px; }
 .wfoot button:not(.primary) { background: var(--surface); box-shadow: 0 1px 2px rgba(0,0,0,.06); }
+
+/* how it works: an article, not boxes */
+.article { padding-top: 8px; }
+.ahead { font-size: 34px; margin: 20px 0 8px; }
+.lead { font-size: 20px; line-height: 1.45; color: var(--muted); margin: 0 0 8px; }
+.sec { padding: 28px 0; border-top: 1px solid var(--line); }
+.sec:first-of-type { border-top: none; }
+.sec h2 { font-size: 22px; margin: 10px 0 8px; }
+.sec p { font-size: 17px; line-height: 1.6; }
+.eyeicon { width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--surface); }
+.fine { color: var(--muted); font-size: 15px !important; }
+.compare { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin: 18px 0; }
+.compare > div { background: var(--surface); border-radius: 18px; padding: 16px; display: flex; flex-direction: column; gap: 2px; }
+.compare span { color: var(--muted); font-size: 14px; }
+.bars { height: 56px; display: flex; align-items: flex-end; gap: 6px; margin-bottom: 10px; }
+.bars i { flex: 1; border-radius: 6px; background: var(--low); }
+.scale { margin: 18px 0 26px; position: relative; }
+.track { display: flex; height: 14px; border-radius: 99px; overflow: hidden; gap: 3px; }
+.track i { display: block; }
+.marks { position: relative; height: 20px; margin-top: 6px; font-size: 13px; color: var(--muted); }
+.marks span { position: absolute; transform: translateX(-50%); }
+.marks span:first-child { transform: none; }
+.level { display: flex; gap: 14px; align-items: flex-start; margin: 14px 0; }
+.level > i { width: 12px; height: 12px; border-radius: 50%; flex: none; margin-top: 7px; }
+.level b { font-size: 17px; }
+.level p { margin: 2px 0 0; color: var(--muted); font-size: 16px !important; }
+.tips { padding-left: 0; list-style: none; counter-reset: t; margin: 12px 0 0; }
+.tips li { counter-increment: t; display: flex; gap: 14px; align-items: flex-start; margin: 12px 0; font-size: 17px; }
+.tips li::before { content: counter(t); width: 28px; height: 28px; border-radius: 50%; background: var(--surface); display: grid; place-items: center; font-weight: 600; font-size: 14px; flex: none; }
+.sec.last { padding-bottom: 8px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; background: var(--low-soft); color: var(--low); border-radius: 99px; padding: 6px 12px; font-weight: 600; font-size: 15px; margin-bottom: 8px; animation: pop .4s cubic-bezier(.2,1.6,.4,1); }
+.ready { font-size: 96px; font-weight: 600; color: var(--primary); animation: beat 1s ease-out infinite; }
+@keyframes beat { 0% { transform: scale(1.25); opacity: .4; } 30% { transform: scale(1); opacity: 1; } }
 </style>
 </head>
 <body>
@@ -182,49 +215,62 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 </main>
 
 <!-- HOW IT WORKS -->
-<main id="tab-how" style="display:none">
-  <h1>How it works</h1>
-  <p class="muted">What the ring on the Today screen means, in plain words.</p>
+<main id="tab-how" class="article" style="display:none">
+  <h1 class="ahead">How it works</h1>
+  <p class="lead">The ring on your Today screen shows how much tool vibration your hands and arms have taken today.</p>
 
-  <div class="card"><div class="ov">
-    <div class="ic" style="background:var(--high-soft);color:var(--high)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
-    <div><h2>Why it matters</h2><p>Using shaking tools like drills, grinders and breakers for a long time, day after day, can damage your hands and arms. It can cause tingling, numb fingers, fingers that go white in the cold, and a weaker grip. It builds up slowly and can be permanent.</p></div>
-  </div></div>
+  <section class="sec">
+    <div class="eyeicon" style="color:var(--high)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/></svg></div>
+    <h2>Why it matters</h2>
+    <p>Shaking tools like drills, grinders and breakers can damage your hands and arms when you use them a lot, day after day. Fingers tingle, go numb or turn white in the cold, and your grip gets weaker. It builds up slowly and can be permanent.</p>
+  </section>
 
-  <div class="card"><div class="ov">
-    <div class="ic" style="background:var(--primary-soft);color:var(--primary)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12h3l3-8 4 16 3-8h7"/></svg></div>
-    <div><h2>Points</h2>
-      <p>The sleeve feels how hard the tool shakes your arm. Every minute you use a tool adds points. A tool that shakes harder adds points much faster.</p>
-      <p>Only real tool time counts. Walking, waving or shaking hands adds nothing, and neither does holding a tool without gripping it.</p></div>
-  </div></div>
+  <section class="sec">
+    <div class="eyeicon" style="color:var(--primary)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 12h3l3-8 4 16 3-8h7"/></svg></div>
+    <h2>How points add up</h2>
+    <p>The sleeve feels how hard your tool shakes your arm. Every minute with a tool in your hands adds points.</p>
+    <div class="compare">
+      <div><div class="bars"><i style="height:22%"></i><i style="height:22%"></i><i style="height:22%"></i></div><b>Gentle tool</b><span>points add up slowly</span></div>
+      <div><div class="bars"><i style="height:90%;background:var(--mid)"></i><i style="height:90%;background:var(--mid)"></i><i style="height:90%;background:var(--mid)"></i></div><b>Hard-shaking tool</b><span>points add up fast</span></div>
+    </div>
+    <p>Only real tool time counts. Walking, waving or shaking hands adds nothing.</p>
+  </section>
 
-  <div class="card">
+  <section class="sec">
+    <div class="eyeicon" style="color:var(--mid)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg></div>
     <h2>The two levels</h2>
-    <div class="legend"><i class="swatch" style="background:var(--low)"></i><div><b>Under 100 points: low.</b></div></div>
-    <div class="legend"><i class="swatch" style="background:var(--mid)"></i><div><b>100 points: action level.</b> From here your employer has to act to cut your vibration, for example other tasks, other tools or more breaks.</div></div>
-    <div class="legend"><i class="swatch" style="background:var(--high)"></i><div><b>400 points: daily limit.</b> Stop using vibrating tools for the rest of the day.</div></div>
-    <p class="muted" style="font-size:15px">These are the levels in the UK and EU rules for hand-arm vibration. Your supervisor may set a lower limit for you.</p>
-  </div>
+    <div class="scale">
+      <div class="track"><i style="flex:100;background:var(--low)"></i><i style="flex:300;background:var(--mid)"></i><i style="flex:40;background:var(--high)"></i></div>
+      <div class="marks"><span style="left:0">0</span><span style="left:22.7%">100</span><span style="left:90.9%">400</span></div>
+    </div>
+    <div class="level"><i style="background:var(--low)"></i><div><b>Low</b><p>Under 100 points.</p></div></div>
+    <div class="level"><i style="background:var(--mid)"></i><div><b>Action level, 100 points</b><p>Your employer has to cut your vibration: other tasks, other tools or more breaks.</p></div></div>
+    <div class="level"><i style="background:var(--high)"></i><div><b>Daily limit, 400 points</b><p>No more vibrating tools for the rest of the day.</p></div></div>
+    <p class="fine">These are the levels in the UK and EU rules. Your supervisor may set a lower limit for you.</p>
+  </section>
 
-  <div class="card"><div class="ov">
-    <div class="ic" style="background:var(--mid-soft);color:var(--mid)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div>
-    <div><h2>Tool time</h2><p>The phone knows when you are using a power tool and counts your tool time. While a tool runs, it tells you how long until you reach each level. After 20 minutes without a break, it reminds you to take one.</p></div>
-  </div></div>
+  <section class="sec">
+    <div class="eyeicon" style="color:var(--mid)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l2 2M9 2h6"/></svg></div>
+    <h2>Tool time</h2>
+    <p>The phone knows when you are using a power tool. While it runs, the Today screen tells you how long until the next level. After 20 minutes without a break, it reminds you to take one.</p>
+  </section>
 
-  <div class="card"><div class="ov">
-    <div class="ic" style="background:var(--low-soft);color:var(--low)"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></div>
-    <div><h2>Simple tips</h2><ul>
+  <section class="sec">
+    <div class="eyeicon" style="color:var(--low)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M20 6 9 17l-5-5"/></svg></div>
+    <h2>Simple tips</h2>
+    <ol class="tips">
       <li>Take short breaks from the tool.</li>
-      <li>Let the tool do the work. Do not grip harder than you need to.</li>
+      <li>Let the tool do the work. Don't grip harder than you need to.</li>
       <li>Keep your hands warm and dry.</li>
-      <li>Tell your supervisor if your fingers tingle, go numb or turn white.</li></ul></div>
-  </div></div>
+      <li>Tell your supervisor if your fingers tingle, go numb or turn white.</li>
+    </ol>
+  </section>
 
-  <div class="card">
+  <section class="sec last">
     <h2>Good to know</h2>
-    <p>Each day is saved by itself and starts again at midnight. Set up the sleeve each time you put it on.</p>
-    <p class="muted" style="font-size:15px">This is an estimate from a sensor on your wrist, not an official measurement, and staying under the action level does not make vibration safe. VibeGuard is a test version, not a medical device.</p>
-  </div>
+    <p>Each day is saved on its own and starts again at midnight. Set up the sleeve each time you put it on.</p>
+    <p class="fine">This is an estimate from a sensor on your wrist, not an official measurement, and staying under the action level does not make vibration safe. VibeGuard is a test version, not a medical device.</p>
+  </section>
 </main>
 
 <nav>
@@ -296,7 +342,7 @@ $('date').textContent = new Date().toLocaleDateString([], { weekday: 'long', day
 function render() {
   const s = S;
   $('simBanner').style.display = s.source === 'demo' ? '' : 'none';
-  const busy = (s.grip && s.grip.flow) || (s.toolCal && s.toolCal.phase);
+  const busy = (s.grip && s.grip.flow) || (s.toolCal && s.toolCal.phase) || W.open;
   $('conn').textContent = !s.running ? 'Sleeve switched off in the app' : !s.connected ? 'Looking for your sleeve…' : !s.fresh ? 'Reconnecting…' : busy ? 'Setting up…' : 'Sleeve connected';
   $('dot').style.background = s.connected && s.fresh ? 'var(--low)' : s.connected ? 'var(--mid)' : 'var(--faint)';
   $('runBtn').textContent = s.running ? 'Stop reading the sleeve' : 'Start reading the sleeve';
@@ -349,115 +395,157 @@ function render() {
   if (s.toast && s.toastId !== lastToast) { lastToast = s.toastId; const el = $('toast'); el.textContent = s.toast; el.style.display = 'block'; clearTimeout(el._t); el._t = setTimeout(() => el.style.display = 'none', 2600); }
 }
 
-/* ---------- full-screen setup: one screen per step, sliding ---------- */
+/* ---------- full-screen setup: one step per screen, nothing moves on by itself ---------- */
 const ICON_HAND = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 11V6a2 2 0 0 0-4 0v5M14 10V4a2 2 0 0 0-4 0v6M10 10.5V6a2 2 0 0 0-4 0v8"/><path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.9-5.9-2.4L3.4 16.9a2 2 0 0 1 2.9-2.8L8 16"/></svg>';
+const ICON_FIST = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="7" width="13" height="9" rx="3"/><path d="M8 7V5.5a1.5 1.5 0 0 1 3 0V7M11 7V5a1.5 1.5 0 0 1 3 0v2M14 7V5.5a1.5 1.5 0 0 1 3 0V8M7 16v4h9v-4"/></svg>';
 const ICON_TOOL = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/></svg>';
 const ICON_STILL = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="3" y="11" width="18" height="4" rx="2"/><path d="M7 11V8M12 11V6M17 11V8"/></svg>';
 const ICON_WAVE = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 12c2-4 4-4 6 0s4 4 6 0 4-4 6 0"/><path d="M4 18c2-2 4-2 6 0M14 6c2-2 4-2 6 0"/></svg>';
 const ICON_OK = '<svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>';
 const ICON_BAD = '<svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 8v5M12 16.5h.01"/><circle cx="12" cy="12" r="9"/></svg>';
 
-const STEPS = ['intro', 'relax', 'squeeze', 'gripDone', 'stillIntro', 'still', 'moveIntro', 'movement', 'toolIntro', 'tool', 'allDone'];
-const DOT_OF = { intro: 0, relax: 1, squeeze: 1, gripDone: 1, gripFail: 1, stillIntro: 2, still: 2, moveIntro: 3, movement: 3, toolIntro: 4, tool: 4, toolFail: 4, allDone: 5 };
-let W = { open: false, step: 'intro', shown: null, message: '', started: null, until: 0 };
+// each capture: what the engine calls it, how long, what to say while it runs
+const CAP = {
+  relaxed:  { kind: 'grip', secs: 3,  title: 'Relax', text: 'Let your hand go loose. Keep it still.', color: 'var(--primary)', pulse: false },
+  squeeze:  { kind: 'grip', secs: 3,  title: 'Squeeze hard!', text: 'Make a fist as hard as you can and hold it.', color: 'var(--high)', pulse: true },
+  still:    { kind: 'tool', secs: 5,  title: 'Keep still', text: 'Arm resting, tool off.', color: 'var(--primary)', pulse: false },
+  movement: { kind: 'tool', secs: 12, title: 'Keep moving', text: 'Shake hands, wave, swing your arm. Tool off.', color: 'var(--primary)', pulse: false },
+  tool:     { kind: 'tool', secs: 10, title: 'Keep using the tool', text: 'Hold it firmly, like at work.', color: 'var(--mid)', pulse: true },
+};
+// the intro screen before each capture, and what comes after it
+const INTRO = {
+  relaxed:  { n: 1, icon: ICON_HAND,  title: 'Relax your arm', text: 'Rest your arm on a table and let your hand go loose. This takes 3 seconds.', next: 'squeeze' },
+  squeeze:  { n: 2, icon: ICON_FIST,  title: 'Squeeze your fist', text: 'Make a fist as hard as you can, and hold it until the ring is full. 3 seconds.', next: 'still', done: 'Relax done' },
+  still:    { n: 3, icon: ICON_STILL, title: 'Keep still', text: 'Now your tool. First, rest your arm and don\'t move for 5 seconds. Tool off.', next: 'movement', done: 'Grip done' },
+  movement: { n: 4, icon: ICON_WAVE,  title: 'Move like normal', text: 'Tool off. For 12 seconds, shake hands, wave and swing your arm. This shows the phone what is NOT a tool.', next: 'tool', done: 'Still done' },
+  tool:     { n: 5, icon: ICON_TOOL,  title: 'Use your tool', text: 'Turn your tool on and hold it like you do at work. Press Start when it is running. 10 seconds.', next: null, done: 'Movement done' },
+};
+let W = { open: false, screen: null, shown: null, cap: null, sent: false, seen: false, t0: 0, dur: 1, readyAt: 0, msg: '', retry: null, raf: 0 };
 
-function openWizard() { W = { open: true, step: 'intro', shown: null, message: '', started: null, until: 0 }; $('wizard').classList.add('open'); $('wstage').innerHTML = ''; renderWizard(); }
+function openWizard() {
+  W = { open: true, screen: 'intro', shown: null, cap: null, sent: false, seen: false, t0: 0, dur: 1, readyAt: 0, msg: '', retry: null, raf: 0 };
+  $('wizard').classList.add('open'); $('wstage').innerHTML = ''; renderWizard(); loop();
+}
 function closeWizard() {
   if (S.grip && S.grip.flow) cmd('grip:cancel');
   if (S.toolCal && S.toolCal.phase) cmd('tool:cancel');
-  W.open = false; $('wizard').classList.remove('open');
+  W.open = false; cancelAnimationFrame(W.raf); $('wizard').classList.remove('open');
 }
-function go(step) { W.step = step; W.started = null; renderWizard(); }
-function startGrip() { W.message = ''; W.started = 'grip'; cmd('grip:start'); go('relax'); W.started = 'grip'; }
-function startTool(ph) { W.message = ''; cmd('tool:' + ph); go(ph); W.started = ph; }
+function show(name) { W.screen = name; renderWizard(); }
+function getReady(cap) { W.cap = cap; W.readyAt = performance.now(); W.sent = false; W.seen = false; show('ready'); }
+function stepIndex() {
+  if (W.screen === 'intro') return 0;
+  if (W.screen === 'allDone') return 6;
+  const c = W.screen.split(':')[1] || W.cap;
+  return c ? INTRO[c].n : 0;
+}
 
-function countdown(left, total, color) {
-  const fr = left == null ? 0 : Math.max(0, Math.min(1, 1 - left / Math.max(total, .1)));
+function ringHTML(color) {
   return `<div class="ring"><svg viewBox="0 0 120 120"><circle cx="60" cy="60" r="52" fill="none" stroke="var(--line)" stroke-width="10"/>
-    <circle cx="60" cy="60" r="52" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="${fr * ARC} ${ARC}" style="transition:stroke-dasharray .25s linear"/></svg>
-    <div class="n">${left == null ? '' : Math.ceil(left)}</div></div>`;
+    <circle class="arc" cx="60" cy="60" r="52" fill="none" stroke="${color}" stroke-width="10" stroke-linecap="round" stroke-dasharray="0 ${ARC}"/></svg><div class="n"></div></div>`;
 }
 
-function screen(step) {
-  const s = S, g = s.grip || {}, tc = s.toolCal || {};
-  const intro = (icon, title, text, btn, action, extra = '') => `<div class="wbody"><div class="hero">${icon}</div><h1>${title}</h1><p>${text}</p></div>
-    <div class="wfoot">${extra}<button class="primary wide" ${s.connected ? '' : 'disabled'} onclick="${action}">${btn}</button>${s.connected ? '' : '<p class="muted" style="text-align:center">Switch on the sleeve first.</p>'}</div>`;
-  const live = (title, text, left, total, color, pulse) => `<div class="wbody"><div class="${pulse ? 'pulse' : ''}">${countdown(left, total, color)}</div><h1>${title}</h1><p>${text}</p></div>
-    <div class="wfoot"><button class="wide" onclick="closeWizard()">Stop</button></div>`;
-  const done = (title, text, btn, action) => `<div class="wbody"><div class="ok-badge">${ICON_OK}</div><h1>${title}</h1><p>${text}</p></div>
-    <div class="wfoot">${btn ? `<button class="primary wide" onclick="${action}">${btn}</button>` : ''}</div>`;
-  const fail = (title, text, retry) => `<div class="wbody"><div class="bad-badge">${ICON_BAD}</div><h1>${title}</h1><p>${esc(text)}</p></div>
-    <div class="wfoot"><button class="primary wide" onclick="${retry}">Try again</button></div>`;
-  switch (step) {
-    case 'intro': return intro(ICON_HAND, 'Let\'s set up your sleeve', 'Two short parts: your grip, then your tool. Sit down and rest your arm on a table.', 'Start', 'startGrip()');
-    case 'relax': return live('Relax your arm', 'Let your hand go loose. Keep it still.', g.flow === 'relaxed' ? g.left : 3, g.total || 3, 'var(--primary)', false);
-    case 'squeeze': return live('Squeeze hard!', 'Make a fist as hard as you can and hold it.', g.flow === 'squeeze' ? g.left : 3, g.total || 3, 'var(--high)', true);
-    case 'gripDone': return done('Grip done', 'Now your tool.', '', '');
-    case 'gripFail': return fail('That did not work', W.message || 'Try again, and keep your arm on the table.', 'startGrip()');
-    case 'stillIntro': return intro(ICON_STILL, 'Keep still', 'Rest your arm and do not move for 5 seconds. Tool off.', 'Start', "startTool('still')",
-      s.tool && s.tool.calibrated ? '<button class="wide" onclick="go(\'allDone\')">Skip, my tool is already set up</button>' : '');
-    case 'still': return live('Keep still', 'Arm resting, tool off.', tc.phase === 'still' ? tc.left : 5, tc.total || 5, 'var(--primary)', false);
-    case 'moveIntro': return intro(ICON_WAVE, 'Move like normal', 'Tool off. For 12 seconds: shake hands, wave, swing your arm. This teaches the phone what is NOT a tool.', 'Start', "startTool('movement')");
-    case 'movement': return live('Keep moving', 'Shake hands, wave, swing your arm.', tc.phase === 'movement' ? tc.left : 12, tc.total || 12, 'var(--primary)', true);
-    case 'toolIntro': return intro(ICON_TOOL, 'Use your tool', 'Turn your tool on and hold it like you do at work. Press Start when it is running.', 'Start', "startTool('tool')");
-    case 'tool': return live('Keep using the tool', 'Hold it firmly, like at work.', tc.phase === 'tool' ? tc.left : 10, tc.total || 10, 'var(--mid)', true);
-    case 'toolFail': return fail('That did not work', W.message || 'Try that step again.', W.retry || "go('stillIntro')");
-    case 'allDone': return done('You\'re all set', 'The sleeve knows your grip and your tool. Points add up while you work.', 'Done', 'closeWizard()');
+function screenHTML(name) {
+  const off = !S.connected;
+  const need = off ? '<p class="muted" style="text-align:center">Switch on the sleeve first.</p>' : '';
+  if (name === 'intro') return `<div class="wbody"><div class="hero">${ICON_HAND}</div><h1>Let's set up your sleeve</h1>
+      <p>Five short steps, one at a time: two for your grip, three for your tool. Take your time between them.</p></div>
+    <div class="wfoot"><button class="primary wide" onclick="show('intro:relaxed')">Begin</button></div>`;
+  if (name.startsWith('intro:')) {
+    const c = name.slice(6), it = INTRO[c];
+    const chip = it.done && W.justDone ? `<div class="chip">✓ ${it.done}</div>` : '';
+    const skip = c === 'still' && S.tool && S.tool.calibrated ? `<button class="wide" onclick="show('allDone')">Skip: my tool is already set up</button>` : '';
+    return `<div class="wbody">${chip}<div class="hero">${it.icon}</div><div class="label" style="margin-top:20px">Step ${it.n} of 5</div><h1 style="margin-top:4px">${it.title}</h1><p>${it.text}</p></div>
+      <div class="wfoot">${skip}<button class="primary wide" ${off ? 'disabled' : ''} onclick="getReady('${c}')">Start</button>${need}</div>`;
   }
+  if (name === 'ready') return `<div class="wbody"><p style="font-size:20px;color:var(--fg);font-weight:600">Get ready</p><div class="ready" id="readyN">3</div>
+      <p>${CAP[W.cap].title}</p></div><div class="wfoot"><button class="wide" onclick="cancelStep()">Cancel</button></div>`;
+  if (name === 'capture') { const c = CAP[W.cap];
+    return `<div class="wbody"><div class="${c.pulse ? 'pulse' : ''}">${ringHTML(c.color)}</div><h1>${c.title}</h1><p>${c.text}</p></div>
+      <div class="wfoot"><button class="wide" onclick="cancelStep()">Stop</button></div>`; }
+  if (name === 'fail') return `<div class="wbody"><div class="bad-badge">${ICON_BAD}</div><h1>That didn't work</h1><p>${esc(W.msg || 'Try that step again.')}</p></div>
+      <div class="wfoot"><button class="primary wide" onclick="show('${W.retry}')">Try again</button></div>`;
+  if (name === 'allDone') return `<div class="wbody"><div class="ok-badge">${ICON_OK}</div><h1>You're all set</h1>
+      <p>The sleeve knows your grip and your tool. Points add up while you work.</p></div>
+    <div class="wfoot"><button class="primary wide" onclick="closeWizard()">Done</button></div>`;
   return '';
 }
 
+function cancelStep() {
+  if (W.cap && CAP[W.cap].kind === 'grip' && S.grip && S.grip.flow) cmd('grip:cancel');
+  if (W.cap && CAP[W.cap].kind === 'tool' && S.toolCal && S.toolCal.phase) cmd('tool:cancel');
+  W.justDone = false;
+  show('intro:' + (W.cap === 'squeeze' ? 'relaxed' : W.cap));
+}
+
+// the capture finished (or failed): decide the next screen from the engine's state
 function advance() {
-  const s = S, g = s.grip || {}, tc = s.toolCal || {}, done = new Set(tc.done || []);
-  const st = W.step;
-  if ((st === 'relax' || st === 'squeeze') && W.started === 'grip') {
-    if (g.flow === 'squeeze' && st === 'relax') return go2('squeeze');
-    if (!g.flow && W.seenFlow) {
-      W.seenFlow = false;
-      if (s.gripCalibrated) { go2('gripDone'); W.until = Date.now() + 1400; return; }
-      W.message = g.message || ''; return go2('gripFail');
-    }
-    if (g.flow) W.seenFlow = true;
-  }
-  if (st === 'gripDone' && Date.now() > W.until) return go2('stillIntro');
-  if (['still', 'movement', 'tool'].includes(st) && W.started === st) {
-    if (tc.phase === st) { W.seenPhase = true; return; }
-    if (W.seenPhase) {
-      W.seenPhase = false;
-      if (done.has(st) && !tc.failed) return go2(st === 'still' ? 'moveIntro' : st === 'movement' ? 'toolIntro' : 'allDone');
-      W.message = tc.message || ''; W.retry = st === 'tool' ? "go('moveIntro')" : `go('${st === 'still' ? 'stillIntro' : 'moveIntro'}')`;
-      return go2('toolFail');
-    }
+  if (W.screen !== 'capture') return;
+  const c = W.cap, g = S.grip || {}, tc = S.toolCal || {};
+  if (CAP[c].kind === 'grip') {
+    if (g.flow === c) { if (!W.seen) { W.seen = true; W.t0 = performance.now() - 1000 * (CAP[c].secs - (g.left ?? CAP[c].secs)); } else sync(g.left); return; }
+    if (!W.seen && !g.result) return;                       // the command has not been picked up yet
+    if (g.result === 'failed') return fail(g.message, 'intro:relaxed');
+    if ((c === 'relaxed' && g.result === 'relaxed_done') || (c === 'squeeze' && g.result === 'calibrated')) { W.justDone = true; return show('intro:' + INTRO[c].next); }
+  } else {
+    if (tc.phase === c) { if (!W.seen) { W.seen = true; W.t0 = performance.now() - 1000 * (CAP[c].secs - (tc.left ?? CAP[c].secs)); } else sync(tc.left); return; }
+    if (!W.seen) return;
+    if (new Set(tc.done || []).has(c) && !tc.failed) { W.justDone = true; return show(INTRO[c].next ? 'intro:' + INTRO[c].next : 'allDone'); }
+    return fail(tc.message, c === 'tool' ? 'intro:movement' : 'intro:' + c);
   }
 }
-function go2(step) { const keep = W.started; W.step = step; W.started = ['relax', 'squeeze'].includes(step) ? keep : null; }
+function fail(msg, retry) { W.msg = msg || ''; W.retry = retry; W.justDone = false; show('fail'); }
+// keep the phone's smooth clock within 0.3 s of the sleeve's own capture clock
+function sync(left) {
+  if (left == null) return;
+  const mine = CAP[W.cap].secs - (performance.now() - W.t0) / 1000;
+  if (Math.abs(mine - left) > 0.3) W.t0 = performance.now() - 1000 * (CAP[W.cap].secs - left);
+}
+
+// 60 fps: the ready countdown and the capture ring are drawn every frame from the phone's clock
+function loop() {
+  if (!W.open) return;
+  const cur = $('wstage').querySelector('.wscreen.cur') || $('wstage').lastElementChild;
+  const now = performance.now();
+  if (W.screen === 'ready') {
+    const left = 3 - (now - W.readyAt) / 1000;
+    const el = cur && cur.querySelector('#readyN');
+    if (left <= 0) {
+      if (!W.sent) { W.sent = true; cmd(CAP[W.cap].kind === 'grip' ? 'grip:' + W.cap : 'tool:' + W.cap); W.seen = false; W.t0 = now; show('capture'); }
+    } else if (el) {
+      const n = String(Math.ceil(left));
+      if (el.textContent !== n) { el.textContent = n; el.style.animation = 'none'; void el.offsetWidth; el.style.animation = ''; }
+    }
+  } else if (W.screen === 'capture' && cur) {
+    const secs = CAP[W.cap].secs;
+    const el = W.seen ? Math.min(secs, (now - W.t0) / 1000) : 0;
+    const arc = cur.querySelector('.arc'), n = cur.querySelector('.n');
+    if (arc) arc.setAttribute('stroke-dasharray', `${(el / secs) * ARC} ${ARC}`);
+    if (n) n.textContent = Math.max(0, Math.ceil(secs - el - 1e-6)) || '✓';
+  }
+  W.raf = requestAnimationFrame(loop);
+}
 
 function renderWizard() {
   if (!W.open) return;
   advance();
-  const n = DOT_OF[W.step];
+  const n = stepIndex();
   $('wdots').innerHTML = [0, 1, 2, 3, 4, 5].map(i => `<i class="${i === n ? 'on' : i < n ? 'done' : ''}"></i>`).join('');
   const stage = $('wstage');
-  let cur = stage.querySelector('.wscreen.cur');
-  if (W.shown !== W.step) {
+  if (W.shown !== W.screen) {
     const el = document.createElement('div');
     el.className = 'wscreen right';
-    el.innerHTML = screen(W.step);
+    el.innerHTML = screenHTML(W.screen);
     for (const old of [...stage.children]) {   // every older screen slides out, even one still sliding in
       old.classList.remove('cur', 'right'); old.classList.add('left');
       setTimeout(() => old.remove(), 500);
     }
     stage.appendChild(el);
-    void el.offsetWidth;                      // commit the start position, then slide in
+    void el.offsetWidth;
     setTimeout(() => { if (el.isConnected && !el.classList.contains('left')) { el.classList.remove('right'); el.classList.add('cur'); } }, 30);
-    W.shown = W.step;
-  } else if (cur && ['relax', 'squeeze', 'still', 'movement', 'tool'].includes(W.step)) {
-    const ring = cur.querySelector('.ring');
-    const tmp = document.createElement('div'); tmp.innerHTML = screen(W.step);
-    const fresh = tmp.querySelector('.ring');
-    if (ring && fresh) ring.replaceWith(fresh);
-  } else if (cur && ['intro', 'stillIntro', 'moveIntro', 'toolIntro'].includes(W.step)) {
-    const btn = cur.querySelector('.wfoot .primary');
+    W.shown = W.screen;
+  } else if (W.screen.startsWith('intro:')) {
+    const cur = stage.querySelector('.wscreen.cur'), btn = cur && cur.querySelector('.wfoot .primary');
     if (btn) btn.disabled = !S.connected;
   }
 }
@@ -485,7 +573,7 @@ function renderSettings(s) {
 }
 
 function tick() { try { S = JSON.parse(VGB.state()); if (S.error) { $('linkError').textContent = S.error; return; } render(); } catch (e) { $('linkError').textContent = String(e); } }
-setInterval(tick, 250); tick();
+setInterval(tick, 100); tick();
 </script>
 </body>
 </html>
