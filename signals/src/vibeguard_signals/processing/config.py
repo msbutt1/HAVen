@@ -266,6 +266,56 @@ class ScoreConfig:
             raise ValueError("score freshness limits must be in (0, 5] s")
 
 
+WEIGHTINGS = ("none", "wh_dominant_frequency")
+
+
+@dataclass(frozen=True)
+class ExposureConfig:
+    """Daily vibration exposure estimate (see exposure.py): ISO 5349-1 A(8), EU/UK limits, HSE points.
+
+    A(8) = sqrt(sum(a_hv^2 * dt) / t0_s). Limits are the EU Directive 2002/44/EC / UK Control of
+    Vibration at Work Regulations 2005 values. They are regulatory reference values for a
+    standards-compliant measurement; this sensor gives an ESTIMATE (wrist-worn, unweighted unless
+    ``weighting`` says otherwise, bandwidth-limited), so below the action value is not "safe".
+    """
+    eav_ms2: float = 2.5                   # exposure action value, A(8) m/s^2
+    elv_ms2: float = 5.0                   # exposure limit value, A(8) m/s^2
+    t0_s: float = 8 * 3600                 # reference duration of A(8)
+    # Count a second only while the tool detector says "tool" and, if grip_gate, the wearer is
+    # not known to be relaxed (activation < grip_activation_min). Unknown grip still counts.
+    grip_gate: bool = True
+    grip_activation_min: float = 0.10      # same meaning as ToolUseConfig.grip_activation_min
+    # Per-worker limit in HSE points (100 = action value, 400 = limit value). Can only be lowered.
+    personal_limit_points: float = 400.0
+    # "none": a_hv as measured. "wh_dominant_frequency": a_hv scaled by the ISO 5349-1 W_h gain
+    # at the tool's dominant frequency (single-frequency approximation, see exposure.py).
+    weighting: str = "none"
+    # ISO 5349-1 Annex C: years of daily exposure for 10 % of a group to show vibration white
+    # finger, D_y = years_k * A(8)^years_exp. Not reported below min_a8_for_years (it diverges).
+    years_k: float = 31.8
+    years_exp: float = -1.06
+    min_a8_for_years: float = 1.0
+    vibration_fresh_s: float = 0.25
+    tool_fresh_s: float = 0.25
+    activation_fresh_s: float = 0.25
+
+    def validate(self) -> None:
+        if not 0 < self.eav_ms2 < self.elv_ms2:
+            raise ValueError("exposure: 0 < eav_ms2 < elv_ms2 required")
+        if not self.t0_s > 0:
+            raise ValueError("exposure: t0_s must be > 0")
+        if not 0 <= self.grip_activation_min <= 1:
+            raise ValueError("exposure: grip_activation_min must be in 0..1")
+        if not 0 < self.personal_limit_points <= 400:
+            raise ValueError("exposure: personal_limit_points must be in (0, 400] (can only be lowered)")
+        if self.weighting not in WEIGHTINGS:
+            raise ValueError(f"exposure: weighting must be one of {WEIGHTINGS}")
+        if not (self.years_k > 0 and self.years_exp < 0 and self.min_a8_for_years > 0):
+            raise ValueError("exposure: years_k > 0, years_exp < 0 and min_a8_for_years > 0 required")
+        if not all(0 < f <= 5 for f in (self.vibration_fresh_s, self.tool_fresh_s, self.activation_fresh_s)):
+            raise ValueError("exposure freshness limits must be in (0, 5] s")
+
+
 @dataclass(frozen=True)
 class ProcessingConfig:
     emg: StreamConfig = field(default_factory=lambda: StreamConfig(window_s=0.1))
@@ -275,6 +325,7 @@ class ProcessingConfig:
     vibration: VibrationConfig = field(default_factory=VibrationConfig)
     score: ScoreConfig = field(default_factory=ScoreConfig)
     tool_use: ToolUseConfig = field(default_factory=ToolUseConfig)
+    exposure: ExposureConfig = field(default_factory=ExposureConfig)
     # A stream with no new data for this long is stale; its features become unavailable.
     stale_after_s: float = 0.25
     # "device": staleness judged against the newest device time seen on any stream
@@ -294,6 +345,7 @@ class ProcessingConfig:
         self.vibration.validate()
         self.score.validate()
         self.tool_use.validate()
+        self.exposure.validate()
         if self.clock not in CLOCKS:
             raise ValueError(f"clock must be one of {CLOCKS}")
         if not self.stale_after_s > 0:

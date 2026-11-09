@@ -113,6 +113,9 @@
       this.cmdSeq = 0;
       this.relaxedLevel = null;
       this.tool = { state: 'unknown', onFor: 0, offFor: 0, session: 0, bouts: 0, bout: 0, longest: 0, observed: 0, sinceEmit: 0 };
+      // daily exposure (same maths as exposure.py). SIMULATED: starts from 62 points of simulated earlier work today
+      // so the bar shows a realistic state; "Tool running" adds 2 * a^2 points per hour.
+      this.exposure = { e2: (62 * 3600) / 2, toolS: 3600 * 2.4, grippedS: 3600 * 2.1, grippedE2: (62 * 3600) / 2, limit: 400 };
     }
 
     // ---- connection ----
@@ -197,6 +200,8 @@
         case 'new_shift': {
           const before = { session_tool_s: Math.round(this.tool.session * 100) / 100, bouts: this.tool.bouts };
           Object.assign(this.tool, { session: 0, bouts: 0, longest: 0, bout: 0 });
+          before.exposure_points = Math.round(((2 * this.exposure.grippedE2) / 3600) * 1000) / 1000;
+          Object.assign(this.exposure, { e2: 0, toolS: 0, grippedS: 0, grippedE2: 0 }); // a new shift is a new day
           this.emit('event', { event: 'tool_session_reset', stream: 'imu', detail: before, at: new Date().toISOString() });
           return this._reply(cmd, 'completed', { previous: before });
         }
@@ -304,6 +309,14 @@
       else if (t.state === 'tool' && t.offFor >= 1.5) { t.state = 'no_tool'; }
       else if (t.state === 'unknown' && t.observed > 1) t.state = 'no_tool';
       if (t.state === 'tool') { t.session += dt; t.bout += dt; t.longest = Math.max(t.longest, t.bout); if (this.session) this.session.toolS += dt; }
+      const vibNow = this.vibrating ? 4.1 : 0.06;
+      const gripPct = this.cal ? Math.max(0, this.effort * 100) : null;
+      const gripping = gripPct == null || gripPct >= 10;   // unknown grip still counts (as the processor)
+      if (t.state === 'tool') {
+        this.exposure.e2 += vibNow * vibNow * dt;
+        this.exposure.toolS += dt;
+        if (gripping) { this.exposure.grippedE2 += vibNow * vibNow * dt; this.exposure.grippedS += dt; }
+      }
       if ((t.sinceEmit += dt) >= 0.5) {
         t.sinceEmit = 0;
         const warnings = [];
@@ -314,7 +327,29 @@
           bout_s: t.state === 'tool' ? t.bout : 0, bouts: t.bouts, longest_bout_s: t.longest,
           session_tool_s: t.session, session_observed_s: t.observed, warnings,
         });
+        this._emitExposure(t.state === 'tool' && gripping ? vibNow : null, t.state === 'tool', gripPct);
       }
+    }
+
+    _emitExposure(aNow, toolNow, gripPct) {
+      const M = VG.ExposureMath;
+      const x = this.exposure;
+      if (!M) return; // exposure.js not loaded (e.g. a test harness)
+      const pts = M.pointsFromEnergy(x.grippedE2);
+      const gate = (e2, s) => ({ a8_ms2: M.a8FromEnergy(e2), points: M.pointsFromEnergy(e2),
+        percent_of_limit: (100 * M.pointsFromEnergy(e2)) / x.limit, contact_s: s, energy_m2s3: e2 });
+      this.emit('exposure', {
+        type: 'exposure', simulated: true, provenance: { source: 'simulated' },
+        label: 'daily_vibration_exposure_estimate', status: 'accumulating', reasons: [], gate: 'gripped',
+        level: pts >= x.limit ? 'above_limit' : pts >= 100 ? 'above_eav' : 'below_eav',
+        daily: gate(x.grippedE2, x.grippedS),
+        by_gate: { tool_on: gate(x.e2, x.toolS), gripped: gate(x.grippedE2, x.grippedS) },
+        grip_unknown_s: 0,
+        current: { a_hv_ms2: aNow, tool_now: toolNow, grip_activation: gripPct == null ? null : gripPct / 100,
+          counting: aNow != null, points_per_hour: aNow == null ? null : 2 * aNow * aNow,
+          hours_to_eav: M.hoursUntil(pts, 100, aNow), hours_to_limit: M.hoursUntil(pts, x.limit, aNow) },
+        limits: { eav_ms2: 2.5, elv_ms2: 5.0, eav_points: 100, elv_points: 400, personal_limit_points: x.limit },
+      });
     }
 
     // ---- calibration (two steps, like the real processor) ----

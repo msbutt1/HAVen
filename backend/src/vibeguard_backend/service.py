@@ -22,6 +22,7 @@ from vibeguard_signals.demo import demo_processing_config
 from vibeguard_signals.processing import ProcessingConfig, StreamConfig
 
 from .adapters import DeviceAdapter, ReplayAdapter, new_id
+from .exposure import PersonalLimit, daily_exposure
 from .hub import Hub, utc_now_iso
 from .runtime import DeviceRuntime, RuntimeConflict, RuntimeGone, file_info
 from .store import IdempotencyConflict, Store
@@ -263,6 +264,8 @@ class Backend:
             rt = DeviceRuntime(name, adapter, config, self.hub, self.store, self.data_dir,
                                role=role, **kwargs)
             self.runtimes = {**self.runtimes, name: rt}  # copy-on-write: readers never see a change mid-iteration
+        if self.exposure_limit.points < 400:
+            rt.proc.set_personal_exposure_limit(self.exposure_limit.points)  # before the thread starts
         return rt.start()
 
     def runtime(self, name: str) -> DeviceRuntime:
@@ -566,6 +569,33 @@ class Backend:
         return s
 
     # ------------------------------------------------------------------ history
+
+    # ------------------------------------------------------------------ daily exposure
+
+    @property
+    def exposure_limit(self) -> PersonalLimit:
+        if getattr(self, "_exposure_limit", None) is None:
+            self._exposure_limit = PersonalLimit(self.data_dir)
+        return self._exposure_limit
+
+    def set_personal_exposure_limit(self, points: Any) -> dict:
+        try:
+            view = self.exposure_limit.set(points, utc_now_iso())
+        except ValueError as e:
+            raise BadRequest(str(e)) from None
+        applied = []
+        for rt in list(self.runtimes.values()):
+            if rt.alive:
+                try:
+                    rt.set_personal_exposure_limit(view["personal_limit_points"])
+                    applied.append(rt.name)
+                except Exception:  # noqa: BLE001 (a finished runtime cannot take commands)
+                    pass
+        return {**view, "applied_to_runtimes": applied}
+
+    def exposure_daily(self, days: int = 14) -> dict:
+        sessions = self.store.wearable_sessions(limit=1000)
+        return daily_exposure(sessions, self.exposure_limit.points, days=days)
 
     def history(self, source: str | None = None, limit: int = 200) -> dict:
         wearable = self.store.wearable_sessions(source=source, limit=limit)

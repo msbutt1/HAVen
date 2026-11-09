@@ -38,6 +38,7 @@ from vibeguard_signals import contract
 from vibeguard_signals.processing import ProcessingConfig, Processor, to_ndjson_line
 
 from .adapters import AdapterDisconnected, DeviceAdapter, EndOfStream, new_id
+from .exposure import session_exposure_summary
 from .hub import Hub, utc_now_iso
 from .store import Store
 
@@ -172,6 +173,8 @@ class _ActiveSession:
     recording_id: str | None = None
     persisted_provenance: bool = False
     first_score: dict | None = None
+    start_exposure: dict | None = None
+    first_exposure: dict | None = None
     last_key: tuple[str, int] | None = None  # last valid frame recorded in THIS session
     boot_ids: list[str] = dataclasses.field(default_factory=list)
     sources_seen: list[str] = dataclasses.field(default_factory=list)
@@ -327,7 +330,7 @@ class DeviceRuntime:
         self.provenance: dict | None = None
         self.hello: dict | None = None
         self.device_status: dict | None = None
-        self.latest: dict[str, dict | None] = {"emg": None, "imu": None, "score": None, "tool_use": None}
+        self.latest: dict[str, dict | None] = {"emg": None, "imu": None, "score": None, "tool_use": None, "exposure": None}
         self.tool_use_saved = self._load_saved_tool_use()  # last known totals from before a backend restart
         self.counters: Counter = Counter()
         self.events: Counter = Counter()
@@ -462,7 +465,7 @@ class DeviceRuntime:
             def stale(v: dict | None) -> dict | None:
                 # Streams the processor already invalidated keep their own reasons, but the score
                 # must be masked too: it keeps its last rate until the next record arrives.
-                if v is None or (v.get("status") == "unavailable" and v.get("type") != "experimental_score"):
+                if v is None or (v.get("status") == "unavailable" and v.get("type") not in ("experimental_score", "exposure")):
                     return v
                 return {"status": "unavailable", "reason": reason, "reasons": [reason], "last_seen": v}
             latest = {k: stale(v) for k, v in latest.items()}
@@ -770,7 +773,7 @@ class DeviceRuntime:
         self.proc = Processor(self.config)
         self.device_id, self.boot_id, self.provenance = new_id, None, None
         self.hello = self.device_status = None
-        self.latest = {"emg": None, "imu": None, "score": None, "tool_use": None}
+        self.latest = {"emg": None, "imu": None, "score": None, "tool_use": None, "exposure": None}
         self.calibration_state, self.calibration_reason, self._cal_id = "uncalibrated", None, None
         self._restored, self._last_key, self._foreign = False, None, None
         self.counters["device_changes"] += 1
@@ -877,6 +880,10 @@ class DeviceRuntime:
                 self.latest["score"] = out
                 if s is not None and s.first_score is None:
                     s.first_score = out
+            elif kind == "exposure":
+                self.latest["exposure"] = out
+                if s is not None and s.first_exposure is None:
+                    s.first_exposure = out
             elif kind == "stream_event":
                 ev = out["event"]
                 detail = out.get("detail") or {}
@@ -931,7 +938,7 @@ class DeviceRuntime:
         rec = SessionRecorder(directory)
         prov = self.provenance or {}
         sess = _ActiveSession(session_id=sid, rec=rec, started_mono=time.monotonic(),
-                              start_score=self.latest["score"])
+                              start_score=self.latest["score"], start_exposure=self.latest.get("exposure"))
         if self.boot_id:
             sess.boot_ids.append(self.boot_id)
         row = None
@@ -984,7 +991,9 @@ class DeviceRuntime:
                     "events": dict(s.events), "sources_seen": s.sources_seen,
                     "calibration_ids": s.calibration_ids,
                     "duration_s": round(time.monotonic() - s.started_mono, 3),
-                    "readings": _readings_view(s)}
+                    "readings": _readings_view(s),
+                    "exposure": session_exposure_summary(s.start_exposure, s.first_exposure,
+                                                         self.latest.get("exposure"), mixed_sources=mixed)}
         row = self.store.update_wearable_session(
             s.session_id, state=state, end_reason=reason, ended_at=utc_now_iso(),
             device_id=self.device_id, source=s.source, original_source=s.original_source,
@@ -1034,6 +1043,13 @@ class DeviceRuntime:
             self.counters["new_shifts"] += 1
             return {"runtime": self.name, "event": "tool_session_reset", "previous": before,
                     "at": utc_now_iso()}
+        return self.call(run)
+
+    def set_personal_exposure_limit(self, points: float) -> dict:
+        """Apply the worker's daily limit (HSE points, <= 400) to this runtime's processor."""
+        def run() -> dict:
+            self.proc.set_personal_exposure_limit(points)
+            return {"runtime": self.name, "personal_limit_points": points}
         return self.call(run)
 
     # tool time survives a backend restart as "last known" (the processor's own totals start again at zero)
