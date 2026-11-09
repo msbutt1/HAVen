@@ -9,7 +9,13 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.ServiceInfo;
 import android.media.AudioAttributes;
+import android.media.AudioManager;
+import android.media.MediaPlayer;
 import android.media.RingtoneManager;
+import android.media.ToneGenerator;
+import android.net.Uri;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
@@ -47,7 +53,10 @@ public class SleeveService extends Service {
         wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "vibeguard:sleeve");
         wake.acquire();
         sleeve = Sleeve.get(this);
-        sleeve.listener = (kind, title, text) -> main.post(() -> alert(kind, title, text));
+        sleeve.listener = new Sleeve.Listener() {
+            @Override public void alert(String kind, String title, String text) { main.post(() -> SleeveService.this.alert(kind, title, text)); }
+            @Override public void silence() { main.post(SleeveService.this::stopSiren); }
+        };
         sleeve.start();
         main.post(this::refresh);
     }
@@ -59,6 +68,7 @@ public class SleeveService extends Service {
     public void onDestroy() {
         main.removeCallbacksAndMessages(null);
         if (sleeve != null) sleeve.listener = null;
+        stopSiren();
         if (wake != null && wake.isHeld()) wake.release();
         super.onDestroy();
     }
@@ -102,6 +112,63 @@ public class SleeveService extends Service {
                 .setFullScreenIntent(level ? openApp() : null, level)
                 .build();
         getSystemService(NotificationManager.class).notify(alarmId++, n);
+        siren(level ? 60_000 : 4_000);
+    }
+
+    // ---- the audible alarm: loud enough to hear next to a running tool ----
+
+    private MediaPlayer player;
+    private ToneGenerator tone;
+    private int savedVolume = -1;
+    private final Runnable beep = this::beep;
+
+    /**
+     * Plays the phone's alarm sound on the ALARM stream at full volume, looping, with a strong repeating vibration,
+     * until the wearer taps OK (or for maxMs). Falls back to a built-in siren tone if no alarm sound is set.
+     */
+    private void siren(long maxMs) {
+        stopSiren();
+        AudioManager am = getSystemService(AudioManager.class);
+        try {
+            savedVolume = am.getStreamVolume(AudioManager.STREAM_ALARM);
+            am.setStreamVolume(AudioManager.STREAM_ALARM, am.getStreamMaxVolume(AudioManager.STREAM_ALARM), 0);
+        } catch (Exception ignored) { savedVolume = -1; }
+        Uri uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
+        if (uri == null) uri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_RINGTONE);
+        try {
+            if (uri == null) throw new IllegalStateException("no alarm sound");
+            player = new MediaPlayer();
+            player.setAudioAttributes(new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build());
+            player.setDataSource(this, uri);
+            player.setLooping(true);
+            player.prepare();
+            player.start();
+        } catch (Exception e) {
+            player = null;
+            try { tone = new ToneGenerator(AudioManager.STREAM_ALARM, ToneGenerator.MAX_VOLUME); beep(); } catch (Exception ignored) {}
+        }
+        Vibrator v = getSystemService(Vibrator.class);
+        if (v != null && v.hasVibrator()) v.vibrate(VibrationEffect.createWaveform(new long[]{0, 900, 250, 900, 250}, 0));
+        main.postDelayed(this::stopSiren, maxMs);
+    }
+
+    private void beep() {
+        if (tone == null) return;
+        tone.startTone(ToneGenerator.TONE_CDMA_EMERGENCY_RINGBACK, 1500);
+        main.postDelayed(beep, 1700);
+    }
+
+    void stopSiren() {
+        main.removeCallbacks(beep);
+        if (player != null) { try { player.stop(); } catch (Exception ignored) {} player.release(); player = null; }
+        if (tone != null) { tone.release(); tone = null; }
+        Vibrator v = getSystemService(Vibrator.class);
+        if (v != null) v.cancel();
+        if (savedVolume >= 0) {
+            try { getSystemService(AudioManager.class).setStreamVolume(AudioManager.STREAM_ALARM, savedVolume, 0); } catch (Exception ignored) {}
+            savedVolume = -1;
+        }
     }
 
     static void channels(Context c) {

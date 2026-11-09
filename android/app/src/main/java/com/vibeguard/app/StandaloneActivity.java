@@ -30,6 +30,8 @@ public class StandaloneActivity extends Activity {
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         sleeve = Sleeve.get(this);
         web = new WebView(this);
+        web.setVerticalScrollBarEnabled(false);       // its scroll bar would run over the bottom tabs
+        web.setHorizontalScrollBarEnabled(false);
         // a WebView ignores its own padding: put it in a frame and pad the frame clear of the system bars
         android.widget.FrameLayout root = new android.widget.FrameLayout(this);
         root.addView(web);

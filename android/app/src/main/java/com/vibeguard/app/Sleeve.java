@@ -83,7 +83,7 @@ final class Sleeve {
     private double demoSpeed;
 
     // alarms: each level fires once a day; the screen shows it until the wearer taps OK
-    interface Listener { void alert(String kind, String title, String text); }
+    interface Listener { void alert(String kind, String title, String text); void silence(); }
     volatile Listener listener;
     private boolean firedAction, firedLimit;
     private String alarm;                         // null | action | limit (shown on the screen until acknowledged)
@@ -455,6 +455,8 @@ final class Sleeve {
             setting(() -> { countsPerG = Double.parseDouble(c.substring(4)); prefs.edit().putFloat("countsPerG", (float) countsPerG).apply(); });
         } else if (c.equals("alarm:ack")) {
             alarm = null;
+            Listener l = listener;
+            if (l != null) l.silence();
         } else if (c.equals("day:clear")) {           // developer: start the demo again from zero
             dayEnergy = 0; dayContact = 0; dayTool = 0; shownWarnings.clear();
             firedAction = false; firedLimit = false; alarm = null;
