@@ -248,7 +248,6 @@ html[data-theme="enamel"] #toast { border: 3px solid var(--rim); }
   </div>
   <div class="pill"><i class="dot" id="dot"></i><span id="conn">Starting…</span></div>
   <div class="sim" id="simBanner" style="display:none">Practice mode: made-up data, not a real sleeve</div>
-  <div class="demo" id="demoBanner" style="display:none"></div>
 
   <div class="alert" id="alert" style="display:none"></div>
 
@@ -561,9 +560,6 @@ $('date').textContent = new Date().toLocaleDateString([], { weekday: 'long', day
 function render() {
   const s = S;
   $('simBanner').style.display = s.source === 'demo' ? '' : 'none';
-  const sp = s.settings ? s.settings.demoSpeed : 1;
-  $('demoBanner').style.display = sp > 1 ? '' : 'none';
-  $('demoBanner').textContent = sp >= 60 ? `Demo: 1 minute of tool use counts as ${sp / 60 === 1 ? '1 hour' : Math.round(sp / 60) + ' hours'}` : `Demo: 1 minute of tool use counts as ${sp} minutes`;
   const busy = (s.grip && s.grip.flow) || (s.toolCal && s.toolCal.phase) || W.open;
   $('conn').textContent = !s.running ? 'Sleeve switched off in the app' : !s.connected ? 'Looking for your sleeve…' : !s.fresh ? 'Reconnecting…' : busy ? 'Setting up…' : 'Sleeve connected';
   $('dot').style.background = s.connected && s.fresh ? 'var(--low)' : s.connected ? 'var(--mid)' : 'var(--faint)';
