@@ -127,6 +127,10 @@ public final class Emg {
         int minUpdates = 10;
         double maxClippedFraction = 0.10, minRatio = 2.0, minSeparation = 1.0;
         static final double MAX_PAUSE_S = 1.0;
+        /** A relaxed forearm on board W reads 4-60 counts RMS (recordings, 2026-11-08/09). Far above that, the
+         *  amplifier is picking up noise (a loose pad, a moving cable): no squeeze can then be twice the rest
+         *  level, so say so at the relax step instead of blaming the squeeze afterwards. */
+        double maxRelaxed = 150;
         static final java.util.Set<String> PAUSABLE = new java.util.HashSet<>(java.util.Arrays.asList(
                 "gap", "timing_discontinuity", "missing_values"));
 
@@ -232,6 +236,7 @@ public final class Emg {
             String phase = capPhase, boot = capBoot;
             capPhase = null;
             if (phase.equals("relaxed")) {
+                if (med > maxRelaxed) { fail("noisy_at_rest", Filters.map("relaxed", med)); return; }
                 relaxedRef = med; relaxedBoot = boot;
                 set("relaxed_captured", null, Filters.map("relaxed", med));
                 return;

@@ -98,6 +98,16 @@ public class GripSetupTest {
     }
 
     @Test
+    public void aNoisyRestFailsAtTheRelaxStepWithItsOwnReason() throws Exception {
+        Sleeve s = new Sleeve();
+        s.seconds(2, 600);                     // ~600 counts of noise with the arm "relaxed" (seen live 2026-11-09)
+        s.proc.gripCalibration("relaxed");
+        s.seconds(4, 600);
+        assertEquals("failed", s.proc.snapshot.calibrationState);
+        assertEquals("noisy_at_rest", s.proc.snapshot.calibrationReason);
+    }
+
+    @Test
     public void saturationIsReportedAndClearsWhenTheSignalComesOffTheLimit() throws Exception {
         Sleeve s = new Sleeve();
         s.seconds(2, 20);

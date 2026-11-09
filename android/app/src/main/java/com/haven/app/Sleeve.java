@@ -763,6 +763,7 @@ final class Sleeve {
     static String reasonText(String reason, String fallback) {
         if (reason == null) return fallback;
         switch (reason) {
+            case "noisy_at_rest": return "The muscle signal is noisy even with your arm relaxed, so a squeeze cannot stand out. Press all three pads firmly onto the skin, check the cable snaps, keep the cable still (tape it to the arm), then try again.";
             case "insufficient_separation": return "The squeeze was not clearly stronger than the relaxed reading. Squeeze harder, or check the pads, and try again.";
             case "insufficient_data": return "Not enough clean signal was captured. Check the electrodes and try again.";
             case "clipped": return "The signal hit the top of the input range too often. Squeeze a little less hard and try again.";
