@@ -22,6 +22,7 @@ public final class Records {
     public static final class StreamDecl {
         public Double nominalRateHz;
         public double[] rawLimits;          // {min, max} or null
+        public String sensorModel;          // the board's own description of the sensor, or null
     }
 
     public static final class Batch {
@@ -76,6 +77,7 @@ public final class Records {
                         StreamDecl decl = new StreamDecl();
                         if (d != null) {
                             if (d.has("nominal_rate_hz") && !d.isNull("nominal_rate_hz")) decl.nominalRateHz = d.getDouble("nominal_rate_hz");
+                            decl.sensorModel = d.optString("sensor_model", null);
                             JSONObject l = d.optJSONObject("raw_limits");
                             if (l != null && l.has("min") && l.has("max") && l.getDouble("min") < l.getDouble("max")) {
                                 decl.rawLimits = new double[]{l.getDouble("min"), l.getDouble("max")};

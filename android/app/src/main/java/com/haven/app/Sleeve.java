@@ -52,6 +52,7 @@ final class Sleeve {
     private double countsPerG, personalLimit;
     private boolean running;
     private volatile String state = "{}";
+    private volatile String tvState = "{}";      // the small snapshot the TV view streams (TvServer)
 
     // link
     private Thread serverThread;
@@ -123,6 +124,7 @@ final class Sleeve {
         proc = newProcessor();
         loadDay();
         ex.scheduleAtFixedRate(this::tick, 100, 50, TimeUnit.MILLISECONDS);   // the page reads the state 10x a second
+        TvServer.start(c, this);   // the TV view on this phone's Wi-Fi/hotspot: http://<phone>:8080/
     }
 
     // ---- daily log ----
@@ -288,6 +290,7 @@ final class Sleeve {
     private static double now() { return System.nanoTime() / 1e9; }
 
     String stateJson() { return state; }
+    String tvJson() { return tvState; }
 
     void start() { ex.execute(this::startOnEngine); }
     void stop() { ex.execute(this::stopOnEngine); }
@@ -380,6 +383,7 @@ final class Sleeve {
             Processor.Snapshot s = proc.snapshot;
             // the only alarms are the action level and the daily limit (checkAlarms); no other reminder sounds or pops up
             String b = build(s, t).toString();
+            tvState = buildTv(s, t).toString();
             // the day log (up to 400 days) is serialized once per change, not 20 times a second
             state = b.substring(0, b.length() - 1) + ",\"history\":" + historyJson() + "}";
         } catch (Exception e) {
@@ -614,6 +618,31 @@ final class Sleeve {
         if (was) startOnEngine();
     }
 
+    // ---- state for the TV view (TvServer) ----
+
+    /** Only what the TV meters and their proof strip need, 20 times a second; never the history. */
+    private JSONObject buildTv(Processor.Snapshot s, double t) throws Exception {
+        JSONObject o = new JSONObject();
+        boolean fresh = connected && t - lastLineAt <= 1 && s.staleStreams.isEmpty();
+        boolean actOk = fresh && (s.activationStatus.equals("ok") || s.activationStatus.equals("degraded"));
+        boolean vibOk = fresh && (s.vibrationStatus.equals("ok") || s.vibrationStatus.equals("degraded"));
+        o.put("running", running).put("connected", connected).put("fresh", fresh);
+        o.put("source", source).put("dataSource", s.source == null ? JSONObject.NULL : s.source);
+        o.put("age", lastLineAt < 0 ? JSONObject.NULL : t - lastLineAt);
+        o.put("device", s.deviceId == null ? JSONObject.NULL : s.deviceId);
+        o.put("firmware", s.firmware == null ? JSONObject.NULL : s.firmware);
+        o.put("emgSensor", s.emgSensor == null ? JSONObject.NULL : s.emgSensor);
+        o.put("imuSensor", s.imuSensor == null ? JSONObject.NULL : s.imuSensor);
+        o.put("emgSamples", s.emgSamples).put("imuSamples", s.imuSamples);
+        o.put("records", s.records).put("lost", s.missingRecords).put("boot", s.bootId == null ? JSONObject.NULL : s.bootId);
+        o.put("activation", actOk && s.activation != null ? s.activation : JSONObject.NULL);
+        o.put("gripState", s.calibrationState).put("gripFlow", gripFlow == null ? JSONObject.NULL : gripFlow);
+        o.put("vibration", vibOk && s.vibration != null ? s.vibration : JSONObject.NULL);
+        o.put("tool", fresh ? s.tool.state : "unknown").put("toolHz", nz(s.tool.dominantHz));
+        o.put("t", t);
+        return o;
+    }
+
     // ---- state for the screen ----
 
     private JSONObject build(Processor.Snapshot s, double t) throws Exception {
@@ -695,6 +724,7 @@ final class Sleeve {
                 .put("tool", toolToday()).put("limit", personalLimit).put("demoSpeed", dayDemo);
         o.put("months", History.months(historyDays, day, todayEntry, 12));
         o.put("toast", toast == null ? JSONObject.NULL : toast).put("toastId", toastId);
+        o.put("tvUrls", new JSONArray(TvServer.urls()));
         return o;
     }
 

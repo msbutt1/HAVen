@@ -421,6 +421,9 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 <div class="sheet" id="dev">
   <div class="bar"><h2>Developer options</h2><button class="text" onclick="closeDev()">Back</button></div>
   <main style="padding-bottom:40px">
+    <div class="card"><h2>TV view</h2>
+      <p class="muted" style="font-size:15px">Live grip and vibration meters for a TV, served by this phone. Connect the laptop or TV to this phone's hotspot, then open this address in its browser (press F for full screen). It shows what this phone measures, with this phone's calibration.</p>
+      <p class="mono" style="font-size:18px;font-weight:600;word-break:break-all" id="dTv">—</p></div>
     <div class="card"><h2>Demo speed</h2>
       <select id="dSpeed" onchange="cmd('speed:'+this.value)">
         <option value="1">Off: real time</option><option value="60">1 minute of tool use = 1 hour</option>
@@ -1026,6 +1029,8 @@ function renderSettings(s) {
   if (document.activeElement !== $('sCpg')) $('sCpg').value = String(Math.round(s.settings.countsPerG));
   if (document.activeElement !== $('dSpeed')) $('dSpeed').value = String(Math.round(s.settings.demoSpeed));
   if (document.activeElement !== $('dGrip')) $('dGrip').value = s.settings.gripGate ? '1' : '0';
+  $('dTv').textContent = (s.tvUrls && s.tvUrls.length) ? s.tvUrls.join('\n') : 'No network yet: turn on the hotspot.';
+  $('dTv').style.whiteSpace = 'pre-line';
   $('tcStatus').textContent = s.tool.calibrated ? 'Calibrated for the tool used during calibration.' : 'Using the default (provisional) thresholds. Calibrate with the tool you will use.';
   $('tcReset').style.display = s.tool.calibrated ? '' : 'none';
   const m = s.exposure.demoMinutesToLimit;

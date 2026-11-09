@@ -28,6 +28,8 @@ public final class Processor {
         public ToolUse.State tool = new ToolUse.State();
         public Set<String> staleStreams = new HashSet<>();
         public long records, seqGaps, missingRecords;
+        public long emgSamples, imuSamples;           // samples received per stream (for the TV view's rates)
+        public String emgSensor, imuSensor;           // sensor descriptions from the hello record
         public Exposure.Snapshot exposure = new Exposure.Snapshot();
     }
 
@@ -157,6 +159,9 @@ public final class Processor {
             case "hello":
                 declared = r.streams;
                 snapshot.firmware = r.firmware;
+                Records.StreamDecl de = r.streams.get("emg"), di = r.streams.get("imu");
+                snapshot.emgSensor = de == null ? null : de.sensorModel;
+                snapshot.imuSensor = di == null ? null : di.sensorModel;
                 break;
             case "status":
                 for (Map.Entry<String, String> e : r.sensors.entrySet()) {
@@ -173,6 +178,8 @@ public final class Processor {
                 }
                 break;
             default:
+                if ("emg".equals(r.batch.stream)) snapshot.emgSamples += r.batch.samples.length;
+                else if ("imu".equals(r.batch.stream)) snapshot.imuSamples += r.batch.samples.length;
                 onBatch(r.batch, rx);
         }
         checkStale(rx);

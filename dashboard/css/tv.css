@@ -103,6 +103,7 @@ body[data-source="stale"] .badge, body[data-source="none"] .badge { color: var(-
 }
 .proof b { color: var(--ink); font: 500 1.9vh var(--mono); font-variant-numeric: tabular-nums; }
 .cal-btns { display: flex; gap: 1vh; }
+.cal-btns[hidden] { display: none; }
 .btn {
   font: 600 1.8vh var(--sans); color: var(--ink); background: var(--panel);
   border: 1px solid var(--rim); border-radius: 0.8vh; padding: max(8px, 0.9vh) max(14px, 1.6vh); cursor: pointer;
