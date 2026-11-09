@@ -77,6 +77,10 @@ final class Sleeve {
     private double dayEnergy, dayContact, dayTool;        // today's totals (demo-scaled when demo speed > 1)
     private Double lastE, lastC, lastTool;                 // the engine's totals at the previous tick
     private double lastSaved;
+    // calibration never counts as exposure: nothing is added while setup is open or a capture runs, nor for a
+    // few seconds after (the tool detector holds "tool" for about 3 s after the vibration stops)
+    private double setupPingAt = -1e9, quietUntil;
+    private static final double QUIET_AFTER_S = 5;
     // DEMO: a massage gun for a 2-minute demo. The measured vibration and the formula are unchanged; only the
     // clock runs faster: each real second of tool use counts as `demoSpeed` seconds (60 = a minute counts as
     // an hour). Shown on the Today screen while it is on.
@@ -167,10 +171,12 @@ final class Sleeve {
             shownWarnings.clear();
             note("New day started");
         }
-        // add what the engine added since the last tick, at the demo speed
+        // add what the engine added since the last tick, at the demo speed (never during calibration)
         Exposure.Snapshot x = proc.snapshot.exposure;
         double e = x.energy, c = x.contactS, tt = proc.snapshot.tool.sessionToolS;
-        if (lastE != null) {
+        boolean calibrating = gripFlow != null || toolPhase != null || t - setupPingAt < 2.5;
+        if (calibrating) quietUntil = t + QUIET_AFTER_S;
+        if (lastE != null && t >= quietUntil) {
             dayEnergy += Math.max(0, e - lastE) * demoSpeed;
             dayContact += Math.max(0, c - lastC) * demoSpeed;
             dayTool += Math.max(0, tt - lastTool) * demoSpeed;
@@ -448,6 +454,7 @@ final class Sleeve {
     }
 
     private void onCommand(String c) {
+        if (c.equals("setup:open")) { setupPingAt = now(); return; }   // the setup screen is open (sent every second)
         if (c.equals("start")) startOnEngine();
         else if (c.equals("stop")) stopOnEngine();
         else if (c.equals("grip:relaxed") || c.equals("grip:squeeze")) {
@@ -601,6 +608,7 @@ final class Sleeve {
                 .put("hoursToLimit", nz(scaled(Exposure.hoursUntil(points, x.personalLimit, aNow), demoSpeed)))
                 .put("status", x.status).put("reasons", new JSONArray(x.reasons))
                 .put("gripUnknown", x.gripUnknownS)
+                .put("paused_for_setup", now() < quietUntil)
                 // developer: minutes of tool use at the vibration measured now until the limit, at the demo speed
                 .put("demoMinutesToLimit", x.aHvNow == null || x.aHvNow <= 0 ? JSONObject.NULL
                         : (x.personalLimit - Math.min(points, x.personalLimit)) / (2 * x.aHvNow * x.aHvNow) * 60 / demoSpeed));

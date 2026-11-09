@@ -491,6 +491,7 @@ function render() {
   const t = s.tool, using = s.fresh && t.state === 'tool';
   let note;
   if (!s.connected || !s.fresh) note = 'Not counting: no signal from the sleeve.';
+  else if (e.paused_for_setup) note = 'Paused while you set up. Calibration does not count.';
   else if (e.counting && pts < 100 && e.hoursToAction != null) note = `At this tool, you reach the action level in about ${minutes(e.hoursToAction * 3600)}.`;
   else if (e.counting && pts < limit && e.hoursToLimit != null) note = `At this tool, you reach your daily limit in about ${minutes(e.hoursToLimit * 3600)}.`;
   else if (pts >= limit) note = 'Stop using vibrating tools for the rest of the day.';
@@ -595,6 +596,7 @@ let W = { open: false, screen: null, shown: null, cap: null, sent: false, seen: 
 function openWizard(mode) {
   W = { mode: mode === 'tool' ? 'tool' : 'grip', open: true, screen: 'intro', shown: null, cap: null, sent: false, seen: false, t0: 0, dur: 1, readyAt: 0, msg: '', retry: null, raf: 0 };
   $('wizard').classList.add('open'); $('wstage').innerHTML = ''; renderWizard(); loop();
+  cmd('setup:open');                        // calibration never counts as exposure
 }
 function closeWizard() {
   if (S.grip && S.grip.flow) cmd('grip:cancel');
@@ -700,8 +702,10 @@ function loop() {
   W.raf = requestAnimationFrame(loop);
 }
 
+let lastSetupPing = 0;
 function renderWizard() {
   if (!W.open) return;
+  if (Date.now() - lastSetupPing > 1000) { lastSetupPing = Date.now(); VGB.command('setup:open'); }
   advance();
   const n = stepIndex();
   $('wdots').innerHTML = Array.from({ length: FLOW[W.mode].length + 2 }, (_, i) => i).map(i => `<i class="${i === n ? 'on' : i < n ? 'done' : ''}"></i>`).join('');
