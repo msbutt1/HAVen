@@ -30,6 +30,10 @@ typedef struct {
     uint16_t tcp_port;          /* default bridge port 8765 */
     uint16_t discovery_port;    /* default 8766 */
     const char *device_id;
+    /* Optional: each line the receiver sends back (e.g. the phone's "VGLED ..." status light), and the
+     * connection state. Called from the network task; keep them short. */
+    void (*on_line)(const char *line);
+    void (*on_link)(bool connected);
 } vg_wifi_cfg_t;
 
 typedef struct {

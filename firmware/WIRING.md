@@ -84,3 +84,12 @@ python -m esptool --port /dev/ttyUSB0 read-flash 0 0x400000 backup-<mac>.bin   #
 tools/build.sh diag esp32_d0wd_v3_devkit30 -p /dev/ttyUSB0 flash
 tools/build.sh diag esp32_d0wd_v3_devkit30 -p /dev/ttyUSB0 monitor        # Ctrl+] to exit
 ```
+
+## Status light (board W)
+
+A NeoPixel (WS2812) status light: **data in on GPIO 23 (D23)**, power and GND from the board. The firmware
+drives up to 8 pixels the same colour (`VG_STATUS_LED_GPIO`, `VG_STATUS_LED_COUNT` in `wearable/main/main.c`) at
+35 % brightness. The phone app sends the Today ring's colour on the telemetry connection (`VGLED 1 ...`, see
+`target/include/vg_neopixel.h`): green under the action level, amber from 100 points, red at the daily limit, a
+slow bright-to-deep red fade past it. With no phone connected it breathes dim blue. Checked on board W
+2026-11-08: commands received and parsed, telemetry unaffected.

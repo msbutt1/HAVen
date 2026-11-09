@@ -145,9 +145,29 @@ static void net_task(void *arg)
         strncpy(s_stats.bridge_ip, ip, sizeof s_stats.bridge_ip - 1);
         s_stats.connected = true;
         s_stats.connects++;
+        if (s_cfg.on_link) s_cfg.on_link(true);
+        char rx[160];
+        size_t rx_len = 0;
         drain_offline();                           /* stale backlog: start fresh */
         *s_hello_req = true;                       /* hello + status right away */
         for (;;) {
+            /* lines sent back by the receiver (never blocks; a closed connection ends the session) */
+            int r = recv(s, rx + rx_len, sizeof rx - 1 - rx_len, MSG_DONTWAIT);
+            if (r == 0) break;
+            if (r > 0) {
+                rx_len += (size_t)r;
+                rx[rx_len] = '\0';
+                char *nl;
+                while ((nl = strchr(rx, '\n')) != NULL) {
+                    *nl = '\0';
+                    if (nl > rx && nl[-1] == '\r') nl[-1] = '\0';
+                    if (s_cfg.on_line && rx[0]) s_cfg.on_line(rx);
+                    size_t used = (size_t)(nl - rx) + 1;
+                    memmove(rx, nl + 1, rx_len - used + 1);
+                    rx_len -= used;
+                }
+                if (rx_len >= sizeof rx - 1) rx_len = 0;     /* an over-long line is never valid: drop it */
+            }
             uint32_t n = vg_fq_pop(s_fq, s_frame, sizeof s_frame);
             if (n == 0) {
                 vTaskDelay(1);
@@ -157,6 +177,7 @@ static void net_task(void *arg)
             if (!send_all(s, s_frame, n)) break;
         }
         s_stats.connected = false;
+        if (s_cfg.on_link) s_cfg.on_link(false);
         close(s);
     }
 }

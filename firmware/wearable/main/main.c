@@ -32,6 +32,7 @@
 #include "vg/clock_est.h"
 #include "vg_emg_adc.h"
 #include "vg_mpu6500.h"
+#include "vg_neopixel.h"
 #include "vg_target.h"
 #include "vg_wifi_link.h"
 #include "wifi_secrets.h"
@@ -155,6 +156,15 @@ static void make_boot_id(char *out, size_t n)
              r[6], r[7]);
 }
 
+#define VG_STATUS_LED_GPIO 23      /* board W: NeoPixel (WS2812) data in */
+#define VG_STATUS_LED_COUNT 8       /* extra pixels are harmless for a single LED; a short strip shows the same colour */
+
+/* Lines the receiver (phone app or bridge) sends back on the telemetry connection. */
+static void on_receiver_line(const char *line)
+{
+    if (!vg_neopixel_command(line)) ESP_LOGW(TAG, "unknown line from receiver: %.40s", line);
+}
+
 void app_main(void)
 {
     static char device_id[32], boot_id[32], imu_detail[120], problems_s[24];
@@ -237,7 +247,10 @@ void app_main(void)
     /* An ADC value cannot prove the electrodes are on the skin: EMG stays unknown. */
     vg_link_set_sensor(&s_link, VG_STREAM_EMG, VG_SENSOR_UNKNOWN, esp_timer_get_time());
 
-    vg_wifi_cfg_t wc = {VG_WIFI_SSID, VG_WIFI_PASSWORD, VG_BRIDGE_HOST, 8765, 8766, device_id};
+    /* Status light: NeoPixel data on GPIO 23 (board W). The phone app sends the Today ring's colour. */
+    vg_neopixel_start(VG_STATUS_LED_GPIO, VG_STATUS_LED_COUNT);
+    vg_wifi_cfg_t wc = {VG_WIFI_SSID, VG_WIFI_PASSWORD, VG_BRIDGE_HOST, 8765, 8766, device_id,
+                        on_receiver_line, vg_neopixel_link};
     if (!vg_wifi_link_start(&wc, &s_fq, &s_link.resend_hello)) {
         ESP_LOGE(TAG, "Wi-Fi start failed");
         return;

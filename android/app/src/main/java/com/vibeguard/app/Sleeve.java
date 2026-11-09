@@ -87,6 +87,10 @@ final class Sleeve {
     volatile Listener listener;
     private boolean firedAction, firedLimit;
     private String alarm;                         // null | action | limit (shown on the screen until acknowledged)
+    // the sleeve's status light (NeoPixel on board W) shows the Today ring's colour
+    private String ledSent;
+    private Socket ledSocket;
+    private double ledAt;
     private long alarmId;
     private final ArrayDeque<String> log = new ArrayDeque<>();
     private final Set<String> shownWarnings = new HashSet<>();
@@ -173,7 +177,30 @@ final class Sleeve {
         }
         lastE = e; lastC = c; lastTool = tt;
         checkAlarms();
+        led(t);
         if (t - lastSaved > 10) { saveDay(); lastSaved = t; }
+    }
+
+    /**
+     * Same colours as the Today ring: green under the action level, amber from 100 points, red at the daily limit,
+     * and past it a slow fade between the snake's bright and deep red. Sent on change, and every 3 s so a
+     * reconnected sleeve picks it up (the light falls back to "looking for the phone" after 15 s without one).
+     */
+    private void led(double t) {
+        Socket sock = current;
+        if (sock == null || source.equals("demo")) return;
+        double pts = Exposure.pointsFromEnergy(dayEnergy);
+        String line = pts >= personalLimit * 1.02 ? "VGLED 1 breathe ff3048 5c000f 2400"
+                : pts >= personalLimit ? "VGLED 1 solid c8102e"
+                : pts >= Exposure.EAV_POINTS ? "VGLED 1 solid b86e00"
+                : "VGLED 1 solid 12804a";
+        if (line.equals(ledSent) && sock == ledSocket && t - ledAt < 3) return;
+        try {
+            sock.getOutputStream().write((line + "\n").getBytes(StandardCharsets.US_ASCII));
+            ledSent = line; ledSocket = sock; ledAt = t;
+        } catch (Exception ignored) {
+            ledSent = null;                       // the reader thread notices the closed socket
+        }
     }
 
     private void checkAlarms() {
