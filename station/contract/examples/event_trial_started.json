@@ -1,0 +1,21 @@
+{
+  "schema": "vibeguard.station_event",
+  "version": 1,
+  "type": "trial_started",
+  "session_id": "sim-preview-001",
+  "seq": 2,
+  "t_s": 0.0,
+  "state": "testing",
+  "provenance": {
+    "source": "simulated",
+    "detail": {
+      "scenario": "example_preview"
+    }
+  },
+  "trial_id": "sim-preview-001-t001",
+  "index": 1,
+  "kind": "stimulus",
+  "stimulus_setting": 60,
+  "stimulus_units": "motor_setting",
+  "response_window_s": 4.0
+}
