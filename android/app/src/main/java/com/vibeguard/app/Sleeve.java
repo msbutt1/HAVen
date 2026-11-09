@@ -86,6 +86,15 @@ final class Sleeve {
     // an hour). Shown on the Today screen while it is on.
     private double demoSpeed;
     private boolean gripGate;
+    // the Overview over time: the highest demo speed that added points today (stored on the archived day, so a
+    // demo-speed day is labelled), points added in each hour of today, and the "days" log cached as the JSON
+    // the screen gets (re-read only when the log changes: up to 400 days)
+    private double dayDemo;
+    private final double[] dayHours = new double[24];
+    private int historyVersion;
+    private int historyBuilt = -1;
+    private JSONObject historyDays = new JSONObject();
+    private String historyJson = "[]";
 
     // alarms: each level fires once a day; the screen shows it until the wearer taps OK
     interface Listener { void alert(String kind, String title, String text); void silence(); }
@@ -132,8 +141,12 @@ final class Sleeve {
                 dayTool = t.optDouble("tool", 0);
                 firedAction = t.optBoolean("firedAction");
                 firedLimit = t.optBoolean("firedLimit");
+                dayDemo = t.optDouble("demoSpeed", 0);
+                JSONArray h = t.optJSONArray("hours");
+                for (int i = 0; h != null && i < 24 && i < h.length(); i++) dayHours[i] = h.optDouble(i, 0);
             } else if (t.has("date")) {
-                archive(t.optString("date"), t.optDouble("energy", 0), t.optDouble("tool", 0));
+                archive(t.optString("date"), t.optDouble("energy", 0), t.optDouble("tool", 0),
+                        t.optDouble("contact", 0), t.optDouble("demoSpeed", 0));
             }
         } catch (Exception ignored) {}
     }
@@ -146,31 +159,57 @@ final class Sleeve {
         try {
             prefs.edit().putString("today", new JSONObject().put("date", day).put("energy", energyToday())
                     .put("contact", contactToday()).put("tool", toolToday())
-                    .put("firedAction", firedAction).put("firedLimit", firedLimit).toString()).apply();
+                    .put("firedAction", firedAction).put("firedLimit", firedLimit)
+                    .put("demoSpeed", dayDemo).put("hours", new JSONArray(dayHours)).toString()).apply();
         } catch (Exception ignored) {}
     }
 
-    private void archive(String date, double energy, double tool) {
+    private void archive(String date, double energy, double tool, double contact, double demo) {
         try {
             JSONObject days = new JSONObject(prefs.getString("days", "{}"));
-            days.put(date, new JSONObject().put("points", Exposure.pointsFromEnergy(energy))
-                    .put("a8", Exposure.a8FromEnergy(energy, 8 * 3600)).put("tool", tool).put("limit", personalLimit));
-            // keep the last 30 days
-            java.util.List<String> keys = new java.util.ArrayList<>();
-            for (java.util.Iterator<String> it = days.keys(); it.hasNext(); ) keys.add(it.next());
-            java.util.Collections.sort(keys);
-            while (keys.size() > 30) days.remove(keys.remove(0));
-            prefs.edit().putString("days", days.toString()).apply();
+            JSONObject d = new JSONObject().put("points", Exposure.pointsFromEnergy(energy))
+                    .put("a8", Exposure.a8FromEnergy(energy, 8 * 3600)).put("tool", tool).put("limit", personalLimit)
+                    .put("contact", contact);
+            if (demo > 1) d.put("demoSpeed", demo);       // recorded at demo speed: labelled on the Overview
+            days.put(date, d);
+            saveDays(days);                               // keeps the last 400 days (History.KEEP_DAYS)
         } catch (Exception ignored) {}
+    }
+
+    /** Every write of the "days" log goes here: bounded, and the screen's copy is rebuilt once. */
+    private void saveDays(JSONObject days) {
+        History.trim(days, History.KEEP_DAYS);
+        prefs.edit().putString("days", days.toString()).apply();
+        historyVersion++;
+    }
+
+    /** The log as the screen gets it, newest first, with each day's date; rebuilt only after a change. */
+    private String historyJson() {
+        if (historyBuilt == historyVersion) return historyJson;
+        historyBuilt = historyVersion;
+        historyDays = History.parse(prefs.getString("days", "{}"));
+        JSONArray hist = new JSONArray();
+        java.util.List<String> keys = History.sortedKeys(historyDays);
+        java.util.Collections.reverse(keys);
+        try {
+            for (String k : keys) hist.put(new JSONObject(historyDays.getJSONObject(k).toString()).put("date", k));
+        } catch (Exception ignored) {}
+        historyJson = hist.toString();
+        return historyJson;
+    }
+
+    private void resetToday() {
+        dayEnergy = 0; dayContact = 0; dayTool = 0; dayDemo = 0;
+        java.util.Arrays.fill(dayHours, 0);
     }
 
     /** Called every tick: a new date archives today and starts a new day. */
     private void logDay(double t) {
         String now = today();
         if (!now.equals(day)) {
-            archive(day, energyToday(), toolToday());
+            archive(day, energyToday(), toolToday(), contactToday(), dayDemo);
             day = now;
-            dayEnergy = 0; dayContact = 0; dayTool = 0;
+            resetToday();
             firedAction = false; firedLimit = false; alarm = null;
             shownWarnings.clear();
             note("New day started");
@@ -181,6 +220,11 @@ final class Sleeve {
         boolean calibrating = gripFlow != null || toolPhase != null || t - setupPingAt < 2.5;
         if (calibrating) quietUntil = t + QUIET_AFTER_S;
         if (lastE != null && t >= quietUntil) {
+            double added = Math.max(0, e - lastE) * demoSpeed;
+            if (added > 0) {
+                dayHours[java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)] += added;
+                if (demoSpeed > 1) dayDemo = Math.max(dayDemo, demoSpeed);
+            }
             dayEnergy += Math.max(0, e - lastE) * demoSpeed;
             dayContact += Math.max(0, c - lastC) * demoSpeed;
             dayTool += Math.max(0, tt - lastTool) * demoSpeed;
@@ -337,7 +381,9 @@ final class Sleeve {
             logDay(t);
             Processor.Snapshot s = proc.snapshot;
             // the only alarms are the action level and the daily limit (checkAlarms); no other reminder sounds or pops up
-            state = build(s, t).toString();
+            String b = build(s, t).toString();
+            // the day log (up to 400 days) is serialized once per change, not 20 times a second
+            state = b.substring(0, b.length() - 1) + ",\"history\":" + historyJson() + "}";
         } catch (Exception e) {
             state = "{\"error\":" + JSONObject.quote(String.valueOf(e)) + "}";
         }
@@ -494,10 +540,23 @@ final class Sleeve {
             Listener l = listener;
             if (l != null) l.silence();
         } else if (c.equals("day:clear")) {           // developer: start the demo again from zero
-            dayEnergy = 0; dayContact = 0; dayTool = 0; shownWarnings.clear();
+            resetToday(); shownWarnings.clear();
             firedAction = false; firedLimit = false; alarm = null;
             saveDay();
             showToast("Today's points cleared");
+        } else if (c.equals("history:sample") || c.equals("history:clearSample") || c.equals("history:resetDemo")) {
+            // developer: a year of SAMPLE days for the Overview's Month and Year views, marked "sample"; never
+            // today and never over a real day. Reset demo = clear today + fresh sample year.
+            JSONObject days = History.parse(prefs.getString("days", "{}"));
+            int removed = History.clearSample(days);
+            int added = c.equals("history:clearSample") ? 0 : History.addSample(days, day, History.SAMPLE_DAYS);
+            saveDays(days);
+            if (c.equals("history:resetDemo")) {
+                resetToday(); shownWarnings.clear();
+                firedAction = false; firedLimit = false; alarm = null;
+                saveDay();
+                showToast("Demo reset: today cleared, " + added + " sample days added");
+            } else showToast(added > 0 ? added + " sample days added (marked as sample)" : removed + " sample days removed");
         } else if (c.equals("week:sample") || c.equals("week:clearSample")) {
             // developer: SAMPLE days for demos, marked "sample" and shown as sample data on the Overview
             try {
@@ -519,7 +578,7 @@ final class Sleeve {
                                 .put("a8", 2.5 * Math.sqrt(d[0] / 100)).put("limit", 400).put("sample", true));
                     }
                 }
-                prefs.edit().putString("days", days.toString()).apply();
+                saveDays(days);
                 showToast(c.equals("week:sample") ? "Sample week added (marked as sample)" : "Sample days removed");
             } catch (Exception ignored) {}
         } else if (c.startsWith("gripgate:")) {
@@ -626,15 +685,17 @@ final class Sleeve {
         o.put("settings", new JSONObject().put("source", source).put("countsPerG", countsPerG).put("limit", personalLimit)
                 .put("demoSpeed", demoSpeed).put("gripGate", gripGate));
         o.put("events", new JSONArray(log));
-        JSONArray hist = new JSONArray();
-        try {
-            JSONObject days = new JSONObject(prefs.getString("days", "{}"));
-            java.util.List<String> keys = new java.util.ArrayList<>();
-            for (java.util.Iterator<String> it = days.keys(); it.hasNext(); ) keys.add(it.next());
-            java.util.Collections.sort(keys, java.util.Collections.reverseOrder());
-            for (String k : keys) hist.put(new JSONObject(days.getJSONObject(k).toString()).put("date", k));
-        } catch (Exception ignored) {}
-        o.put("history", hist).put("day", day);
+        // "history" (the day log, newest first) is added by tick() from the cached copy
+        o.put("day", day).put("historyVersion", historyVersion);
+        // the Overview over time: today's points hour by hour, today's demo speed, and the last 12 months
+        // (energy-mean daily A(8) per month as average points per working day; never a sum of days)
+        JSONArray hours = new JSONArray();
+        for (double h : dayHours) hours.put(History.round(Exposure.pointsFromEnergy(h), 2));
+        o.put("todayHours", hours).put("dayDemoSpeed", dayDemo);
+        historyJson();
+        JSONObject todayEntry = new JSONObject().put("points", points).put("a8", Exposure.a8FromEnergy(energy, 8 * 3600))
+                .put("tool", toolToday()).put("limit", personalLimit).put("demoSpeed", dayDemo);
+        o.put("months", History.months(historyDays, day, todayEntry, 12));
         o.put("toast", toast == null ? JSONObject.NULL : toast).put("toastId", toastId);
         return o;
     }
