@@ -177,6 +177,14 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
 #dayList .item .right b { font-weight: 600; }
 #dayList .item .right .muted { font-size: 13px; }
 .tagS { font-size: 12px; color: var(--sim); border: 1px solid currentColor; border-radius: 99px; padding: 0 6px; margin-left: 6px; font-weight: 500; }
+.tagD { font-size: 12px; color: var(--primary); border: 1px dashed currentColor; border-radius: 99px; padding: 0 6px; margin-left: 6px; font-weight: 500; white-space: nowrap; }
+.selline { color: var(--muted); font-size: 14px; min-height: 21px; margin: 6px 0 0; }
+.selline b { color: var(--fg); font-weight: 600; }
+.sof { font-size: 15px; font-weight: 500; color: var(--muted); letter-spacing: 0; }
+.trend { font-weight: 600; font-size: 16px; margin: 6px 0 0; }
+.gstatus { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; margin: 8px 0 4px; }
+#gText p { font-size: 16px; }
+#dayList .item .left { flex-wrap: wrap; row-gap: 2px; }
 </style>
 </head>
 <body>
@@ -245,35 +253,53 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   </div>
 </main>
 
-<!-- OVERVIEW: your week -->
+<!-- OVERVIEW: over time (today by hour, week, month, year) -->
 <main id="tab-overview" style="display:none">
-  <div class="appbar"><div><p class="title">Overview</p><div class="date">Your last 7 days</div></div></div>
+  <div class="appbar"><div><p class="title">Overview</p><div class="date" id="ovSub">Your last 7 days</div></div></div>
   <div class="sim" id="sampleNote" style="display:none;margin-top:4px">Includes sample days for the demo, not real work</div>
 
   <div class="card">
-    <div class="seg" role="tablist">
+    <div class="seg" role="tablist" aria-label="Time range">
+      <button id="rgToday" onclick="setRange('today')">Today</button>
+      <button id="rgWeek" class="on" onclick="setRange('week')">Week</button>
+      <button id="rgMonth" onclick="setRange('month')">Month</button>
+      <button id="rgYear" onclick="setRange('year')">Year</button>
+    </div>
+    <div class="seg" role="tablist" id="segMetric" style="margin-top:8px">
       <button id="segPts" class="on" onclick="setMetric('points')">Points</button>
       <button id="segTool" onclick="setMetric('tool')">Tool time</button>
     </div>
     <div class="chart" id="chart"></div>
+    <p class="selline" id="chartSel"></p>
     <div class="chartkey" id="chartKey"></div>
   </div>
 
   <div class="stats">
-    <div class="stat"><div class="label">Tool time this week</div><div class="sv" id="stTool">—</div></div>
+    <div class="stat"><div class="label" id="stToolL">Tool time this week</div><div class="sv" id="stTool">—</div></div>
     <div class="stat"><div class="label">Days over the action level</div><div class="sv" id="stOver">—</div></div>
-    <div class="stat wide2"><div class="label">Highest day</div><div class="sv" id="stMax">—</div></div>
+    <div class="stat"><div class="label">Days over the daily limit</div><div class="sv" id="stLimit">—</div></div>
+    <div class="stat"><div class="label">Highest day</div><div class="sv" id="stMax">—</div></div>
   </div>
 
   <div class="card" id="weekCard">
-    <div class="label">This week on average</div>
+    <div class="label" id="avgLabel">This week on average</div>
     <div class="sv" id="wkAvg" style="font-size:24px;font-weight:600;margin-top:4px">—</div>
+    <p class="trend" id="wkTrend" style="display:none"></p>
     <p class="muted" id="wkLong" style="font-size:15px;margin-bottom:0"></p>
+  </div>
+
+  <div class="card" id="rulesCard">
+    <div class="label">What the rules suggest</div>
+    <div class="gstatus" id="gStatus"></div>
+    <div id="gText"></div>
+    <p class="fine" style="margin-bottom:0">Based on EU Directive 2002/44/EC and UK HSE guidance, with the daily exposure worked out the ISO 5349-1 way. An estimate from a sensor on your wrist, not an official measurement.</p>
+    <button class="text" onclick="openHow()">Why these rules?</button>
   </div>
 
   <div class="card list" id="dayCard">
     <div class="label" style="margin-bottom:4px">Day by day</div>
     <div id="dayList"></div>
+    <button class="text" id="dayMore" style="display:none" onclick="MORE += 14; renderOverview(S, true)">Show more days</button>
   </div>
 
   <div class="card list" style="padding:4px 24px">
@@ -355,7 +381,7 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
   <section class="sec">
     <div class="eyeicon" style="color:var(--primary)"><svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 22s7-6 7-12a7 7 0 0 0-14 0c0 6 7 12 7 12z"/><circle cx="12" cy="10" r="2.5"/></svg></div>
     <h2>Over months and years</h2>
-    <p>The Overview shows your average over the week. Experts estimate how many years of days like that it takes before about 1 in 10 workers get white, numb fingers. The higher your daily points, the sooner. It is a guide for groups of workers, not a test of your own hands.</p>
+    <p>The Overview shows your average over the week, the month or the year. The daily limits apply to each day on its own: days are never added up. Experts estimate how many years of days like that it takes before about 1 in 10 workers get white, numb fingers. The higher your daily points, the sooner. It is a guide for groups of workers, not a test of your own hands.</p>
   </section>
 
   <section class="sec last">
@@ -403,6 +429,11 @@ select { font: inherit; min-height: 48px; border-radius: 12px; border: 1px solid
       <p style="font-weight:600;margin-top:12px" id="dEta"></p>
       <p class="muted" style="font-size:15px">For short demos with the massage gun. The vibration reading and the formula are unchanged; only the clock runs faster for points and tool time. The Today screen says so while it is on.</p>
       <button class="wide" onclick="if (confirm('Clear today\'s points and tool time?')) cmd('day:clear')">Clear today's points</button></div>
+    <div class="card"><h2>Demo history (Month and Year)</h2>
+      <p class="muted" style="font-size:15px">Reset demo clears today's points and refills the 12 months before today with made-up days, so the Overview's Week, Month and Year have a story to tell: higher at first, lower after rotation and lower-vibration tools. Sample days are marked on the Overview and never replace a real day.</p>
+      <button class="primary wide" onclick="if (confirm('Clear today\'s points and refill the sample history?')) cmd('history:resetDemo')">Reset demo</button>
+      <button class="wide" style="margin-top:10px" onclick="cmd('history:sample')">Fill 12 months of sample history</button>
+      <button class="wide" style="margin-top:10px" onclick="cmd('history:clearSample')">Remove sample history</button></div>
     <div class="card"><h2>Overview sample week</h2>
       <p class="muted" style="font-size:15px">Adds six earlier days of made-up usage so the weekly Overview has something to show in a demo. They are marked as sample data there, and never replace a real day.</p>
       <button class="wide" onclick="cmd('week:sample')">Fill the week with sample days</button>
@@ -725,88 +756,223 @@ function renderWizard() {
 }
 
 
-/* ---------- overview: the last 7 days ---------- */
-let METRIC = 'points';
-function setMetric(m) { METRIC = m; $('segPts').classList.toggle('on', m === 'points'); $('segTool').classList.toggle('on', m === 'tool'); renderOverview(S); }
+/* ---------- overview over time: today by hour, the last 7 days, the last 30 days, the last 12 months.
+   Limits are DAILY: a week or month is one bar per day, never a sum; the year is one bar per month = the
+   energy mean of that month's daily A(8), as average points per working day (History.months in Sleeve) ---------- */
+let METRIC = 'points', RANGE = 'week', SEL = null, MORE = 14, OV_SIG = '';
+const RANGES = {
+  today: { sub: 'Today, hour by hour', avg: 'Today so far', tool: 'Tool time today', unit: 'day' },
+  week:  { days: 7, sub: 'Your last 7 days', avg: 'This week on average', tool: 'Tool time this week', unit: 'week' },
+  month: { days: 30, sub: 'Last 30 days', avg: 'Last 30 days on average', tool: 'Tool time in 30 days', unit: 'month' },
+  year:  { sub: 'Last 12 months', avg: 'Last 12 months on average', tool: 'Tool time in 12 months', unit: 'year' },
+};
+function setMetric(m) { METRIC = m; SEL = null; $('segPts').classList.toggle('on', m === 'points'); $('segTool').classList.toggle('on', m === 'tool'); renderOverview(S, true); }
+function setRange(r) {
+  RANGE = r; SEL = null; MORE = 14;
+  for (const k of ['today', 'week', 'month', 'year']) $('rg' + k[0].toUpperCase() + k.slice(1)).classList.toggle('on', k === r);
+  renderOverview(S, true);
+}
 function ymd(d) { return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; }
 function hm(sec) { if (!sec) return '0 min'; const m = Math.round(sec / 60); if (m < 60) return `${m} min`; return m % 60 ? `${Math.floor(m / 60)} h ${m % 60} min` : `${m / 60} h`; }
+const a8Of = e => e.a8 != null ? e.a8 : 2.5 * Math.sqrt((e.points || 0) / 100);
+// energy mean of the daily A(8) over the days with tool use (backend exposure.py daily_exposure)
+function avgOf(list) {
+  const ex = list.filter(e => e && e.points > 0);
+  if (!ex.length) return null;
+  const a8 = Math.sqrt(ex.reduce((a, e) => a + a8Of(e) ** 2, 0) / ex.length);
+  return { a8, points: 100 * (a8 / 2.5) ** 2, n: ex.length };
+}
+// colour always comes with words
+function rule(p, limit) { return p >= limit ? ['over daily limit', 'var(--high)'] : p >= 100 ? ['over action level', 'var(--mid)'] : ['under action level', 'var(--low)']; }
+const tagsOf = e => (e && e.sample ? '<span class="tagS">sample</span>' : '') + (e && e.demoSpeed > 1 ? '<span class="tagD">demo speed</span>' : '');
+const longDate = d => d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
+const yearsText = a8 => a8 >= 1
+  ? `If every working day were like this, about 1 in 10 people would get white, numb fingers after about ${Math.round(31.8 * Math.pow(a8, -1.06))} years. That is an estimate for a group of workers, not a prediction for you.`
+  : 'At this level, the long-term estimate does not apply.';
 
-function renderOverview(s) {
+// the dates of a range, oldest first, each with its logged day (today: the live reading)
+function rangeDays(s, byDate, todayKey) {
+  const base = new Date(todayKey + 'T12:00:00'), out = [];
+  let n = RANGE === 'today' ? 1 : RANGE === 'year' ? 0 : RANGES[RANGE].days;
+  if (RANGE === 'year') {                                  // the same 12 calendar months as the Year chart
+    const first = new Date(base); first.setDate(1); first.setMonth(first.getMonth() - 11);
+    n = Math.round((base - first) / 864e5) + 1;
+  }
+  for (let i = n - 1; i >= 0; i--) { const d = new Date(base); d.setDate(d.getDate() - i); const k = ymd(d); out.push({ key: k, d, e: byDate[k] }); }
+  return out;
+}
+
+// one bar chart: items {v, col, faded, demo, x, bold, top}; the y axis is capped so one demo-speed day cannot
+// flatten the rest (taller bars reach the top with a small "▲value" label)
+function barChart(items, o) {
+  const W = 340, H = 190, top = 18, bottom = 26, left = 4, right = 4, n = items.length;
+  const vals = items.map(i => i.v || 0), pos = vals.filter(v => v > 0).sort((a, b) => a - b);
+  const q = !pos.length ? 0 : pos.length >= 20 ? pos[Math.floor(pos.length * 0.95)] : pos.length >= 2 ? pos[pos.length - 2] : pos[0];
+  const cap = Math.max(o.floor, q * 1.1, o.extra || 0);
+  const y = v => top + (H - top - bottom) * (1 - Math.min(v, cap) / cap);
+  const bw = (W - left - right) / n, gap = n > 20 ? 2 : n > 10 ? 5 : 10;
+  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria)}">`;
+  for (const l of o.lines || []) if (l.v <= cap) svg += `<line x1="${left}" x2="${W - right}" y1="${y(l.v)}" y2="${y(l.v)}" stroke="${l.color}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".9"/>
+    <text x="${W - right}" y="${y(l.v) - 5}" text-anchor="end" font-size="10" fill="${l.color}">${l.label}</text>`;
+  items.forEach((it, i) => {
+    const v = vals[i], bx = left + i * bw + gap / 2, w = Math.max(1, bw - gap);
+    const h = Math.max(v > 0 ? 3 : 0, (H - top - bottom) - (y(v) - top)), r = Math.min(6, w / 3, h / 2);
+    if (SEL === i) svg += `<rect x="${left + i * bw}" y="${top - 14}" width="${bw}" height="${H - bottom - top + 14}" rx="6" fill="var(--fg)" opacity=".07"/>`;
+    if (it.empty) svg += `<rect x="${bx}" y="${H - bottom - 3}" width="${w}" height="3" rx="1.5" fill="var(--line)"/>`;
+    else if (h > 0) svg += `<rect class="bar" x="${bx}" y="${H - bottom - h}" width="${w}" height="${h}" rx="${r}" fill="${it.col}" opacity="${it.faded ? .55 : 1}"${it.demo ? ' stroke="var(--fg)" stroke-width="1" stroke-dasharray="3 2"' : ''}/>`;
+    if (v > cap) svg += `<text x="${bx + w / 2}" y="${top - 4}" text-anchor="middle" font-size="10" font-weight="600" fill="var(--fg)">▲${it.top}</text>`;
+    else if (o.tops && it.top !== '' && it.top != null && v > 0) svg += `<text x="${bx + w / 2}" y="${H - bottom - h - 6}" text-anchor="middle" font-size="${n > 7 ? 10 : 11}" font-weight="600" fill="var(--fg)">${it.top}</text>`;
+    if (it.x) svg += `<text x="${bx + w / 2}" y="${H - 8}" text-anchor="middle" font-size="${n > 12 ? 11 : 12}" font-weight="${it.bold ? 700 : 500}" fill="${it.bold ? 'var(--primary)' : 'var(--muted)'}">${it.x}</text>`;
+  });
+  if (o.path) {                                            // today: the running total
+    const pts = o.path.map((v, i) => `${(left + i * bw + bw / 2).toFixed(1)},${y(v).toFixed(1)}`).join(' ');
+    svg += `<polyline points="${pts}" fill="none" stroke="var(--fg)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".75"/>`;
+  }
+  // a full-height tap target per bar
+  items.forEach((it, i) => { svg += `<rect data-i="${i}" x="${left + i * bw}" y="0" width="${bw}" height="${H}" fill="transparent"/>`; });
+  return svg + '</svg>';
+}
+function pickBar(ev) {
+  const t = ev.target.closest('[data-i]');
+  if (!t) return;
+  const i = +t.getAttribute('data-i');
+  SEL = SEL === i ? null : i;
+  renderOverview(S, true);
+}
+
+function renderOverview(s, force) {
   if (!s.exposure) return;
   const limit = s.exposure.limit || 400;
   const byDate = {};
   for (const d of s.history || []) byDate[d.date] = d;
   const todayKey = s.day || ymd(new Date());
-  byDate[todayKey] = { date: todayKey, points: s.exposure.points || 0, tool: s.tool.toolTime || 0, today: true };
-  const days = [];
-  const base = new Date(todayKey + 'T12:00:00');
-  for (let i = 6; i >= 0; i--) { const d = new Date(base); d.setDate(d.getDate() - i); const k = ymd(d); days.push({ key: k, d, e: byDate[k] }); }
-  const anySample = days.some(x => x.e && x.e.sample);
-  $('sampleNote').style.display = anySample ? '' : 'none';
+  byDate[todayKey] = { date: todayKey, points: s.exposure.points || 0, a8: s.exposure.a8, tool: s.tool.toolTime || 0, today: true,
+    demoSpeed: s.dayDemoSpeed || 0, limit };
+  // the week's energy mean for Developer options (every tick, cheap)
+  { const b = new Date(todayKey + 'T12:00:00'), wk = [];
+    for (let i = 0; i < 7; i++) { const d = new Date(b); d.setDate(d.getDate() - i); wk.push(byDate[ymd(d)]); }
+    const w = avgOf(wk); S.weekA8 = w ? w.a8 : null; }
+  // draw only when the Overview is on screen and something it shows changed (the state comes 10 times a second)
+  if ($('tab-overview').style.display === 'none' && !force) return;
+  const sig = [s.historyVersion, RANGE, METRIC, SEL, MORE, todayKey, Math.round((s.exposure.points || 0) * 10), Math.round((s.tool.toolTime || 0) / 30), limit, s.dayDemoSpeed].join('|');
+  if (sig === OV_SIG && !force) return;
+  OV_SIG = sig;
 
-  // chart
-  const W = 340, H = 190, top = 18, bottom = 26, left = 4, right = 4;
-  const vals = days.map(x => x.e ? (METRIC === 'points' ? x.e.points : x.e.tool / 3600) : 0);
-  const maxV = METRIC === 'points' ? Math.max(limit * 1.08, ...vals) : Math.max(2.2, ...vals) * 1.1;
-  const y = v => top + (H - top - bottom) * (1 - v / maxV);
-  const bw = (W - left - right) / 7, gap = 10;
-  let svg = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="${METRIC === 'points' ? 'Points' : 'Tool time'} per day, last 7 days">`;
-  const line = (v, color, label) => `<line x1="${left}" x2="${W - right}" y1="${y(v)}" y2="${y(v)}" stroke="${color}" stroke-width="1.5" stroke-dasharray="4 4" opacity=".9"/>
-    <text x="${W - right}" y="${y(v) - 5}" text-anchor="end" font-size="10" fill="${color}">${label}</text>`;
-  if (METRIC === 'points') { svg += line(100, 'var(--mid)', '100'); svg += line(limit, 'var(--high)', String(Math.round(limit))); }
-  else svg += line(2, 'var(--faint)', '2 h');
-  days.forEach((x, i) => {
-    const v = vals[i], bx = left + i * bw + gap / 2, w = bw - gap;
-    const col = METRIC === 'tool' ? 'var(--primary)' : !x.e ? 'var(--line)' : x.e.points >= limit ? 'var(--high)' : x.e.points >= 100 ? 'var(--mid)' : 'var(--low)';
-    const h = Math.max(v > 0 ? 3 : 0, (H - top - bottom) - (y(v) - top));
-    svg += `<rect class="bar" x="${bx}" y="${H - bottom - h}" width="${w}" height="${h}" rx="6" fill="${col}" opacity="${x.e && x.e.sample ? .55 : 1}"/>`;
-    if (!x.e) svg += `<rect x="${bx}" y="${H - bottom - 3}" width="${w}" height="3" rx="1.5" fill="var(--line)"/>`;
-    const lbl = x.e ? (METRIC === 'points' ? Math.round(v) : (v < 1 ? Math.round(v * 60) + 'm' : v.toFixed(1) + 'h')) : '';
-    if (lbl !== '') svg += `<text x="${bx + w / 2}" y="${H - bottom - h - 6}" text-anchor="middle" font-size="11" font-weight="600" fill="var(--fg)">${lbl}</text>`;
-    const wd = x.d.toLocaleDateString([], { weekday: 'narrow' });
-    svg += `<text x="${bx + w / 2}" y="${H - 8}" text-anchor="middle" font-size="12" font-weight="${x.e && x.e.today ? 700 : 500}" fill="${x.e && x.e.today ? 'var(--primary)' : 'var(--muted)'}">${x.e && x.e.today ? 'Today' : wd}</text>`;
-  });
-  svg += '</svg>';
-  $('chart').innerHTML = svg;
-  $('chartKey').innerHTML = METRIC === 'points'
-    ? '<span style="color:var(--mid)"><i></i>action level</span><span style="color:var(--high)"><i></i>daily limit</span>'
-    : '<span><i></i>2 hours</span>';
+  const R = RANGES[RANGE], days = rangeDays(s, byDate, todayKey), logged = days.filter(x => x.e);
+  const metric = RANGE === 'today' ? 'points' : METRIC;
+  $('ovSub').textContent = R.sub;
+  $('segMetric').style.display = RANGE === 'today' ? 'none' : '';
+  $('sampleNote').style.display = logged.some(x => x.e.sample) ? '' : 'none';
+  const ptsLines = [{ v: 100, color: 'var(--mid)', label: '100' }, { v: limit, color: 'var(--high)', label: String(Math.round(limit)) }];
+  const toolLbl = h => h < 1 ? Math.round(h * 60) + 'm' : h.toFixed(1) + 'h';
+  const dayCol = e => metric === 'tool' ? 'var(--primary)' : rule(e.points, e.limit || limit)[1];
+  let items, sel = '', opts;
 
-  // stats
-  const real = days.filter(x => x.e);
-  const toolWeek = real.reduce((a, x) => a + (x.e.tool || 0), 0);
-  const over = real.filter(x => x.e.points >= 100).length;
-  const top1 = real.reduce((m, x) => !m || x.e.points > m.e.points ? x : m, null);
-  $('stTool').textContent = hm(toolWeek);
-  $('stOver').textContent = `${over} of 7`;
-  $('stMax').textContent = top1 && top1.e.points > 0 ? `${Math.round(top1.e.points)} points, ${top1.e.today ? 'today' : top1.d.toLocaleDateString([], { weekday: 'long' })}` : '—';
-
-  // the week on average (backend exposure.py daily_exposure: energy mean A(8) over the exposed days of the
-  // last 7; ISO 5349-1 Annex C years-to-risk group estimate, not shown below A(8) 1 m/s^2)
-  const exposed = real.filter(x => x.e.points > 0);
-  if (!exposed.length) { $('wkAvg').textContent = 'No tool use yet'; $('wkLong').textContent = 'Days with tool use are counted here.'; }
-  else {
-    const a8 = x => x.e.a8 != null ? x.e.a8 : 2.5 * Math.sqrt(x.e.points / 100);
-    const meanA8 = Math.sqrt(exposed.reduce((a, x) => a + a8(x) ** 2, 0) / exposed.length);
-    const avgPts = 100 * (meanA8 / 2.5) ** 2;
-    $('wkAvg').textContent = `${Math.round(avgPts)} points a day`;
-    let long = `Over ${exposed.length} day${exposed.length === 1 ? '' : 's'} with tool use.`;
-    if (meanA8 >= 1) {
-      const yrs = 31.8 * Math.pow(meanA8, -1.06);
-      long += ` If every working day were like this, about 1 in 10 people would get white, numb fingers after about ${Math.round(yrs)} years. That is an estimate for a group of workers, not a prediction for you.`;
-    } else long += ' At this level, the long-term estimate does not apply.';
-    $('wkLong').textContent = long;
-    S.weekA8 = meanA8;
+  if (RANGE === 'today') {
+    const hrs = s.todayHours || new Array(24).fill(0), now = new Date().getHours();
+    let run = 0; const cum = hrs.map(v => (run += v));
+    items = hrs.map((v, h) => ({ v, col: rule(cum[h], limit)[1], x: h % 6 === 0 ? String(h) : '', bold: h === now, top: Math.round(v) }));
+    opts = { floor: limit * 1.15, extra: 0, lines: ptsLines, aria: 'Points added each hour today, with the running total', path: cum.slice(0, now + 1) };
+    if (SEL != null && SEL < 24) sel = `<b>${String(SEL).padStart(2, '0')}:00 to ${String(SEL + 1).padStart(2, '0')}:00</b> · ${f(hrs[SEL], 1)} points added · ${Math.round(cum[SEL])} by the end of the hour · ${rule(cum[SEL], limit)[0]}`;
+  } else if (RANGE === 'year') {
+    const ms = s.months || [];
+    items = ms.map((m, i) => {
+      const v = metric === 'points' ? m.points : m.tool / 3600, d = new Date(m.month + '-15T12:00:00');
+      return { v, empty: !m.days, col: metric === 'tool' ? 'var(--primary)' : rule(m.points, limit)[1], faded: m.sample, demo: m.demo,
+        x: d.toLocaleDateString([], { month: 'narrow' }), bold: i === ms.length - 1, top: metric === 'points' ? Math.round(v) : toolLbl(v) };
+    });
+    opts = metric === 'points' ? { floor: limit * 0.6, lines: ptsLines, tops: true, aria: 'Average points per working day, each of the last 12 months' }
+      : { floor: 2.5, lines: [{ v: 2, color: 'var(--faint)', label: '2 h' }], tops: true, aria: 'Average tool time per working day, each of the last 12 months' };
+    const m = SEL != null && ms[SEL];
+    if (m) {
+      const name = new Date(m.month + '-15T12:00:00').toLocaleDateString([], { month: 'long', year: 'numeric' });
+      sel = !m.days ? `<b>${name}</b> · no tool use logged` : `<b>${name}</b> · ${Math.round(m.points)} points a working day on average (A(8) ${f(m.a8, 2)} m/s²) · ${hm(m.tool)} tool a working day · ${m.days} days with tool use, ${m.overAction} over action level, ${m.overLimit} over daily limit${tagsOf({ sample: m.sample, demoSpeed: m.demo ? 2 : 0 })}`;
+    }
+  } else {
+    const n = days.length;
+    items = days.map((x, i) => {
+      const e = x.e, v = e ? (metric === 'points' ? e.points : (e.tool || 0) / 3600) : 0;
+      const x7 = e && e.today ? 'Today' : x.d.toLocaleDateString([], { weekday: 'narrow' });
+      return { v, empty: !e, col: e ? dayCol(e) : 'var(--line)', faded: e && e.sample, demo: e && e.demoSpeed > 1,
+        x: n <= 7 ? x7 : (n - 1 - i) % 5 === 0 ? String(x.d.getDate()) : '', bold: e && e.today,
+        top: e ? (metric === 'points' ? Math.round(v) : toolLbl(v)) : '' };
+    });
+    opts = metric === 'points' ? { floor: limit * 1.15, lines: ptsLines, tops: n <= 7, aria: `Points per day, ${R.sub.toLowerCase()}` }
+      : { floor: 2.5, lines: [{ v: 2, color: 'var(--faint)', label: '2 h' }], tops: n <= 7, aria: `Tool time per day, ${R.sub.toLowerCase()}` };
+    const x = SEL != null && days[SEL];
+    if (x) sel = !x.e ? `<b>${longDate(x.d)}</b> · nothing logged` : `<b>${x.e.today ? 'Today' : longDate(x.d)}</b> · ${Math.round(x.e.points)} points (A(8) ${f(a8Of(x.e), 2)} m/s²) · ${hm(x.e.tool)} tool · ${rule(x.e.points, x.e.limit || limit)[0]}${tagsOf(x.e)}`;
   }
+  $('chart').innerHTML = barChart(items, opts);
+  $('chart').onclick = pickBar;
+  $('chartSel').innerHTML = sel || 'Tap a bar for details.';
+  const anySample = items.some(i => i.faded), anyDemo = items.some(i => i.demo);
+  $('chartKey').innerHTML = (metric === 'points'
+    ? '<span style="color:var(--mid)"><i></i>action level</span>' + (RANGE === 'year' ? '' : '<span style="color:var(--high)"><i></i>daily limit</span>')
+    : '<span><i></i>2 hours</span>')
+    + (RANGE === 'year' ? '<span>each bar: average per working day that month</span>' : '')
+    + (RANGE === 'today' ? '<span>line: running total</span>' : '')
+    + (anySample ? '<span>faded: sample</span>' : '') + (anyDemo ? '<span>dotted outline: demo speed</span>' : '');
 
-  // day by day (newest first)
-  const listDays = [...days].reverse().filter(x => x.e);
-  $('dayList').innerHTML = listDays.map(x => {
-    const p = x.e.points, l = level(p, limit);
-    const label = x.e.today ? 'Today' : x.d.toLocaleDateString([], { weekday: 'short', day: 'numeric', month: 'short' });
-    return `<div class="item"><div class="left"><i class="dot" style="background:${l[1]}"></i><span class="nw">${label}</span>${x.e.sample ? '<span class="tagS">sample</span>' : ''}</div>
-      <div class="right"><b>${Math.round(p)} points</b><span class="muted">${hm(x.e.tool)} tool</span></div></div>`;
+  // stats for the range
+  const real = logged.map(x => x.e), worked = real.filter(e => e.points > 0);
+  const over = worked.filter(e => e.points >= 100).length, overLim = worked.filter(e => e.points >= (e.limit || limit)).length;
+  const top1 = logged.reduce((m, x) => !m || x.e.points > m.e.points ? x : m, null);
+  $('stToolL').textContent = R.tool;
+  $('stTool').textContent = hm(real.reduce((a, e) => a + (e.tool || 0), 0));
+  $('stOver').innerHTML = `${over} <span class="sof">of ${worked.length} work day${worked.length === 1 ? '' : 's'}</span>`;
+  $('stLimit').innerHTML = `${overLim} <span class="sof">day${overLim === 1 ? '' : 's'}</span>`;
+  $('stMax').innerHTML = top1 && top1.e.points > 0 ? `${Math.round(top1.e.points)} points<div class="muted" style="font-size:14px;font-weight:500">${top1.e.today ? 'today' : longDate(top1.d)}${tagsOf(top1.e)}</div>` : '—';
+
+  // the range on average (ISO 5349-1 Annex C years-to-risk group estimate, not shown below A(8) 1 m/s^2)
+  const av = avgOf(real);
+  $('avgLabel').textContent = R.avg;
+  if (!av) { $('wkAvg').textContent = 'No tool use yet'; $('wkLong').textContent = 'Days with tool use are counted here.'; }
+  else {
+    $('wkAvg').textContent = RANGE === 'today' ? `${Math.round(av.points)} points` : `${Math.round(av.points)} points a working day`;
+    const over1 = RANGE === 'today' ? `A(8) ${f(av.a8, 2)} m/s².` : `A(8) ${f(av.a8, 2)} m/s², energy mean over ${av.n} day${av.n === 1 ? '' : 's'} with tool use.`;
+    $('wkLong').textContent = RANGE === 'year' ? over1 : `${over1} ${yearsText(av.a8)}`;
+  }
+  // trend: the newer half of the range against the older half (Month and Year, with enough days in each)
+  let trend = '';
+  if (RANGE === 'month' || RANGE === 'year') {
+    const half = Math.floor(days.length / 2);
+    const a = avgOf(days.slice(0, half).map(x => x.e)), b = avgOf(days.slice(half).map(x => x.e));
+    if (a && b && a.n >= 3 && b.n >= 3) {
+      const pct = Math.round((b.points - a.points) / a.points * 100);
+      trend = Math.abs(pct) < 10 ? `Your average is about the same as in the first half of the ${R.unit}.`
+        : `Your average is ${pct < 0 ? 'down' : 'up'} ${Math.abs(pct)}% vs the first half of the ${R.unit}.`;
+    }
+  }
+  $('wkTrend').style.display = trend ? '' : 'none';
+  $('wkTrend').textContent = trend;
+  $('wkTrend').style.color = trend.includes(' down ') ? 'var(--low)' : trend.includes(' up ') ? 'var(--mid)' : 'var(--fg)';
+
+  // what the rules suggest (EU 2002/44/EC, UK HSE), from the worker's days in the range
+  const weeks = Math.max(1, days.length / 7), msgs = [];
+  if (!worked.length) msgs.push('No tool use in this period. Points add up only while you use a vibrating tool.');
+  else {
+    if (overLim) msgs.push(`${RANGE === 'today' ? 'Today you' : `On ${overLim} day${overLim === 1 ? '' : 's'} you`} passed the daily limit. The limit should never be exceeded: stop vibrating tool work for the rest of that day.`);
+    if (days.length >= 7 && over / weeks >= 3) msgs.push('You\'re over the action level most weeks. Ask your supervisor about rotation or lower-vibration equipment.');
+    else if (over) msgs.push('On days over the action level, the rules call for reducing exposure: rotate tasks, use lower-vibration tools, take breaks, and have regular health checks.');
+    else msgs.push('Below the action level. Keep tools maintained and hands warm and dry.');
+    if (RANGE === 'year' && av) msgs.push(yearsText(av.a8));
+  }
+  const onDays = n => RANGE === 'today' ? 'today' : `on ${n} day${n === 1 ? '' : 's'}`;
+  const st = !worked.length ? ['No tool use', 'var(--faint)'] : overLim ? [`Over the daily limit ${onDays(overLim)}`, 'var(--high)']
+    : over ? [`Over the action level ${onDays(over)}`, 'var(--mid)'] : ['Under the action level', 'var(--low)'];
+  $('gStatus').innerHTML = `<i class="dot" style="background:${st[1]}"></i><span style="color:${st[1]}">${st[0]}</span>`;
+  $('gText').innerHTML = msgs.map(m => `<p>${esc(m)}</p>`).join('');
+
+  // day by day (newest first; the latest 14, then "show more")
+  const listDays = [...logged].reverse();
+  $('dayList').innerHTML = listDays.slice(0, MORE).map(x => {
+    const p = x.e.points, l = rule(p, x.e.limit || limit);
+    const label = x.e.today ? 'Today' : longDate(x.d) + (RANGE === 'year' && x.d.getFullYear() !== new Date().getFullYear() ? ' ' + x.d.getFullYear() : '');
+    return `<div class="item"><div class="left"><i class="dot" style="background:${l[1]}"></i><span class="nw">${label}</span>${tagsOf(x.e)}</div>
+      <div class="right"><b>${Math.round(p)} points</b><span class="muted">${l[0]} · ${hm(x.e.tool)} tool</span></div></div>`;
   }).join('') || '<p class="muted">Nothing logged yet. Days are saved by themselves.</p>';
+  $('dayMore').style.display = listDays.length > MORE ? '' : 'none';
+  $('dayMore').textContent = `Show more days (${listDays.length - Math.min(MORE, listDays.length)} more)`;
 }
 
 function renderSettings(s) {
